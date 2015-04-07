@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <errno.h>
 #include <libconfig.h>
 
 
@@ -11,9 +12,10 @@ struct config_chain {
 static struct config_chain *base_config = NULL;
 
 
-int __read_manifest(char *config_path, struct config_chain *conf)
+int __read_manifest(const char *config_path, struct config_chain *conf)
 {
-	char *next_path;
+	int rc = 0;
+	const char *next_path;
 	config_t *config = &conf->config;
 
 	/*
@@ -24,10 +26,11 @@ int __read_manifest(char *config_path, struct config_chain *conf)
 
 	if (config_read_file(config, config_path) == CONFIG_FALSE) {
 		fprintf(stderr, "Error in %s:%d : %s\n", 
-			config_error_path(config), config_error_line(config),
+			config_error_file(config), config_error_line(config),
 			config_error_text(config));
 		config_destroy(config);
-		return -EINVAL;
+		rc = -EINVAL;
+		goto out;
 	}
 
 	/*
@@ -41,17 +44,18 @@ int __read_manifest(char *config_path, struct config_chain *conf)
 		conf->parent = calloc(1, sizeof(struct config_chain));
 		if (!conf->parent) {
 			config_destroy(config);
-			return -ENOMEM;
+			rc = -ENOMEM;
+			goto out;
 		}
 
 		/*
  		 * Recursively parse the parent manifest
  		 */
-		rc = __read_manifest(next_path, conf->parent)
+		rc = __read_manifest(next_path, conf->parent);
 		if (rc) {
 			free(conf->parent);
 			config_destroy(config);
-			return rc;
+			goto out;
 		}
 	}
 
@@ -60,7 +64,9 @@ int __read_manifest(char *config_path, struct config_chain *conf)
  	 * Now add in our manifest directives
  	 */
 	/* NH TBD */
-	return 0;
+
+out:
+	return rc;
 }
 
 int read_manifest(char *config_path)
@@ -70,7 +76,7 @@ int read_manifest(char *config_path)
 	if (!base_config)
 		return -ENOMEM;
 
-	rc = __read_manifest(char *config_path, base_config);
+	rc = __read_manifest(config_path, base_config);
 
 	if (rc)
 		free(base_config);
