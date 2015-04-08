@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.69])
-AC_INIT([freight-builder], [0.1], [nhorman@tuxdriver.com])
+AC_INIT([freight-tools], [0.1], [nhorman@tuxdriver.com])
 AM_INIT_AUTOMAKE
 AC_CONFIG_FILES([Makefile])
 AC_CONFIG_SRCDIR([src/manifest.c])
