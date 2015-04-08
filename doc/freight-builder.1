@@ -1,0 +1,74 @@
+.TH freight-builder "1" "Apr 2015" "Neil Horman"
+.SH NAME
+freight-builder \- utility to convert manifest files into systemd-nspawn images 
+.SH SYNOPSIS
+\fBfrieght-builder [options]
+.SH DESCRIPTION
+.B freight-builder 
+is a utility to convert manifest files of rpms into disk images suitable for use
+with systemd-nspawn.  These disk images also create meta data useful for image
+validation and adminstrative operation, such as determination of the need for
+rebuilding due to updated packages
+.SH OPTIONS
+.TP
+\fB freight-builder [\-h] \<manifest file\>
+.TP
+.B -h | --help
+Display options and usage for the utility
+
+.SH MANIFEST FILE FORMAT 
+
+The Manifest file codifies the contents of a container image and generally has
+this format:
+
+.nf
+---------------------------------------------
+# These are comments
+
+inherit = "/path/to/inherited/file";
+
+repositories = (
+	{
+		name = "Yum respository 1";
+		url = "http://yum.repo.com/path/to/repo";
+	}, ...
+);
+
+
+manifest = (
+	"rpm1-version-release.rpm",
+	"rpm2-version-release.rpm",
+	...
+);
+
+
+options {
+	nspawn_opts="--boot --log-color, ...";
+;
+----------------------------------------------
+.fi
+
+.B inherit="/path/to/inherited/file";
+.PP
+Manifest files can be stacked on one another.  The inherit directive indicates
+the parent of the manifest file being processed.  Inheritance may be nested
+(i.e. manifest A may inherit from manifest B, and B may inherit from manifest
+C).  However multiple inheritance is not allowed.  Inherited files have their
+repository and manifest groups merged.  The options group is overridden by child
+option groups
+
+.B repositories = ( ... )
+.PP
+The repositories group represents the set of yum repositories that this utility
+will search for the manifest designated rpms.
+
+.B manifest = ( ... )
+.PP
+A list of Strings representing package nvr's to include in the systemd-nspawn
+image file.  
+
+.B options
+.PP
+A general list of options to guide the execution of a container image when it is
+loaded later by the frieght-agent daemon.  Currently only includes
+systemd-nspawn options 
