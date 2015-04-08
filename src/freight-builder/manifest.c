@@ -106,6 +106,49 @@ static int parse_repositories(struct config_t *config, struct manifest *manifest
 	return 0;
 }
 
+static int parse_rpms(struct config_t *config, struct manifest *manifest)
+{
+	config_setting_t *rpms = config_lookup(config, "manifest");
+	config_setting_t *rpm_config;
+	struct rpm *rpmp;
+	int i = 0;
+	size_t alloc_size;
+	const char *name;
+
+	if (!rpms)
+		return 0;
+
+	/*
+ 	 * Load up all the individual repository urls
+ 	 */
+	while ((rpm_config = config_setting_get_elem(rpms, i)) != NULL) {
+
+		name = config_setting_get_string(rpm_config);
+		if (!name)
+			return -EINVAL;
+
+		alloc_size = strlen(name);
+
+		rpmp = calloc(1, sizeof(struct rpm) + alloc_size);
+		if (!rpmp)
+			return -ENOMEM;
+
+		/*
+ 		 * Allocate memory for strings at the end of the repository
+ 		 * structure so that we can free it as a unit
+ 		 */
+		rpmp->name = (char *)(rpmp + 1);
+		strcpy(rpmp->name, name);
+
+		rpmp->next = manifest->rpms;
+		manifest->rpms = rpmp;	
+		
+		i++;
+	}
+
+	return 0;
+}
+
 static int __read_manifest(const char *config_path, struct config_chain *conf)
 {
 	int rc = 0;
@@ -161,7 +204,10 @@ static int __read_manifest(const char *config_path, struct config_chain *conf)
 	if (rc)
 		goto out;
 
-	/* NH TBD */
+	rc = parse_rpms(config, manifest);
+	if (rc)
+		goto out;
+
 
 out:
 	return rc;
