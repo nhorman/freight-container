@@ -1,18 +1,139 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
+#include <string.h>
 #include <libconfig.h>
 
-
+/*
+ * This represents the chain of mainfest files that we read in
+ */
 struct config_chain {
 	config_t config;
 	struct config_chain *parent;
 };
 
+/*
+ * Child elements for the manifest structure below
+ */
+struct repository {
+	char *name;
+	char *url;
+	struct repository *next;
+};
+
+struct rpm {
+	char *name;
+	struct rpm *next;
+};
+
+struct options {
+	char *nspawn_opts;
+};
+
+/*
+ * This represents the set of parsed information we get out of the above
+ * manifest files
+ */
+struct manifest {
+	struct repository *repos;
+	struct rpm *rpms;
+	struct options *options;
+};
+
+
 static struct config_chain *base_config = NULL;
+static struct manifest *manifest = NULL;
+
+static void close_config_files(struct config_chain *conf)
+{
+	struct config_chain *tmp, *index;
+
+	index = conf;
+
+	while (index) {
+		tmp = index->parent;
+
+		config_destroy(&index->config);
+
+		free(index);
+
+		index = tmp;
+	}
+}
 
 
-int __read_manifest(const char *config_path, struct config_chain *conf)
+void free_manifest(struct manifest *manifest)
+{
+	struct repository *repos = manifest->repos;
+	struct rpm *rpms = manifest->rpms;
+	void *killer;
+
+	while (rpms) {
+		killer = rpms;
+		rpms = rpms->next;
+		free(killer);
+	}
+
+	while (repos) {
+		killer = repos;
+		repos = repos->next;
+		free(killer);
+	}
+
+	if (manifest->options)
+		free(manifest->options);
+
+	free(manifest);
+	
+}
+
+static int parse_repositories(struct config_t *config, struct manifest *manifest)
+{
+	config_setting_t *repos = config_lookup(config, "repositories");
+	config_setting_t *repo;
+	struct repository *repop;
+	int i = 0;
+	size_t alloc_size;
+	const char *name, *url;
+
+	if (!repos)
+		return 0;
+
+	/*
+ 	 * Load up all the individual repository urls
+ 	 */
+	while ((repo = config_setting_get_elem(repos, i)) != NULL) {
+
+		if (config_setting_lookup_string(repo, "name", &name) == CONFIG_FALSE)
+			return -EINVAL;
+		if (config_setting_lookup_string(repo, "url", &url) == CONFIG_FALSE)
+			return -EINVAL;
+
+		alloc_size = strlen(name) + strlen(url);
+
+		repop = calloc(1, sizeof(struct repository) + alloc_size);
+		if (!repop)
+			return -ENOMEM;
+
+		/*
+ 		 * Allocate memory for strings at the end of the repository
+ 		 * structure so that we can free it as a unit
+ 		 */
+		repop->name = (char *)((void *)repop + sizeof(struct repository));
+		repop->url = (char *)((void *)repop + sizeof(struct repository) + strlen(name))+1;
+		strcpy(repop->name, name);
+		strcpy(repop->url, url); 
+
+		repop->next = manifest->repos;
+		manifest->repos = repop;	
+		
+		i++;
+	}
+
+	return 0;
+}
+
+static int __read_manifest(const char *config_path, struct config_chain *conf)
 {
 	int rc = 0;
 	const char *next_path;
@@ -63,23 +184,41 @@ int __read_manifest(const char *config_path, struct config_chain *conf)
 	/*
  	 * Now add in our manifest directives
  	 */
+	rc = parse_repositories(config, manifest);
+	if (rc)
+		goto out;
+
 	/* NH TBD */
 
 out:
 	return rc;
 }
 
-int read_manifest(char *config_path)
+int read_manifest(char *config_path, struct manifest **manifestp)
 {
 	int rc;
+
+	*manifestp = NULL;
 	base_config = calloc(1, sizeof(struct config_chain));
 	if (!base_config)
 		return -ENOMEM;
 
+	manifest = calloc(1, sizeof(struct manifest));
+	if (!manifest) {
+		free(base_config);
+		return -ENOMEM;
+	}
+
 	rc = __read_manifest(config_path, base_config);
 
-	if (rc)
+	if (rc) {
+		free_manifest(manifest);
 		free(base_config);
+		goto out;
+	}
 
+	*manifestp = manifest;
+out:
+	close_config_files(base_config);
 	return rc;
 }

@@ -1,0 +1,12 @@
+
+repositories = (
+	{
+		name = "Base 1";
+		url = "http://base.1.com";
+	},
+	{
+		name = "Base 2";
+		url = "http://base.2.com";
+	}
+);
+

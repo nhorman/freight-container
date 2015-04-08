@@ -1,0 +1,15 @@
+
+
+inherit = "../test-manifest/base.manifest";
+
+repositories = (
+	{
+		name = "Test 1";
+		url = "http://foo.bar";
+	},
+	{
+		name = "Test 2";
+		url = "https://sna.fu";
+	}
+);
+
