@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <string.h>
 #include <libconfig.h>
+#include "manifest.h"
 
 /*
  * This represents the chain of mainfest files that we read in
@@ -10,34 +11,6 @@
 struct config_chain {
 	config_t config;
 	struct config_chain *parent;
-};
-
-/*
- * Child elements for the manifest structure below
- */
-struct repository {
-	char *name;
-	char *url;
-	struct repository *next;
-};
-
-struct rpm {
-	char *name;
-	struct rpm *next;
-};
-
-struct options {
-	char *nspawn_opts;
-};
-
-/*
- * This represents the set of parsed information we get out of the above
- * manifest files
- */
-struct manifest {
-	struct repository *repos;
-	struct rpm *rpms;
-	struct options *options;
 };
 
 
