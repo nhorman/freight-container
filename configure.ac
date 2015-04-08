@@ -5,7 +5,7 @@ AC_PREREQ([2.69])
 AC_INIT([freight-tools], [0.1], [nhorman@tuxdriver.com])
 AM_INIT_AUTOMAKE
 AC_CONFIG_FILES([Makefile])
-AC_CONFIG_SRCDIR([src/manifest.c])
+AC_CONFIG_SRCDIR([src/freight-builder/manifest.c])
 AC_CONFIG_HEADERS([config.h])
 
 # Checks for programs.
@@ -22,4 +22,4 @@ AC_CHECK_HEADERS([libconfig.h])
 # Checks for library functions.
 AC_CHECK_LIB(config, config_init)
 
-AC_OUTPUT(src/Makefile)
+AC_OUTPUT(src/Makefile src/freight-builder/Makefile)
