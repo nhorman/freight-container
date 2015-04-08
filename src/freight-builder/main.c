@@ -8,7 +8,7 @@ int main(int argc, char **argv)
 	struct manifest *manifest;
 	struct repository *tmp;
 
-	if (read_manifest("../test-manifest/test.manifest", &manifest) != 0) {
+	if (read_manifest("./test-manifest/test.manifest", &manifest) != 0) {
 		printf("Unalbe to read manifest\n");
 		goto out;
 	}
