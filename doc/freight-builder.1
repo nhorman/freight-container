@@ -11,11 +11,13 @@ validation and adminstrative operation, such as determination of the need for
 rebuilding due to updated packages
 .SH OPTIONS
 .TP
-\fB freight-builder [\-h] \<manifest file\>
+\fB freight-builder [\-h] \<-m manifest file\>
 .TP
 .B -h | --help
 Display options and usage for the utility
-
+.TP
+.B -m | --manifest <manifest file>
+Specify the manifest file to convert into a container image
 .SH MANIFEST FILE FORMAT 
 
 The Manifest file codifies the contents of a container image and generally has
