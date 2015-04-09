@@ -4,5 +4,5 @@ AM_LDFLAGS = -lconfig
 
 bin_PROGRAMS = freight-builder
 
-freight_builder_SOURCES = main.c manifest.c manifest.h
+freight_builder_SOURCES = main.c manifest.c manifest.h package.h package.c yum.c
 
