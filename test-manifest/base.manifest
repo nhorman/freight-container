@@ -11,7 +11,7 @@ repositories = (
 );
 
 manifest = (
-	"base1-1.0.x86_64.rpm",
-	"base2-2.0.x86_64.rpm"
+	"base1-1.0.x86_64",
+	"base2-2.0.x86_64"
 );
 
