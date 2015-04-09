@@ -18,14 +18,36 @@
  *
  *Description: yum package management implementation
  *********************************************************/
-
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <errno.h>
+#include <string.h>
+#include <manifest.h>
 #include <package.h>
 
+static char worktemplate[] = "~/freight-builder.XXXXXX";
+static char *workdir;
+static char tmpdir[256];
 
-static int yum_init()
+static int yum_init(struct manifest *manifest)
 {
+	workdir = mkdtemp(worktemplate);
+	if (workdir == NULL) {
+		return -EINVAL;
+	}
+
+	strcpy(tmpdir, workdir);
+	strcat(tmpdir, "/yum.repos.d/");
+	if (mkdir(tmpdir, 0700)) {
+		goto cleanup_tmpdir;
+	}
+	
 	return 0;
+cleanup_tmpdir:
+	rmdir(workdir);
+	return -EINVAL;
 }
 
 static void yum_cleanup()

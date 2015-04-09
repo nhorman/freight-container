@@ -20,7 +20,7 @@
  * *********************************************************/
 
 #ifndef _MANIFEST_H_
-#define _MAINFEST_H_
+#define _MANIFEST_H_
 
 
 

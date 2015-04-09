@@ -22,6 +22,7 @@
  *Description: defines the interface through which we manage
  * rpm packages and repositories
  *********************************************************/
+#include <manifest.h>
 
 
 /*
@@ -34,11 +35,12 @@ enum pkg_mgmt_type {
 
 
 struct pkg_ops {
-	int (*init)();
+	int (*init)(struct manifest *manifest);
 	void (*cleanup)();
 };
 
-struct pkg_ops *init_pkg_mgmt(enum pkg_mgmt_type ptype);
+struct pkg_ops *init_pkg_mgmt(enum pkg_mgmt_type ptype,
+				struct manifest *manifest);
 
 static inline void cleanup_pkg_mgmt(struct pkg_ops *ops)
 {

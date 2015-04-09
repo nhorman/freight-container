@@ -20,17 +20,19 @@
  *Description
  * *********************************************************/
 #include <stdlib.h>
+#include <manifest.h>
 #include <package.h>
 
 
 extern struct pkg_ops yum_ops;
 
-struct pkg_ops *init_pkg_mgmt(enum pkg_mgmt_type ptype)
+struct pkg_ops *init_pkg_mgmt(enum pkg_mgmt_type ptype,
+				struct manifest *manifest)
 {
 	if (ptype >= PKG_MAX)
 		return NULL;
 
-	if (yum_ops.init())
+	if (yum_ops.init(manifest))
 		return NULL;
 
 	return &yum_ops;
