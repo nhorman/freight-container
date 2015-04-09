@@ -1,4 +1,4 @@
-AM_CFLAGS = -Wall -O2
+AM_CFLAGS = -Wall -O2 -D_GNU_SOURCE
 
 AM_LDFLAGS = -lconfig
 

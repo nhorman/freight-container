@@ -2,6 +2,9 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include <libconfig.h>
 #include "manifest.h"
 
@@ -151,18 +154,27 @@ static int __read_manifest(const char *config_path, struct config_chain *conf, s
 	int rc = 0;
 	const char *next_path;
 	config_t *config = &conf->config;
+	struct stat buf;
 
 	/*
  	 * initalize the config structure
  	 */
 	config_init(config);
 
+	/*
+ 	 * Check for file existance
+ 	 */
+	if (stat(config_path, &buf)) {
+		fprintf(stderr, "Error, manifest file %s does not exist\n",
+			config_path);
+		rc = -ENOENT;
+		goto out;
+	}
 
 	if (config_read_file(config, config_path) == CONFIG_FALSE) {
 		fprintf(stderr, "Error in %s:%d : %s\n", 
 			config_error_file(config), config_error_line(config),
 			config_error_text(config));
-		config_destroy(config);
 		rc = -EINVAL;
 		goto out;
 	}
@@ -177,7 +189,6 @@ static int __read_manifest(const char *config_path, struct config_chain *conf, s
  		 */
 		conf->parent = calloc(1, sizeof(struct config_chain));
 		if (!conf->parent) {
-			config_destroy(config);
 			rc = -ENOMEM;
 			goto out;
 		}
@@ -187,8 +198,9 @@ static int __read_manifest(const char *config_path, struct config_chain *conf, s
  		 */
 		rc = __read_manifest(next_path, conf->parent, manifest);
 		if (rc) {
-			free(conf->parent);
-			config_destroy(config);
+			/* Note all config_chains get cleaned in
+ 			 * close_config_files
+ 			 */
 			goto out;
 		}
 	}
@@ -224,7 +236,6 @@ int read_manifest(char *config_path, struct manifest *manifestp)
 
 	if (rc) {
 		release_manifest(manifestp);
-		free(base_config);
 		goto out;
 	}
 

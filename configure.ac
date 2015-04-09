@@ -11,6 +11,8 @@ AC_CONFIG_HEADERS([config.h])
 # Checks for programs.
 AC_PROG_CC
 
+AC_DEFINE([HAVE_GETOPT_LONG], [], [enable for getop_long support])
+
 # Checks for libraries.
 
 # Checks for header files.
@@ -21,5 +23,7 @@ AC_CHECK_HEADERS([libconfig.h])
 
 # Checks for library functions.
 AC_CHECK_LIB(config, config_init)
+
+AC_CHECK_FUNC([getopt_long], [AC_DEFINE([HAVE_GETOPT_LONG],[1],[getopt_long support])])
 
 AC_OUTPUT(src/Makefile src/freight-builder/Makefile)
