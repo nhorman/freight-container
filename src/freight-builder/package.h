@@ -34,8 +34,8 @@ enum pkg_mgmt_type {
 
 
 struct pkg_ops {
-	(int)(*init)();
-	(void)(*cleanup)();
+	int (*init)();
+	void (*cleanup)();
 };
 
 struct pkg_ops *init_pkg_mgmt(enum pkg_mgmt_type ptype);

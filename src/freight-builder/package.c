@@ -19,13 +19,13 @@
  *
  *Description
  * *********************************************************/
-
+#include <stdlib.h>
 #include <package.h>
 
 
-extern pkg_ops yum_ops;
+extern struct pkg_ops yum_ops;
 
-struct pkg_ops *init_pkg_mgmt(pkg_mgmt_type ptype)
+struct pkg_ops *init_pkg_mgmt(enum pkg_mgmt_type ptype)
 {
 	if (ptype >= PKG_MAX)
 		return NULL;

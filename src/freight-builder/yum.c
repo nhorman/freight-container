@@ -19,15 +19,8 @@
  *Description: yum package management implementation
  *********************************************************/
 
-
+#include <stdlib.h>
 #include <package.h>
-
-struct pkg_ops yum_ops = {
-	yum_init,
-	yum_cleanup
-};
-
-
 
 
 static int yum_init()
@@ -39,4 +32,9 @@ static void yum_cleanup()
 {
 	return;
 }
+
+struct pkg_ops yum_ops = {
+	yum_init,
+	yum_cleanup
+};
 
