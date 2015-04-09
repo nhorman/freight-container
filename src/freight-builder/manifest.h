@@ -31,9 +31,9 @@ struct manifest {
 	struct options *options;
 };
 
-void free_manifest(struct manifest *manifest);
+void release_manifest(struct manifest *manifest);
 
-int read_manifest(char *config_path, struct manifest **manifest);
+int read_manifest(char *config_path, struct manifest *manifest);
 
 
 

@@ -15,7 +15,6 @@ struct config_chain {
 
 
 static struct config_chain *base_config = NULL;
-static struct manifest *manifest = NULL;
 
 static void close_config_files(struct config_chain *conf)
 {
@@ -35,7 +34,7 @@ static void close_config_files(struct config_chain *conf)
 }
 
 
-void free_manifest(struct manifest *manifest)
+void release_manifest(struct manifest *manifest)
 {
 	struct repository *repos = manifest->repos;
 	struct rpm *rpms = manifest->rpms;
@@ -56,8 +55,6 @@ void free_manifest(struct manifest *manifest)
 	if (manifest->options)
 		free(manifest->options);
 
-	free(manifest);
-	
 }
 
 static int parse_repositories(struct config_t *config, struct manifest *manifest)
@@ -149,7 +146,7 @@ static int parse_rpms(struct config_t *config, struct manifest *manifest)
 	return 0;
 }
 
-static int __read_manifest(const char *config_path, struct config_chain *conf)
+static int __read_manifest(const char *config_path, struct config_chain *conf, struct manifest *manifest)
 {
 	int rc = 0;
 	const char *next_path;
@@ -188,7 +185,7 @@ static int __read_manifest(const char *config_path, struct config_chain *conf)
 		/*
  		 * Recursively parse the parent manifest
  		 */
-		rc = __read_manifest(next_path, conf->parent);
+		rc = __read_manifest(next_path, conf->parent, manifest);
 		if (rc) {
 			free(conf->parent);
 			config_destroy(config);
@@ -213,30 +210,24 @@ out:
 	return rc;
 }
 
-int read_manifest(char *config_path, struct manifest **manifestp)
+int read_manifest(char *config_path, struct manifest *manifestp)
 {
 	int rc;
 
-	*manifestp = NULL;
 	base_config = calloc(1, sizeof(struct config_chain));
 	if (!base_config)
 		return -ENOMEM;
 
-	manifest = calloc(1, sizeof(struct manifest));
-	if (!manifest) {
-		free(base_config);
-		return -ENOMEM;
-	}
+	memset(manifestp, 0, sizeof(struct manifest));
 
-	rc = __read_manifest(config_path, base_config);
+	rc = __read_manifest(config_path, base_config, manifestp);
 
 	if (rc) {
-		free_manifest(manifest);
+		release_manifest(manifestp);
 		free(base_config);
 		goto out;
 	}
 
-	*manifestp = manifest;
 out:
 	close_config_files(base_config);
 	return rc;
