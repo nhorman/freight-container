@@ -35,8 +35,9 @@ enum pkg_mgmt_type {
 
 
 struct pkg_ops {
-	int (*init)(struct manifest *manifest);
+	int (*init)(const struct manifest *manifest);
 	void (*cleanup)();
+	int (*build)(const struct manifest *manifest);
 };
 
 struct pkg_ops *init_pkg_mgmt(enum pkg_mgmt_type ptype,
@@ -45,6 +46,12 @@ struct pkg_ops *init_pkg_mgmt(enum pkg_mgmt_type ptype,
 static inline void cleanup_pkg_mgmt(struct pkg_ops *ops)
 {
 	ops->cleanup();
+}
+
+static inline int build_image_from_manifest(struct pkg_ops *ops,
+					    const struct manifest *mfst)
+{
+	return ops->build(mfst);
 }
 
 #endif

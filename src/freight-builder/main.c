@@ -100,6 +100,10 @@ int main(int argc, char **argv)
 		goto out_release;
 	}
 
+	/*
+ 	 * Actually build the image
+ 	 */
+	build_image_from_manifest(build_env, &manifest);	
 
 	/*
  	 * Then cleanup the working space

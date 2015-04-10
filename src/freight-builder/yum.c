@@ -51,7 +51,7 @@ static void yum_cleanup()
 	return;
 }
 
-static int yum_init(struct manifest *manifest)
+static int yum_init(const struct manifest *manifest)
 {
 	struct repository *repo;
 	FILE *repof;
@@ -96,15 +96,83 @@ static int yum_init(struct manifest *manifest)
 		fclose(repof);
 		repo = repo->next;
 	}
-		
+
+	/*
+ 	 * create a base yum configuration
+ 	 */
+	strcpy(tmpdir, workdir);
+	strcat(tmpdir, "/yum.conf");
+	repof = fopen(tmpdir, "w");
+	if (!repof) {
+		fprintf(stderr, "Unable to create a repo configuration: %s\n",
+			strerror(errno));
+		goto cleanup_tmpdir;
+	}
+	fprintf(repof, "[main]\n");
+	fprintf(repof, "cachedir=%s\n", workdir);
+	fprintf(repof, "keepcache=1\n");
+	strcpy(tmpdir, workdir);
+	strcat(tmpdir, "/yum.log");
+	fprintf(repof, "logfile=%s\n", tmpdir);
+	strcpy(tmpdir, workdir);
+	strcat(tmpdir, "/yum.repos.d");
+	fprintf(repof, "reposdir=%s\n", tmpdir);
+	fclose(repof);
+	
 	return 0;
 cleanup_tmpdir:
 	yum_cleanup();
 	return -EINVAL;
 }
 
+static size_t collect_yum_rpm_sizes(const struct rpm *rpms)
+{
+	char yumcmd[256];
+	const struct rpm *rpm;
+	FILE *yumout;
+	char dummy[1024];
+	size_t rc;
+
+	strcpy(tmpdir, workdir);
+	strcat(tmpdir, "/yum.conf");
+	rpm = rpms;
+	while(rpm) {	
+		sprintf(yumcmd, "yum -c %s info %s", tmpdir, rpm->name);
+	
+		yumout = popen(yumcmd, "r");
+
+		if (!yumout) {
+			fprintf(stderr, "Unable to fork yum: %s\n",
+				strerror(errno));
+			return 0;
+		}
+
+		rc = fread(dummy, 1, 1024, yumout);
+		dummy[rc] = 0;
+		fprintf(stdout, "%s\n", dummy); 
+		pclose(yumout);
+		rpm = rpm->next;
+	}	
+
+	return 0;	
+}
+
+static int yum_build(const struct manifest *manifest)
+{
+
+	/*
+ 	 * We need to start by building
+ 	 * an estimate for the image size
+ 	 */
+	collect_yum_rpm_sizes(manifest->rpms);
+	return 0;
+}
+
+
 struct pkg_ops yum_ops = {
 	yum_init,
-	yum_cleanup
+	yum_cleanup,
+	yum_build
 };
+
 
