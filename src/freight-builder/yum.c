@@ -18,41 +18,89 @@
  *
  *Description: yum package management implementation
  *********************************************************/
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
+#include <ftw.h>
 #include <manifest.h>
 #include <package.h>
 
-static char worktemplate[] = "~/freight-builder.XXXXXX";
+static char worktemplate[] = "./freight-builder.XXXXXX";
 static char *workdir;
 static char tmpdir[256];
 
+
+static int remove_path(const char *fpath, const struct stat *sb, int typeflag,
+			struct FTW *ftwbuf)
+{
+	if (typeflag == FTW_F)
+		return unlink(fpath);
+
+	return rmdir(fpath);
+}
+
+static void yum_cleanup()
+{
+	nftw(workdir, remove_path, 10, FTW_DEPTH);
+	return;
+}
+
 static int yum_init(struct manifest *manifest)
 {
+	struct repository *repo;
+	FILE *repof;
+
 	workdir = mkdtemp(worktemplate);
 	if (workdir == NULL) {
+		fprintf(stderr, "Cannot create temporary work directory %s: %s\n",
+			worktemplate, strerror(errno));
 		return -EINVAL;
 	}
 
 	strcpy(tmpdir, workdir);
 	strcat(tmpdir, "/yum.repos.d/");
 	if (mkdir(tmpdir, 0700)) {
+		fprintf(stderr, "Cannot create repository directory %s: %s\n",
+			tmpdir, strerror(errno)); 
 		goto cleanup_tmpdir;
 	}
-	
+
+	/*
+ 	 * for each item in the repos list
+ 	 * lets create a file with that repository listed
+ 	 */
+	repo = manifest->repos;
+	while (repo) {
+		strcpy(tmpdir, workdir);
+		strcat(tmpdir, "/yum.repos.d/");
+		strcat(tmpdir, repo->name);
+		strcat(tmpdir, ".repo");
+		repof = fopen(tmpdir, "w");
+		if (!repof) {
+			fprintf(stderr, "Error opening %s: %s\n",
+				tmpdir, strerror(errno));
+			goto cleanup_tmpdir;
+		}
+
+		fprintf(repof, "[%s]\n", repo->name);
+		fprintf(repof, "name=%s\n", repo->name);
+		fprintf(repof, "baseurl=%s\n", repo->url);
+		fprintf(repof, "gpgcheck=0\n"); /* for now */
+		fprintf(repof, "enabled=1\n");
+		fclose(repof);
+		repo = repo->next;
+	}
+		
 	return 0;
 cleanup_tmpdir:
-	rmdir(workdir);
+	yum_cleanup();
 	return -EINVAL;
-}
-
-static void yum_cleanup()
-{
-	return;
 }
 
 struct pkg_ops yum_ops = {

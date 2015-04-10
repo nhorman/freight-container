@@ -24,7 +24,8 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <manifest.h>
-#include "config.h"
+#include <package.h>
+#include <config.h>
 
 #ifdef HAVE_GETOPT_LONG
 struct option lopts[] = {
@@ -49,6 +50,7 @@ int main(int argc, char **argv)
 	struct manifest manifest;
 	char *config = NULL;
 	int rc = 1;
+	struct pkg_ops *build_env;
 
 	/*
  	 * Parse command line options
@@ -89,7 +91,23 @@ int main(int argc, char **argv)
 		goto out_release;
 	}
 
+	/*
+ 	 * Setup the builder working env
+ 	 */
+	build_env = init_pkg_mgmt(PKG_YUM, &manifest);
+	if (build_env == NULL) {
+		fprintf(stderr, "Failed to init build temp directory\n");
+		goto out_release;
+	}
+
+
+	/*
+ 	 * Then cleanup the working space
+ 	 */
+	cleanup_pkg_mgmt(build_env);
+
 	rc =0;
+
 out_release:
 	release_manifest(&manifest);
 out:
