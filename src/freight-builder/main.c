@@ -108,7 +108,7 @@ int main(int argc, char **argv)
 	/*
  	 * Then cleanup the working space
  	 */
-	cleanup_pkg_mgmt(build_env);
+	//cleanup_pkg_mgmt(build_env);
 
 	rc =0;
 

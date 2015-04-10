@@ -56,7 +56,7 @@ void release_manifest(struct manifest *manifest)
 static int parse_repositories(struct config_t *config, struct manifest *manifest)
 {
 	config_setting_t *repos = config_lookup(config, "repositories");
-	config_setting_t *repo;
+	config_setting_t *repo, *tmp;
 	struct repository *repop;
 	int i = 0;
 	size_t alloc_size;
@@ -70,12 +70,23 @@ static int parse_repositories(struct config_t *config, struct manifest *manifest
  	 */
 	while ((repo = config_setting_get_elem(repos, i)) != NULL) {
 
-		if (config_setting_lookup_string(repo, "name", &name) == CONFIG_FALSE)
+		tmp = config_setting_get_member(repo, "name");
+		if (!tmp)
 			return -EINVAL;
-		if (config_setting_lookup_string(repo, "url", &url) == CONFIG_FALSE)
+		name = config_setting_get_string(tmp);
+		if (!name)
+			return -EINVAL;
+		tmp = config_setting_get_member(repo, "url");
+		if (!tmp)
+			return -EINVAL;
+		url = config_setting_get_string(tmp);
+		if (!url)
 			return -EINVAL;
 
-		alloc_size = strlen(name) + strlen(url);
+		/*
+ 		 * Add two for the null terminators
+ 		 */
+		alloc_size = strlen(name) + strlen(url) + 2;
 
 		repop = calloc(1, sizeof(struct repository) + alloc_size);
 		if (!repop)
@@ -86,6 +97,9 @@ static int parse_repositories(struct config_t *config, struct manifest *manifest
  		 * structure so that we can free it as a unit
  		 */
 		repop->name = (char *)((void *)repop + sizeof(struct repository));
+		/*
+ 		 * Add one for the null terminator
+ 		 */
 		repop->url = (char *)((void *)repop + sizeof(struct repository) + strlen(name))+1;
 		strcpy(repop->name, name);
 		strcpy(repop->url, url); 
