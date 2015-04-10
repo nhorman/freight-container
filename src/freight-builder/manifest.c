@@ -30,35 +30,6 @@
 #include <libconfig.h>
 #include "manifest.h"
 
-/*
- * This represents the chain of mainfest files that we read in
- */
-struct config_chain {
-	config_t config;
-	struct config_chain *parent;
-};
-
-
-static struct config_chain *base_config = NULL;
-
-static void close_config_files(struct config_chain *conf)
-{
-	struct config_chain *tmp, *index;
-
-	index = conf;
-
-	while (index) {
-		tmp = index->parent;
-
-		config_destroy(&index->config);
-
-		free(index);
-
-		index = tmp;
-	}
-}
-
-
 void release_manifest(struct manifest *manifest)
 {
 	struct repository *repos = manifest->repos;
@@ -171,17 +142,17 @@ static int parse_rpms(struct config_t *config, struct manifest *manifest)
 	return 0;
 }
 
-static int __read_manifest(const char *config_path, struct config_chain *conf, struct manifest *manifest)
+static int __read_manifest(const char *config_path, struct manifest *manifest)
 {
 	int rc = 0;
 	const char *next_path;
-	config_t *config = &conf->config;
+	config_t config;
 	struct stat buf;
 
 	/*
  	 * initalize the config structure
  	 */
-	config_init(config);
+	config_init(&config);
 
 	/*
  	 * Check for file existance
@@ -193,10 +164,10 @@ static int __read_manifest(const char *config_path, struct config_chain *conf, s
 		goto out;
 	}
 
-	if (config_read_file(config, config_path) == CONFIG_FALSE) {
+	if (config_read_file(&config, config_path) == CONFIG_FALSE) {
 		fprintf(stderr, "Error in %s:%d : %s\n", 
-			config_error_file(config), config_error_line(config),
-			config_error_text(config));
+			config_error_file(&config), config_error_line(&config),
+			config_error_text(&config));
 		rc = -EINVAL;
 		goto out;
 	}
@@ -204,43 +175,30 @@ static int __read_manifest(const char *config_path, struct config_chain *conf, s
 	/*
  	 * Good config file, look for an inherit directive
  	 */
-	if (config_lookup_string(config, "inherit", &next_path) == CONFIG_TRUE) {
-		/*
- 		 * We have a file to inherit, so lets setup a new config
- 		 * structure
- 		 */
-		conf->parent = calloc(1, sizeof(struct config_chain));
-		if (!conf->parent) {
-			rc = -ENOMEM;
-			goto out;
-		}
-
+	if (config_lookup_string(&config, "inherit", &next_path) == CONFIG_TRUE) {
 		/*
  		 * Recursively parse the parent manifest
  		 */
-		rc = __read_manifest(next_path, conf->parent, manifest);
-		if (rc) {
-			/* Note all config_chains get cleaned in
- 			 * close_config_files
- 			 */
+		rc = __read_manifest(next_path, manifest);
+		if (rc) 
 			goto out;
-		}
 	}
 
 
 	/*
  	 * Now add in our manifest directives
  	 */
-	rc = parse_repositories(config, manifest);
+	rc = parse_repositories(&config, manifest);
 	if (rc)
 		goto out;
 
-	rc = parse_rpms(config, manifest);
+	rc = parse_rpms(&config, manifest);
 	if (rc)
 		goto out;
 
 
 out:
+	config_destroy(&config);
 	return rc;
 }
 
@@ -248,13 +206,9 @@ int read_manifest(char *config_path, struct manifest *manifestp)
 {
 	int rc;
 
-	base_config = calloc(1, sizeof(struct config_chain));
-	if (!base_config)
-		return -ENOMEM;
-
 	memset(manifestp, 0, sizeof(struct manifest));
 
-	rc = __read_manifest(config_path, base_config, manifestp);
+	rc = __read_manifest(config_path, manifestp);
 
 	if (rc) {
 		release_manifest(manifestp);
@@ -262,6 +216,5 @@ int read_manifest(char *config_path, struct manifest *manifestp)
 	}
 
 out:
-	close_config_files(base_config);
 	return rc;
 }
