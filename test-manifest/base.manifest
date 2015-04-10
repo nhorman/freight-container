@@ -1,17 +1,9 @@
 
 repositories = (
 	{
-		name = "Base 1";
-		url = "http://base.1.com";
-	},
-	{
-		name = "Base 2";
-		url = "http://base.2.com";
+		name = "google-chrome";
+		url = "http://dl.google.com/linux/chrome/rpm/stable/x86_64";
 	}
 );
 
-manifest = (
-	"base1-1.0.x86_64",
-	"base2-2.0.x86_64"
-);
 

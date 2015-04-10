@@ -4,17 +4,17 @@ inherit = "./test-manifest/base.manifest";
 
 repositories = (
 	{
-		name = "Test 1";
-		url = "http://foo.bar";
+		name = "fedora";
+		url = "https://mirrors.fedoraproject.org/metalink?repo=fedora-21r&arch=x86_64";
 	},
 	{
-		name = "Test 2";
-		url = "https://sna.fu";
+		name = "fedora-updates";
+		url = "https://mirrors.fedoraproject.org/metalink?repo=updates-released-f21&arch=x86_64";
 	}
 );
 
 
 manifest = (
-	"test1-1.0.x86_64",
-	"test2-2.0.x86_64"
+	"coreutils",
+	"fedora-release"
 );
