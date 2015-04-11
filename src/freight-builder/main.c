@@ -31,6 +31,7 @@
 struct option lopts[] = {
 	{"help", 0, NULL, 'h'},
 	{"manifest", 1, NULL, 'm'},
+	{"keep", 1, NULL, 'k'},
 	{ 0, 0, 0, 0}
 };
 #endif
@@ -38,9 +39,9 @@ struct option lopts[] = {
 static void usage(char **argv)
 {
 #ifdef HAVE_GETOPT_LONG
-	fprintf(stderr, "%s [-h | --help] <[-m | --manifest]  config>\n", argv[0]);
+	fprintf(stderr, "%s [-h | --help] [-k | --keep] <[-m | --manifest]  config>\n", argv[0]);
 #else
-	frpintf(stderr, "%s [-h] <-m config>\n", argv[0]);
+	frpintf(stderr, "%s [-h] [-k] <-m config>\n", argv[0]);
 #endif
 }
 
@@ -51,15 +52,16 @@ int main(int argc, char **argv)
 	char *config = NULL;
 	int rc = 1;
 	struct pkg_ops *build_env;
+	int keep = 0;
 
 	/*
  	 * Parse command line options
  	 */
 
 #ifdef HAVE_GETOPT_LONG
-	while ((opt = getopt_long(argc, argv, "h,m:", lopts, &longind)) != -1) {
+	while ((opt = getopt_long(argc, argv, "h,m:k", lopts, &longind)) != -1) {
 #else
-	while ((opt = getopt(argc, argv, "h,m:") != -1) {
+	while ((opt = getopt(argc, argv, "h,m:k") != -1) {
 #endif
 		switch(opt) {
 
@@ -69,6 +71,9 @@ int main(int argc, char **argv)
 			usage(argv);
 			goto out;
 			/* NOTREACHED */
+			break;
+		case 'k':
+			keep = 1;
 			break;
 		case 'm':
 			config = optarg;
@@ -108,7 +113,8 @@ int main(int argc, char **argv)
 	/*
  	 * Then cleanup the working space
  	 */
-	//cleanup_pkg_mgmt(build_env);
+	if (!keep)
+		cleanup_pkg_mgmt(build_env);
 
 	rc =0;
 
