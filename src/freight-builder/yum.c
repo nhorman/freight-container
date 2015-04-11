@@ -31,7 +31,7 @@
 #include <manifest.h>
 #include <package.h>
 
-static char worktemplate[] = "./freight-builder.XXXXXX";
+static char worktemplate[256];
 static char *workdir;
 static char tmpdir[256];
 
@@ -55,6 +55,9 @@ static int yum_init(const struct manifest *manifest)
 {
 	struct repository *repo;
 	FILE *repof;
+	
+	getcwd(worktemplate, 256);
+	strcat(worktemplate, "/freight-builder.XXXXXX"); 
 
 	workdir = mkdtemp(worktemplate);
 	if (workdir == NULL) {
@@ -134,7 +137,6 @@ static size_t collect_yum_rpm_sizes(const struct rpm *rpms)
 	size_t rc;
 
 	strcpy(tmpdir, workdir);
-	strcat(tmpdir, "/yum.conf");
 	rpm = rpms;
 	while(rpm) {	
 		sprintf(yumcmd, "yum -c %s info %s", tmpdir, rpm->name);
