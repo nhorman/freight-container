@@ -34,22 +34,26 @@ inherit = "/path/to/inherited/file";
 
 repositories = (
 	{
-		name = "Yum respository 1";
+		name = "Yum_respository_1";
 		url = "http://yum.repo.com/path/to/repo";
 	}, ...
 );
 
 
 manifest = (
-	"rpm1-version-release.rpm",
-	"rpm2-version-release.rpm",
+	"rpm1-version-release",
+	"rpm2-version-release",
 	...
 );
 
 
-options {
-	nspawn_opts="--boot --log-color, ...";
-;
+packaging: {
+	name = "web-server";
+	version = "1.0";
+	release = "1";
+	Summary = "Summarize This container here";
+};
+
 ----------------------------------------------
 .fi
 
@@ -72,8 +76,7 @@ will search for the manifest designated rpms.
 A list of Strings representing package nvr's to include in the systemd-nspawn
 image file.  
 
-.B options
+.B packaging 
 .PP
-A general list of options to guide the execution of a container image when it is
-loaded later by the frieght-agent daemon.  Currently only includes
-systemd-nspawn options 
+A list of details to include when the container is packaged up as an rpm
+
