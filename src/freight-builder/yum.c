@@ -192,7 +192,7 @@ static char *gen_install_cmd(char *rpmlist)
 
 	alloc_size = 4; /* yum */
 	alloc_size += 3; /* -y */
-	alloc_size += 15; /* workdir + "/yum.conf" */
+	alloc_size += 15; /* "/yum.conf" */
 	alloc_size += strlen(workdir) + 25; /* --installroot=<workdir>/buildroot */ 
 	alloc_size += 10; /* install */
 	alloc_size += strlen(rpmlist);
@@ -207,14 +207,58 @@ static char *gen_install_cmd(char *rpmlist)
 	return result;
 }
 
+static char *gen_cleanup_cmd()
+{
+	char *result;
+	size_t alloc_size;
+	
+
+	alloc_size = 64 + strlen(workdir);
+
+	result = calloc(1, alloc_size);
+	if (!result)
+		return NULL;
+
+	sprintf(result, "yum -y --installroot=%s/buildroot clean all\n", workdir);
+
+	return result;
+}
+
+static int run_command(char *cmd)
+{
+	int rc;
+	FILE *yum_out;
+	char buf[128];
+	size_t count;
+	
+	yum_out = popen(cmd, "r");
+	if (yum_out == NULL) {
+		rc = errno;
+		fprintf(stderr, "Unable to exec yum for install: %s\n", strerror(rc));
+		return rc;
+	}
+
+	while(!feof(yum_out) && !ferror(yum_out)) {
+		count = fread(buf, 1, 128, yum_out);
+		fwrite(buf, count, 1, stderr);
+	}
+
+	rc = pclose(yum_out);
+
+	if (rc == -1) {
+		rc = errno;
+		fprintf(stderr, "yum command failed: %s\n", strerror(rc));
+		return rc;
+	}
+
+	return 0;
+}
+
 static int yum_build(const struct manifest *manifest)
 {
 	int rc = -EINVAL;
 	char *rpmlist;
-	char *yum_install;
-	FILE *yum_out;
-	char buf[128];
-	size_t count;
+	char *yum_install, *yum_clean;
 
 	/*
  	 * Pretty easy here, just take all the rpms, get concatinate them
@@ -234,25 +278,22 @@ static int yum_build(const struct manifest *manifest)
  	 * Lets run yum in the appropriate subdirectory with the right config to
  	 * populate the buildroot directory
  	 */
-	yum_out = popen(yum_install, "r");
-	if (yum_out == NULL) {
-		rc = errno;
-		fprintf(stderr, "Unable to exec yum for install: %s\n", strerror(rc));
+	if (run_command(yum_install))
 		goto out_free_cmd;
-	}
 
-	while(!feof(yum_out) && !ferror(yum_out)) {
-		count = fread(buf, 1, 128, yum_out);
-		fwrite(buf, count, 1, stderr);
-	}
-
-	rc = pclose(yum_out);
-
-	if (rc == -1) {
-		rc = errno;
-		fprintf(stderr, "yum command failed: %s\n", strerror(rc));
+	yum_clean = gen_cleanup_cmd();
+	if (!yum_clean)
 		goto out_free_cmd;
-	}
+
+	fprintf(stderr, "Cleaning up temporary files\n");
+
+	if (run_command(yum_clean))
+		goto out_free_clean;
+
+	rc = 0;
+
+out_free_clean:
+	free(yum_clean);
 out_free_cmd:
 	free(yum_install);
 out_free_rpmlist:	
