@@ -5,11 +5,11 @@ inherit = "./test-manifest/base.manifest";
 repositories = (
 	{
 		name = "fedora";
-		url = "https://mirrors.fedoraproject.org/metalink?repo=fedora-21r&arch=x86_64";
+		url = "http://mirror.uoregon.edu/fedora/linux//releases/21/Server/x86_64/os/";
 	},
 	{
 		name = "fedora-updates";
-		url = "https://mirrors.fedoraproject.org/metalink?repo=updates-released-f21&arch=x86_64";
+		url = "http://mirror.uoregon.edu/fedora/linux//updates/21/x86_64/";
 	}
 );
 

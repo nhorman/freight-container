@@ -33,7 +33,7 @@
 
 static char worktemplate[256];
 static char *workdir;
-static char tmpdir[256];
+static char tmpdir[512];
 
 
 static int remove_path(const char *fpath, const struct stat *sb, int typeflag,
@@ -51,6 +51,13 @@ static void yum_cleanup()
 	return;
 }
 
+static int build_path(const char *path)
+{
+	strcpy(tmpdir, workdir);
+	strcat(tmpdir, path);
+	return mkdir(tmpdir, 0700);
+}
+
 static int yum_init(const struct manifest *manifest)
 {
 	struct repository *repo;
@@ -66,11 +73,35 @@ static int yum_init(const struct manifest *manifest)
 		return -EINVAL;
 	}
 
-	strcpy(tmpdir, workdir);
-	strcat(tmpdir, "/yum.repos.d/");
-	if (mkdir(tmpdir, 0700)) {
-		fprintf(stderr, "Cannot create repository directory %s: %s\n",
-			tmpdir, strerror(errno)); 
+	fprintf(stderr, "Initalizing work directory %s\n", workdir);
+
+	if (build_path("/buildroot")) {
+		fprintf(stderr, "Cannot create buildroot directory: %s\n",
+			strerror(errno));
+		goto cleanup_tmpdir;
+	}
+
+	if (build_path("/buildroot/etc")) {
+		fprintf(stderr, "Cannot create buildroot/etc directory: %s\n",
+			strerror(errno));
+		goto cleanup_tmpdir;
+	}
+
+	if (build_path("/buildroot/etc/yum.repos.d")) {
+		fprintf(stderr, "Cannot create repository directory: %s\n",
+			strerror(errno)); 
+		goto cleanup_tmpdir;
+	}
+
+	if (build_path("/buildroot/cache")) {
+		fprintf(stderr, "Cannot create cache directory: %s\n",
+			strerror(errno)); 
+		goto cleanup_tmpdir;
+	}
+
+	if (build_path("/buildroot/logs")) {
+		fprintf(stderr, "Cannot create log directory: %s\n",
+			strerror(errno)); 
 		goto cleanup_tmpdir;
 	}
 
@@ -81,9 +112,9 @@ static int yum_init(const struct manifest *manifest)
 	repo = manifest->repos;
 	while (repo) {
 		strcpy(tmpdir, workdir);
-		strcat(tmpdir, "/yum.repos.d/");
+		strcat(tmpdir, "/buildroot/etc/yum.repos.d/");
 		strcat(tmpdir, repo->name);
-		strcat(tmpdir, ".repo");
+		strcat(tmpdir, "-fb.repo");
 		repof = fopen(tmpdir, "w");
 		if (!repof) {
 			fprintf(stderr, "Error opening %s: %s\n",
@@ -92,7 +123,7 @@ static int yum_init(const struct manifest *manifest)
 		}
 
 		fprintf(repof, "[%s]\n", repo->name);
-		fprintf(repof, "name=%s\n", repo->name);
+		fprintf(repof, "name=%s-fb\n", repo->name);
 		fprintf(repof, "baseurl=%s\n", repo->url);
 		fprintf(repof, "gpgcheck=0\n"); /* for now */
 		fprintf(repof, "enabled=1\n");
@@ -104,7 +135,7 @@ static int yum_init(const struct manifest *manifest)
  	 * create a base yum configuration
  	 */
 	strcpy(tmpdir, workdir);
-	strcat(tmpdir, "/yum.conf");
+	strcat(tmpdir, "/buildroot/etc/yum.conf");
 	repof = fopen(tmpdir, "w");
 	if (!repof) {
 		fprintf(stderr, "Unable to create a repo configuration: %s\n",
@@ -112,62 +143,122 @@ static int yum_init(const struct manifest *manifest)
 		goto cleanup_tmpdir;
 	}
 	fprintf(repof, "[main]\n");
-	fprintf(repof, "cachedir=%s\n", workdir);
+	fprintf(repof, "cachedir=/cache\n");
 	fprintf(repof, "keepcache=1\n");
-	strcpy(tmpdir, workdir);
-	strcat(tmpdir, "/yum.log");
-	fprintf(repof, "logfile=%s\n", tmpdir);
-	strcpy(tmpdir, workdir);
-	strcat(tmpdir, "/yum.repos.d");
-	fprintf(repof, "reposdir=%s\n", tmpdir);
+	fprintf(repof, "logfile=/logs/yum.log\n");
+	fprintf(repof, "reposdir=/etc/yum.repos.d/\n");
 	fclose(repof);
-	
+
 	return 0;
 cleanup_tmpdir:
 	yum_cleanup();
 	return -EINVAL;
 }
 
-static size_t collect_yum_rpm_sizes(const struct rpm *rpms)
+static char *build_rpm_list(const struct manifest *manifest)
 {
-	char yumcmd[256];
-	const struct rpm *rpm;
-	FILE *yumout;
-	char dummy[1024];
-	size_t rc;
+	size_t alloc_size = 0;
+	int count;
+	char *result;
+	struct rpm *rpm = manifest->rpms;
 
-	strcpy(tmpdir, workdir);
-	rpm = rpms;
-	while(rpm) {	
-		sprintf(yumcmd, "yum -c %s info %s", tmpdir, rpm->name);
-	
-		yumout = popen(yumcmd, "r");
-
-		if (!yumout) {
-			fprintf(stderr, "Unable to fork yum: %s\n",
-				strerror(errno));
-			return 0;
-		}
-
-		rc = fread(dummy, 1, 1024, yumout);
-		dummy[rc] = 0;
-		fprintf(stdout, "%s\n", dummy); 
-		pclose(yumout);
+	while (rpm) {
+		/* Add an extra character for the space */
+		alloc_size += strlen(rpm->name) + 2;
 		rpm = rpm->next;
-	}	
+	}
 
-	return 0;	
+
+	result =  calloc(1, alloc_size);
+	if (!result)
+		return NULL;
+
+	rpm = manifest->rpms;
+	count = 0;
+	while (rpm) {
+		/* Add 2 to include the trailing space */
+		count += snprintf(&result[count], strlen(rpm->name)+2 , "%s ", rpm->name);
+		rpm = rpm->next;
+	}
+
+	return result;
+}
+
+static char *gen_install_cmd(char *rpmlist)
+{
+	size_t alloc_size;
+	char *result;
+
+
+	alloc_size = 4; /* yum */
+	alloc_size += 3; /* -y */
+	alloc_size += 15; /* workdir + "/yum.conf" */
+	alloc_size += strlen(workdir) + 25; /* --installroot=<workdir>/buildroot */ 
+	alloc_size += 10; /* install */
+	alloc_size += strlen(rpmlist);
+
+	result = calloc(1, alloc_size);
+	if (!result)
+		return NULL;
+
+	sprintf(result, "yum -y --installroot=%s/buildroot install %s\n",
+		workdir, rpmlist);
+
+	return result;
 }
 
 static int yum_build(const struct manifest *manifest)
 {
+	int rc = -EINVAL;
+	char *rpmlist;
+	char *yum_install;
+	FILE *yum_out;
+	char buf[128];
+	size_t count;
 
 	/*
- 	 * We need to start by building
- 	 * an estimate for the image size
+ 	 * Pretty easy here, just take all the rpms, get concatinate them
+ 	 * and pass them to the appropriate yum command
  	 */
-	collect_yum_rpm_sizes(manifest->rpms);
-	return 0;
+	rpmlist = build_rpm_list(manifest);
+	if (!rpmlist)
+		goto out;
+
+	yum_install = gen_install_cmd(rpmlist);
+	if (!yum_install)
+		goto out_free_rpmlist;
+
+
+	fprintf(stderr, "Installing manifest to %s\n", workdir);
+	/*
+ 	 * Lets run yum in the appropriate subdirectory with the right config to
+ 	 * populate the buildroot directory
+ 	 */
+	yum_out = popen(yum_install, "r");
+	if (yum_out == NULL) {
+		rc = errno;
+		fprintf(stderr, "Unable to exec yum for install: %s\n", strerror(rc));
+		goto out_free_cmd;
+	}
+
+	while(!feof(yum_out) && !ferror(yum_out)) {
+		count = fread(buf, 1, 128, yum_out);
+		fwrite(buf, count, 1, stderr);
+	}
+
+	rc = pclose(yum_out);
+
+	if (rc == -1) {
+		rc = errno;
+		fprintf(stderr, "yum command failed: %s\n", strerror(rc));
+		goto out_free_cmd;
+	}
+out_free_cmd:
+	free(yum_install);
+out_free_rpmlist:	
+	free(rpmlist);
+out:
+	return rc;
 }
 
 
