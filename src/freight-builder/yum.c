@@ -122,7 +122,7 @@ static int yum_init(const struct manifest *manifest)
 			goto cleanup_tmpdir;
 		}
 
-		fprintf(repof, "[%s]\n", repo->name);
+		fprintf(repof, "[%s-fb]\n", repo->name);
 		fprintf(repof, "name=%s-fb\n", repo->name);
 		fprintf(repof, "baseurl=%s\n", repo->url);
 		fprintf(repof, "gpgcheck=0\n"); /* for now */
