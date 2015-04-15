@@ -32,7 +32,7 @@ container looks like this:
     		|
     		|
       rpmbuild or freight-builder
-   		|
+    		|
     		|
     		v
       <binary container rpm>
@@ -44,9 +44,13 @@ rpm --root /path/to/directory
 
 
 Once installed, it can be used as a container via this command:
+
 systemd-nspawn -D /path/to/directory <cmd>
+
 or
+
 systemd-nspawn -D /path/to/directory -b
+
 if the container has had systemd installed to itself (see the systemd-nspawn man
 page for details).
 
