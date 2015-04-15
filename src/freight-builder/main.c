@@ -113,7 +113,7 @@ int main(int argc, char **argv)
 	/*
  	 * Then cleanup the working space
  	 */
-	if (keep)
+	if (!keep)
 		cleanup_pkg_mgmt(build_env);
 
 	rc =0;
