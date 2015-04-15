@@ -134,6 +134,7 @@ static int yum_build_srpm(const struct manifest *manifest)
 		manifest->opts.output_path ? manifest->opts.output_path : workdir,
 		workdir, manifest->package.name);
 
+	fprintf(stderr, "%s\n", cmd);
 	rc = run_command(cmd);
 	if (rc)
 		goto out;
@@ -244,18 +245,33 @@ static int yum_init(const struct manifest *manifest)
 		goto cleanup_tmpdir;
 	}
 
-	fprintf(repof, "Name: %s-freight-container.spec\n",
+	/*
+ 	 * This builds out our spec file for the source RPM
+ 	 * We start with the usual tags
+ 	 */
+	fprintf(repof, "Name: %s-freight-container\n",
 		manifest->package.name);
 	fprintf(repof, "Version: %s\n", manifest->package.version);
 	fprintf(repof, "Release: %s\n", manifest->package.release);
 	fprintf(repof, "License: %s\n", manifest->package.license);
 	fprintf(repof, "Summary: %s\n", manifest->package.summary);
 	fprintf(repof, "\n\n");
-	fprintf(repof, "BuildRequires: yum, rpm-build\n");
+
+	/*
+ 	 * buildrequires include yum as we're going to install a tree with it 
+ 	 */
+	fprintf(repof, "BuildRequires: yum\n");
+
 	fprintf(repof, "\n\n");
 	fprintf(repof, "%%description\n");
 	fprintf(repof, "A container rpm for freight\n");
 	fprintf(repof, "\n\n");
+
+	/*
+ 	 * The install section actually has yum do the install to
+ 	 * the srpms buildroot, that way we can package the containerized
+ 	 * fs into its own rpm
+ 	 */
 	fprintf(repof, "%%install\n");
 	fprintf(repof, "cd ${RPM_BUILD_ROOT}\n");
 	fprintf(repof, "tar xvf %%{SOURCE0}\n");
@@ -263,9 +279,27 @@ static int yum_init(const struct manifest *manifest)
 		rpmlist); 
 	free(rpmlist);
 	fprintf(repof, "yum --installroot=${RPM_BUILD_ROOT} clean all\n");
-
+	/*
+ 	 * After yum is done installing, we need to interrogate all the files
+ 	 * So that we can specify a file list in the %files section
+ 	 */
+	fprintf(repof, "for i in `find . -type d`\n");
+	fprintf(repof, "do\n"); 
+	fprintf(repof, "	echo \"%%dir /$i\" >> %s.manifest\n",
+		manifest->package.name);
+	fprintf(repof, "done\n");
+	fprintf(repof, "for i in `find . -type f`\n");
+	fprintf(repof, "do\n"); 
+	fprintf(repof, "	echo \"/$i\" >> %s.manifest\n",
+		manifest->package.name);
+	fprintf(repof, "done\n");
 	fprintf(repof, "\n\n");
-	fprintf(repof, "%%files\n");
+	fprintf(repof, "%%files -f %s.manifest\n",
+		manifest->package.name);
+
+	/*
+ 	 * And an empty chagnelog
+ 	 */
 	fprintf(repof, "\n\n");
 	fprintf(repof, "%%changelog\n");
 	fclose(repof);

@@ -80,7 +80,7 @@ int main(int argc, char **argv)
 		case 'm':
 			config = optarg;
 			break;
-		case 'O':
+		case 'o':
 			output = optarg;
 			break;
 		}
