@@ -20,7 +20,7 @@ manifest = (
 );
 
 packaging = {
-	name = "test-container";
+	name = "test";
 	version = "1.0";
 	release = "1";
 	summary = "example container";

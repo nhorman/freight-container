@@ -32,6 +32,7 @@ struct option lopts[] = {
 	{"help", 0, NULL, 'h'},
 	{"manifest", 1, NULL, 'm'},
 	{"keep", 1, NULL, 'k'},
+	{"output", 1, NULL, 'o'},
 	{ 0, 0, 0, 0}
 };
 #endif
@@ -39,9 +40,9 @@ struct option lopts[] = {
 static void usage(char **argv)
 {
 #ifdef HAVE_GETOPT_LONG
-	fprintf(stderr, "%s [-h | --help] [-k | --keep] <[-m | --manifest]  config>\n", argv[0]);
+	fprintf(stderr, "%s [-h | --help] [-o | --output path  ] [-k | --keep] <[-m | --manifest]  config>\n", argv[0]);
 #else
-	frpintf(stderr, "%s [-h] [-k] <-m config>\n", argv[0]);
+	frpintf(stderr, "%s [-h] [-k] [-o path] <-m config>\n", argv[0]);
 #endif
 }
 
@@ -53,13 +54,14 @@ int main(int argc, char **argv)
 	int rc = 1;
 	struct pkg_ops *build_env;
 	int keep = 0;
+	char *output = NULL;
 
 	/*
  	 * Parse command line options
  	 */
 
 #ifdef HAVE_GETOPT_LONG
-	while ((opt = getopt_long(argc, argv, "h,m:k", lopts, &longind)) != -1) {
+	while ((opt = getopt_long(argc, argv, "h,m:ko:", lopts, &longind)) != -1) {
 #else
 	while ((opt = getopt(argc, argv, "h,m:k") != -1) {
 #endif
@@ -77,6 +79,9 @@ int main(int argc, char **argv)
 			break;
 		case 'm':
 			config = optarg;
+			break;
+		case 'O':
+			output = optarg;
 			break;
 		}
 	}
@@ -97,6 +102,11 @@ int main(int argc, char **argv)
 	}
 
 	/*
+ 	 * Add any relevant command line info to the manifest
+ 	 */
+	manifest.opts.output_path = output;
+
+	/*
  	 * Setup the builder working env
  	 */
 	build_env = init_pkg_mgmt(PKG_YUM, &manifest);
@@ -108,7 +118,7 @@ int main(int argc, char **argv)
 	/*
  	 * Actually build the image
  	 */
-	build_image_from_manifest(build_env, &manifest);	
+	build_srpm_from_manifest(build_env, &manifest);	
 
 	/*
  	 * Then cleanup the working space

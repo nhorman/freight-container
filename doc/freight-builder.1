@@ -16,7 +16,7 @@ systems running freight-agent, and are usable as systemd containers.
 
 .SH OPTIONS
 .TP
-\fB freight-builder [\-h] \<-m manifest file\>
+\fB freight-builder [OPTIONS] 
 .TP
 .B -h | --help
 Display options and usage for the utility
@@ -29,6 +29,9 @@ Only build the soruce rpm, not the binary container rpm
 .TP
 .B -m | --manifest <manifest file>
 Specify the manifest file to convert into a container image
+.TP
+.B -o | --output path/to/output/dir
+Write the resultant source and binary rpms to this directory
 .SH MANIFEST FILE FORMAT 
 
 The Manifest file codifies the contents of a container image and generally has

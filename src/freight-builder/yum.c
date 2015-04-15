@@ -58,103 +58,6 @@ static int build_path(const char *path)
 	return mkdir(tmpdir, 0700);
 }
 
-static int yum_init(const struct manifest *manifest)
-{
-	struct repository *repo;
-	FILE *repof;
-	
-	getcwd(worktemplate, 256);
-	strcat(worktemplate, "/freight-builder.XXXXXX"); 
-
-	workdir = mkdtemp(worktemplate);
-	if (workdir == NULL) {
-		fprintf(stderr, "Cannot create temporary work directory %s: %s\n",
-			worktemplate, strerror(errno));
-		return -EINVAL;
-	}
-
-	fprintf(stderr, "Initalizing work directory %s\n", workdir);
-
-	if (build_path("/buildroot")) {
-		fprintf(stderr, "Cannot create buildroot directory: %s\n",
-			strerror(errno));
-		goto cleanup_tmpdir;
-	}
-
-	if (build_path("/buildroot/etc")) {
-		fprintf(stderr, "Cannot create buildroot/etc directory: %s\n",
-			strerror(errno));
-		goto cleanup_tmpdir;
-	}
-
-	if (build_path("/buildroot/etc/yum.repos.d")) {
-		fprintf(stderr, "Cannot create repository directory: %s\n",
-			strerror(errno)); 
-		goto cleanup_tmpdir;
-	}
-
-	if (build_path("/buildroot/cache")) {
-		fprintf(stderr, "Cannot create cache directory: %s\n",
-			strerror(errno)); 
-		goto cleanup_tmpdir;
-	}
-
-	if (build_path("/buildroot/logs")) {
-		fprintf(stderr, "Cannot create log directory: %s\n",
-			strerror(errno)); 
-		goto cleanup_tmpdir;
-	}
-
-	/*
- 	 * for each item in the repos list
- 	 * lets create a file with that repository listed
- 	 */
-	repo = manifest->repos;
-	while (repo) {
-		strcpy(tmpdir, workdir);
-		strcat(tmpdir, "/buildroot/etc/yum.repos.d/");
-		strcat(tmpdir, repo->name);
-		strcat(tmpdir, "-fb.repo");
-		repof = fopen(tmpdir, "w");
-		if (!repof) {
-			fprintf(stderr, "Error opening %s: %s\n",
-				tmpdir, strerror(errno));
-			goto cleanup_tmpdir;
-		}
-
-		fprintf(repof, "[%s-fb]\n", repo->name);
-		fprintf(repof, "name=%s-fb\n", repo->name);
-		fprintf(repof, "baseurl=%s\n", repo->url);
-		fprintf(repof, "gpgcheck=0\n"); /* for now */
-		fprintf(repof, "enabled=1\n");
-		fclose(repof);
-		repo = repo->next;
-	}
-
-	/*
- 	 * create a base yum configuration
- 	 */
-	strcpy(tmpdir, workdir);
-	strcat(tmpdir, "/buildroot/etc/yum.conf");
-	repof = fopen(tmpdir, "w");
-	if (!repof) {
-		fprintf(stderr, "Unable to create a repo configuration: %s\n",
-			strerror(errno));
-		goto cleanup_tmpdir;
-	}
-	fprintf(repof, "[main]\n");
-	fprintf(repof, "cachedir=/cache\n");
-	fprintf(repof, "keepcache=1\n");
-	fprintf(repof, "logfile=/logs/yum.log\n");
-	fprintf(repof, "reposdir=/etc/yum.repos.d/\n");
-	fclose(repof);
-
-	return 0;
-cleanup_tmpdir:
-	yum_cleanup();
-	return -EINVAL;
-}
-
 static char *build_rpm_list(const struct manifest *manifest)
 {
 	size_t alloc_size = 0;
@@ -180,46 +83,6 @@ static char *build_rpm_list(const struct manifest *manifest)
 		count += snprintf(&result[count], strlen(rpm->name)+2 , "%s ", rpm->name);
 		rpm = rpm->next;
 	}
-
-	return result;
-}
-
-static char *gen_install_cmd(char *rpmlist)
-{
-	size_t alloc_size;
-	char *result;
-
-
-	alloc_size = 4; /* yum */
-	alloc_size += 3; /* -y */
-	alloc_size += 15; /* "/yum.conf" */
-	alloc_size += strlen(workdir) + 25; /* --installroot=<workdir>/buildroot */ 
-	alloc_size += 10; /* install */
-	alloc_size += strlen(rpmlist);
-
-	result = calloc(1, alloc_size);
-	if (!result)
-		return NULL;
-
-	sprintf(result, "yum -y --installroot=%s/buildroot install %s\n",
-		workdir, rpmlist);
-
-	return result;
-}
-
-static char *gen_cleanup_cmd()
-{
-	char *result;
-	size_t alloc_size;
-	
-
-	alloc_size = 64 + strlen(workdir);
-
-	result = calloc(1, alloc_size);
-	if (!result)
-		return NULL;
-
-	sprintf(result, "yum -y --installroot=%s/buildroot clean all\n", workdir);
 
 	return result;
 }
@@ -254,59 +117,169 @@ static int run_command(char *cmd)
 	return 0;
 }
 
-static int yum_build(const struct manifest *manifest)
+static int yum_build_srpm(const struct manifest *manifest)
 {
 	int rc = -EINVAL;
-	char *rpmlist;
-	char *yum_install, *yum_clean;
+	char cmd[1024];
 
-	/*
- 	 * Pretty easy here, just take all the rpms, get concatinate them
- 	 * and pass them to the appropriate yum command
- 	 */
-	rpmlist = build_rpm_list(manifest);
-	if (!rpmlist)
+	snprintf(cmd, 512, "tar -C %s -jcf %s/%s-freight.tbz2 ./etc/\n",
+		workdir, workdir, manifest->package.name);
+	rc = run_command(cmd);
+	if (rc)
 		goto out;
 
-	yum_install = gen_install_cmd(rpmlist);
-	if (!yum_install)
-		goto out_free_rpmlist;
+	snprintf(cmd, 512, "rpmbuild -D \"_sourcedir %s\" -D \"_srcrpmdir %s\" "
+		"-bs %s/%s-freight-container.spec\n",
+		workdir,
+		manifest->opts.output_path ? manifest->opts.output_path : workdir,
+		workdir, manifest->package.name);
 
-
-	fprintf(stderr, "Installing manifest to %s\n", workdir);
-	/*
- 	 * Lets run yum in the appropriate subdirectory with the right config to
- 	 * populate the buildroot directory
- 	 */
-	if (run_command(yum_install))
-		goto out_free_cmd;
-
-	yum_clean = gen_cleanup_cmd();
-	if (!yum_clean)
-		goto out_free_cmd;
-
-	fprintf(stderr, "Cleaning up temporary files\n");
-
-	if (run_command(yum_clean))
-		goto out_free_clean;
-
-	rc = 0;
-
-out_free_clean:
-	free(yum_clean);
-out_free_cmd:
-	free(yum_install);
-out_free_rpmlist:	
-	free(rpmlist);
+	rc = run_command(cmd);
+	if (rc)
+		goto out;
 out:
 	return rc;
 }
 
+static int yum_init(const struct manifest *manifest)
+{
+	struct repository *repo;
+	FILE *repof;
+	char *rpmlist;
+	
+	getcwd(worktemplate, 256);
+	strcat(worktemplate, "/freight-builder.XXXXXX"); 
+
+	workdir = mkdtemp(worktemplate);
+	if (workdir == NULL) {
+		fprintf(stderr, "Cannot create temporary work directory %s: %s\n",
+			worktemplate, strerror(errno));
+		return -EINVAL;
+	}
+
+	fprintf(stderr, "Initalizing work directory %s\n", workdir);
+
+	if (build_path("/etc")) {
+		fprintf(stderr, "Cannot create etc directory: %s\n",
+			strerror(errno));
+		goto cleanup_tmpdir;
+	}
+
+	if (build_path("/etc/yum.repos.d")) {
+		fprintf(stderr, "Cannot create repository directory: %s\n",
+			strerror(errno)); 
+		goto cleanup_tmpdir;
+	}
+
+	if (build_path("/cache")) {
+		fprintf(stderr, "Cannot create cache directory: %s\n",
+			strerror(errno)); 
+		goto cleanup_tmpdir;
+	}
+
+	if (build_path("/logs")) {
+		fprintf(stderr, "Cannot create log directory: %s\n",
+			strerror(errno)); 
+		goto cleanup_tmpdir;
+	}
+
+	/*
+ 	 * for each item in the repos list
+ 	 * lets create a file with that repository listed
+ 	 */
+	repo = manifest->repos;
+	while (repo) {
+		strcpy(tmpdir, workdir);
+		strcat(tmpdir, "/etc/yum.repos.d/");
+		strcat(tmpdir, repo->name);
+		strcat(tmpdir, "-fb.repo");
+		repof = fopen(tmpdir, "w");
+		if (!repof) {
+			fprintf(stderr, "Error opening %s: %s\n",
+				tmpdir, strerror(errno));
+			goto cleanup_tmpdir;
+		}
+
+		fprintf(repof, "[%s-fb]\n", repo->name);
+		fprintf(repof, "name=%s-fb\n", repo->name);
+		fprintf(repof, "baseurl=%s\n", repo->url);
+		fprintf(repof, "gpgcheck=0\n"); /* for now */
+		fprintf(repof, "enabled=1\n");
+		fclose(repof);
+		repo = repo->next;
+	}
+
+	/*
+ 	 * create a base yum configuration
+ 	 */
+	strcpy(tmpdir, workdir);
+	strcat(tmpdir, "/etc/yum.conf");
+	repof = fopen(tmpdir, "w");
+	if (!repof) {
+		fprintf(stderr, "Unable to create a repo configuration: %s\n",
+			strerror(errno));
+		goto cleanup_tmpdir;
+	}
+	fprintf(repof, "[main]\n");
+	fprintf(repof, "cachedir=/cache\n");
+	fprintf(repof, "keepcache=1\n");
+	fprintf(repof, "logfile=/logs/yum.log\n");
+	fprintf(repof, "reposdir=/etc/yum.repos.d/\n");
+	fclose(repof);
+
+	/*
+ 	 * Build the spec file
+ 	 */
+	rpmlist = build_rpm_list(manifest);
+	if (!rpmlist)
+		goto cleanup_tmpdir;
+
+	sprintf(tmpdir, "%s/%s-freight-container.spec", workdir,
+		manifest->package.name);
+
+	repof = fopen(tmpdir, "w");
+	if (!repof) {
+		fprintf(stderr, "Unable to create a spec file: %s\n",
+			strerror(errno));
+		goto cleanup_tmpdir;
+	}
+
+	fprintf(repof, "Name: %s-freight-container.spec\n",
+		manifest->package.name);
+	fprintf(repof, "Version: %s\n", manifest->package.version);
+	fprintf(repof, "Release: %s\n", manifest->package.release);
+	fprintf(repof, "License: %s\n", manifest->package.license);
+	fprintf(repof, "Summary: %s\n", manifest->package.summary);
+	fprintf(repof, "\n\n");
+	fprintf(repof, "BuildRequires: yum, rpm-build\n");
+	fprintf(repof, "\n\n");
+	fprintf(repof, "%%description\n");
+	fprintf(repof, "A container rpm for freight\n");
+	fprintf(repof, "\n\n");
+	fprintf(repof, "%%install\n");
+	fprintf(repof, "cd ${RPM_BUILD_ROOT}\n");
+	fprintf(repof, "tar xvf %%{SOURCE0}\n");
+	fprintf(repof, "yum -y --installroot=${RPM_BUILD_ROOT} install %s\n",
+		rpmlist); 
+	free(rpmlist);
+	fprintf(repof, "yum --installroot=${RPM_BUILD_ROOT} clean all\n");
+
+	fprintf(repof, "\n\n");
+	fprintf(repof, "%%files\n");
+	fprintf(repof, "\n\n");
+	fprintf(repof, "%%changelog\n");
+	fclose(repof);
+
+	return 0;
+cleanup_tmpdir:
+	yum_cleanup();
+	return -EINVAL;
+}
 
 struct pkg_ops yum_ops = {
-	yum_init,
-	yum_cleanup,
-	yum_build
+	.init = yum_init,
+	.cleanup = yum_cleanup,
+	.build_srpm = yum_build_srpm
 };
 
 

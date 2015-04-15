@@ -52,6 +52,13 @@ struct packaging {
 };
 
 /*
+ * Command line options to add after parsing the manifest
+ */
+struct cmdline_options {
+	char *output_path;
+};
+
+/*
  * This represents the set of parsed information we get out of the above
  * manifest files
  */
@@ -60,6 +67,7 @@ struct manifest {
 	struct rpm *rpms;
 	struct options *options;
 	struct packaging package;
+	struct cmdline_options opts;
 };
 
 void release_manifest(struct manifest *manifest);
