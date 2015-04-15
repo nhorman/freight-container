@@ -42,6 +42,15 @@ struct options {
 	char *nspawn_opts;
 };
 
+struct packaging {
+	char *name;
+	char *version;
+	char *release;
+	char *summary;
+	char *license;
+	char *author;
+};
+
 /*
  * This represents the set of parsed information we get out of the above
  * manifest files
@@ -50,6 +59,7 @@ struct manifest {
 	struct repository *repos;
 	struct rpm *rpms;
 	struct options *options;
+	struct packaging package;
 };
 
 void release_manifest(struct manifest *manifest);

@@ -18,3 +18,13 @@ manifest = (
 	"coreutils",
 	"fedora-release"
 );
+
+packaging = {
+	name = "test-container";
+	version = "1.0";
+	release = "1";
+	summary = "example container";
+	license = "GPLv2";
+	author = "Neil Horman <root@localhost.com>";
+};
+

@@ -51,6 +51,13 @@ void release_manifest(struct manifest *manifest)
 	if (manifest->options)
 		free(manifest->options);
 
+	free(manifest->package.license);
+	free(manifest->package.summary);
+	free(manifest->package.release);
+	free(manifest->package.version);
+	free(manifest->package.name);
+
+	memset(manifest, 0, sizeof(struct manifest));
 }
 
 static int parse_repositories(struct config_t *config, struct manifest *manifest)
@@ -156,7 +163,78 @@ static int parse_rpms(struct config_t *config, struct manifest *manifest)
 	return 0;
 }
 
-static int __read_manifest(const char *config_path, struct manifest *manifest)
+static int parse_packaging(struct config_t *config, struct manifest *manifest)
+{
+	config_setting_t *pkg = config_lookup(config, "packaging");
+	config_setting_t *tmp;
+	int rc = -EINVAL;
+
+	if (!pkg) {
+		fprintf(stderr, "You must supply a packaging directive\n");
+		goto out;
+	}
+
+	tmp = config_setting_get_member(pkg, "name");
+	if (!tmp) {
+		fprintf(stderr, "You must specify a package name\n");
+		goto out;
+	}
+	manifest->package.name = strdup(config_setting_get_string(tmp));
+
+	tmp = config_setting_get_member(pkg, "version");
+	if (!tmp) {
+		fprintf(stderr, "You must specify a package version\n");
+		goto out_name;
+	}
+	manifest->package.version = strdup(config_setting_get_string(tmp));
+
+	tmp = config_setting_get_member(pkg, "release");
+	if (!tmp) {
+		fprintf(stderr, "You must specify a package release\n");
+		goto out_version;
+	}
+	manifest->package.release = strdup(config_setting_get_string(tmp));
+
+	tmp = config_setting_get_member(pkg, "summary");
+	if (!tmp) {
+		fprintf(stderr, "You must specify a package summary\n");
+		goto out_release;
+	}
+	manifest->package.summary = strdup(config_setting_get_string(tmp));
+
+	tmp = config_setting_get_member(pkg, "license");
+	if (!tmp) {
+		fprintf(stderr, "You must specify a package license\n");
+		goto out_summary;
+	}
+	manifest->package.license = strdup(config_setting_get_string(tmp));
+
+	tmp = config_setting_get_member(pkg, "author");
+	if (!tmp) {
+		fprintf(stderr, "You must specify a package author\n");
+		goto out_license;
+	}
+	manifest->package.author = strdup(config_setting_get_string(tmp));
+
+	rc = 0;
+	goto out;
+
+out_license:
+	free(manifest->package.license);
+out_summary:
+	free(manifest->package.summary);
+out_release:
+	free(manifest->package.release);
+out_version:
+	free(manifest->package.version);
+out_name:
+	free(manifest->package.name);
+out:
+	return rc;
+}
+
+static int __read_manifest(const char *config_path, struct manifest *manifest,
+			   int base)
 {
 	int rc = 0;
 	const char *next_path;
@@ -193,7 +271,7 @@ static int __read_manifest(const char *config_path, struct manifest *manifest)
 		/*
  		 * Recursively parse the parent manifest
  		 */
-		rc = __read_manifest(next_path, manifest);
+		rc = __read_manifest(next_path, manifest, 0);
 		if (rc) 
 			goto out;
 	}
@@ -210,7 +288,18 @@ static int __read_manifest(const char *config_path, struct manifest *manifest)
 	if (rc)
 		goto out;
 
-
+	if (!base) {
+		if (config_lookup(&config, "packaging") != NULL) {
+			fprintf(stderr, "Can't include packaging directive in "
+				"inherited manifest %s\n", config_path);
+			rc = -EINVAL;
+			goto out;
+		}
+	} else {
+		rc = parse_packaging(&config, manifest);
+		if (rc)
+			goto out;
+	}
 out:
 	config_destroy(&config);
 	return rc;
@@ -222,7 +311,7 @@ int read_manifest(char *config_path, struct manifest *manifestp)
 
 	memset(manifestp, 0, sizeof(struct manifest));
 
-	rc = __read_manifest(config_path, manifestp);
+	rc = __read_manifest(config_path, manifestp, 1);
 
 	if (rc) {
 		release_manifest(manifestp);
