@@ -117,24 +117,63 @@ static int run_command(char *cmd)
 	return 0;
 }
 
+/*
+ * Turn the srpm into an container rpm for freight
+ */
+static int yum_build_rpm(const struct manifest *manifest)
+{
+	char cmd[1024];
+	char *output_path;
+
+	output_path = manifest->opts.output_path ? manifest->opts.output_path :
+			workdir;
+
+	/*
+ 	 * This will convert the previously built srpm into a binary rpm that
+ 	 * can serve as a containerized directory for systemd-nspawn
+ 	 */
+	snprintf(cmd, 1024, "rpmbuild -D\"__arch_install_post "
+		 "/usr/lib/rpm/check-rpaths /usr/lib/rpm/check-buildroot\" "
+		 "-D\"_rpmdir %s\" "
+		 "--rebuild %s/%s-freight-container-%s-%s.src.rpm\n",
+		 output_path, output_path,
+		 manifest->package.name, manifest->package.version,
+		 manifest->package.release);
+	return run_command(cmd);
+}
+
+/*
+ * Build an srpm from our yum config setup we generated
+ * in yum_init.
+ */
 static int yum_build_srpm(const struct manifest *manifest)
 {
 	int rc = -EINVAL;
 	char cmd[1024];
 
-	snprintf(cmd, 512, "tar -C %s -jcf %s/%s-freight.tbz2 ./etc/\n",
+	/*
+ 	 * Tar up the etc directory we generated in our sandbox.  This gets 
+ 	 * Included in the srpm as Source0 of the spec file (written in
+ 	 * yum_init)
+ 	 */
+	snprintf(cmd, 1024, "tar -C %s -jcf %s/%s-freight.tbz2 ./etc/\n",
 		workdir, workdir, manifest->package.name);
 	rc = run_command(cmd);
 	if (rc)
 		goto out;
 
+	/*
+ 	 * Then build the srpms using the spec generated in yum_init.  Point our 
+ 	 * SOURCES dir at the sandbox to pick up the above tarball, and
+ 	 * optionally direct the srpm dir to the output directory if it was
+ 	 * specified
+ 	 */
 	snprintf(cmd, 512, "rpmbuild -D \"_sourcedir %s\" -D \"_srcrpmdir %s\" "
 		"-bs %s/%s-freight-container.spec\n",
 		workdir,
 		manifest->opts.output_path ? manifest->opts.output_path : workdir,
 		workdir, manifest->package.name);
 
-	fprintf(stderr, "%s\n", cmd);
 	rc = run_command(cmd);
 	if (rc)
 		goto out;
@@ -254,7 +293,13 @@ static int yum_init(const struct manifest *manifest)
 	fprintf(repof, "Version: %s\n", manifest->package.version);
 	fprintf(repof, "Release: %s\n", manifest->package.release);
 	fprintf(repof, "License: %s\n", manifest->package.license);
+	/*
+ 	 * We don't want these rpms to provide anything that the host system
+ 	 * might want
+ 	 */
+	fprintf(repof, "AutoReqProv: no\n");
 	fprintf(repof, "Summary: %s\n", manifest->package.summary);
+	fprintf(repof, "Source0: %s-freight.tbz2\n", manifest->package.name);
 	fprintf(repof, "\n\n");
 
 	/*
@@ -283,18 +328,27 @@ static int yum_init(const struct manifest *manifest)
  	 * After yum is done installing, we need to interrogate all the files
  	 * So that we can specify a file list in the %files section
  	 */
+	fprintf(repof, "rm -f /tmp/%s.manifest\n", manifest->package.name);
 	fprintf(repof, "for i in `find . -type d`\n");
 	fprintf(repof, "do\n"); 
-	fprintf(repof, "	echo \"%%dir /$i\" >> %s.manifest\n",
+	fprintf(repof, "	echo \"%%dir /$i\" >> /tmp/%s.manifest\n",
 		manifest->package.name);
 	fprintf(repof, "done\n");
+
 	fprintf(repof, "for i in `find . -type f`\n");
 	fprintf(repof, "do\n"); 
-	fprintf(repof, "	echo \"/$i\" >> %s.manifest\n",
+	fprintf(repof, "	echo \"/$i\" >> /tmp/%s.manifest\n",
 		manifest->package.name);
 	fprintf(repof, "done\n");
+
+	fprintf(repof, "for i in `find . -type l`\n");
+	fprintf(repof, "do\n"); 
+	fprintf(repof, "	echo \"/$i\" >> /tmp/%s.manifest\n",
+		manifest->package.name);
+	fprintf(repof, "done\n");
+
 	fprintf(repof, "\n\n");
-	fprintf(repof, "%%files -f %s.manifest\n",
+	fprintf(repof, "%%files -f /tmp/%s.manifest\n",
 		manifest->package.name);
 
 	/*
@@ -313,7 +367,8 @@ cleanup_tmpdir:
 struct pkg_ops yum_ops = {
 	.init = yum_init,
 	.cleanup = yum_cleanup,
-	.build_srpm = yum_build_srpm
+	.build_srpm = yum_build_srpm,
+	.build_rpm = yum_build_rpm
 };
 
 

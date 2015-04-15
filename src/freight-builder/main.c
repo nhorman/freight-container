@@ -31,8 +31,9 @@
 struct option lopts[] = {
 	{"help", 0, NULL, 'h'},
 	{"manifest", 1, NULL, 'm'},
-	{"keep", 1, NULL, 'k'},
+	{"keep", 0, NULL, 'k'},
 	{"output", 1, NULL, 'o'},
+	{"source", 0, NULL, 's'},
 	{ 0, 0, 0, 0}
 };
 #endif
@@ -40,9 +41,9 @@ struct option lopts[] = {
 static void usage(char **argv)
 {
 #ifdef HAVE_GETOPT_LONG
-	fprintf(stderr, "%s [-h | --help] [-o | --output path  ] [-k | --keep] <[-m | --manifest]  config>\n", argv[0]);
+	fprintf(stderr, "%s [-h | --help] [-o | --output path  ] [-s || --source] [-k | --keep] <[-m | --manifest]  config>\n", argv[0]);
 #else
-	frpintf(stderr, "%s [-h] [-k] [-o path] <-m config>\n", argv[0]);
+	frpintf(stderr, "%s [-h] [-k] [-s] [-o path] <-m config>\n", argv[0]);
 #endif
 }
 
@@ -55,13 +56,13 @@ int main(int argc, char **argv)
 	struct pkg_ops *build_env;
 	int keep = 0;
 	char *output = NULL;
-
+	int source_only=0;
 	/*
  	 * Parse command line options
  	 */
 
 #ifdef HAVE_GETOPT_LONG
-	while ((opt = getopt_long(argc, argv, "h,m:ko:", lopts, &longind)) != -1) {
+	while ((opt = getopt_long(argc, argv, "h,m:ko:s", lopts, &longind)) != -1) {
 #else
 	while ((opt = getopt(argc, argv, "h,m:k") != -1) {
 #endif
@@ -82,6 +83,9 @@ int main(int argc, char **argv)
 			break;
 		case 'o':
 			output = optarg;
+			break;
+		case 's':
+			source_only = 1;
 			break;
 		}
 	}
@@ -119,6 +123,12 @@ int main(int argc, char **argv)
  	 * Actually build the image
  	 */
 	build_srpm_from_manifest(build_env, &manifest);	
+
+	/*
+ 	 * If we need to, build the actual container rpm as well
+ 	 */
+	if (!source_only)
+		build_rpm_from_srpm(build_env, &manifest);
 
 	/*
  	 * Then cleanup the working space

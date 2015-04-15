@@ -38,6 +38,7 @@ struct pkg_ops {
 	int (*init)(const struct manifest *manifest);
 	void (*cleanup)();
 	int (*build_srpm)(const struct manifest *manifest);
+	int (*build_rpm)(const struct manifest *manifest);
 };
 
 struct pkg_ops *init_pkg_mgmt(enum pkg_mgmt_type ptype,
@@ -52,6 +53,12 @@ static inline int build_srpm_from_manifest(struct pkg_ops *ops,
 					   const struct manifest *mfst)
 {
 	return ops->build_srpm(mfst);
+}
+
+static inline int build_rpm_from_srpm(struct pkg_ops *ops,
+				      const struct manifest *mfst)
+{
+	return ops->build_rpm(mfst);
 }
 
 #endif
