@@ -4,5 +4,5 @@ AM_LDFLAGS = -lconfig ${PQ_LIBS}
 
 bin_PROGRAMS = freight-agent
 
-freight_agent_SOURCES = main.c
+freight_agent_SOURCES = main.c freight-config.h
 

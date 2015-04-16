@@ -24,10 +24,19 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <config.h>
+#include <freight-log.h>
+
+/*
+ * Global flag to tell us if we're daemonized
+ */
+int daemonize = 0;
+struct agent_config config;
 
 #ifdef HAVE_GETOPT_LONG
 struct option lopts[] = {
 	{"help", 0, NULL, 'h'},
+	{"config", 1, NULL, 'c'},
+	{"daemon", 0, NULL, 'd'},
 	{ 0, 0, 0, 0}
 };
 #endif
@@ -35,9 +44,9 @@ struct option lopts[] = {
 static void usage(char **argv)
 {
 #ifdef HAVE_GETOPT_LONG
-	fprintf(stderr, "%s [-h | --help]\n", argv[0]);
+	fprintf(stderr, "%s [-h | --help] [-c | --config=<config>] [-d | --daemon]\n", argv[0]);
 #else
-	frpintf(stderr, "%s [-h]", argv[0]);
+	frpintf(stderr, "%s [-h] [-c <config>] [-d]", argv[0]);
 #endif
 }
 
@@ -45,14 +54,16 @@ int main(int argc, char **argv)
 {
 	int rc = 1;
 	int opt, longind;
+	char *config_file = "/etc/freight-agent/config";
+
 	/*
  	 * Parse command line options
  	 */
 
 #ifdef HAVE_GETOPT_LONG
-	while ((opt = getopt_long(argc, argv, "h,m:ko:s", lopts, &longind)) != -1) {
+	while ((opt = getopt_long(argc, argv, "hc:d", lopts, &longind)) != -1) {
 #else
-	while ((opt = getopt(argc, argv, "h,m:k") != -1) {
+	while ((opt = getopt(argc, argv, "hc:d") != -1) {
 #endif
 		switch(opt) {
 
@@ -63,9 +74,20 @@ int main(int argc, char **argv)
 			goto out;
 			/* NOTREACHED */
 			break;
+		case 'c':
+			config_file = optarg;
+			break;
+		case 'd':
+			daemonize = 1;
+			break;
 		}
 	}
 
+
+	/*
+ 	 * Read in the configuration file
+ 	 */
+	rc = read_configuration(config_file, &config);
 	rc = 0;
 out:
 	return rc;
