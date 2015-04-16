@@ -25,6 +25,7 @@
 #include <getopt.h>
 #include <config.h>
 #include <freight-log.h>
+#include <freight-config.h>
 
 /*
  * Global flag to tell us if we're daemonized

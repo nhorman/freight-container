@@ -33,4 +33,3 @@ void release_configuration(struct agent_config *config)
 	return;
 }
 
-#endif
