@@ -9,11 +9,16 @@ advantage of these systemd tools.  Freight-tools seeks to provide some
 distributed management of systemd containers in a way that the kubernetes
 project does with docker.  It also seeks to provide some additional features
 above and beyond what docker and kubernetes provide.  Most notably it seeks to
-provide better management for security issues and updates.  While any container
-can typically be rebuilt fairly easily, Docker containers contain very little
-infrastructure to tell administrators when a given container instance is
-effected by a security issues.  Freight seeks to provide that visibility to an
-administrator.
+provide a more tradtional type of management for security issues and updates.
+While Docker containers allow for for easy rebuilding and some level of
+versioning, they fail to integreate metadata for administrators to determine
+_when_ a container is in need of an update.  Freight seeks to enable
+administrators to determine the need for contanier updates by building
+containers out of existing package repositories, and including their
+installation metadata.  By doing so, administrators can easily use existing
+tools like yum to see if updated packages are needed inside a container.
+Further, since the container itself is packaged as an rpm file, it can be
+distributed for update using well tested and established tools and mechainsms.
 
 # How it works
 Freight uses robust existing technology to provide containerization of
