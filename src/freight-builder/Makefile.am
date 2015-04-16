@@ -1,6 +1,6 @@
-AM_CFLAGS = -Wall -O2 -D_GNU_SOURCE
+AM_CFLAGS = -Wall -O2 -D_GNU_SOURCE ${libconfig_CFLAGS}
 
-AM_LDFLAGS = -lconfig
+AM_LDFLAGS = ${libconfig_LIBS}
 
 bin_PROGRAMS = freight-builder
 

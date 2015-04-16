@@ -17,14 +17,12 @@ AC_DEFINE([HAVE_NFTW], [], [enable for nftw support])
 # Checks for libraries.
 
 # Checks for header files.
-AC_CHECK_HEADERS([stdlib.h libconfig ftw.h])
+AC_CHECK_HEADERS([stdlib.h ftw.h])
 # Checks for typedefs, structures, and compiler characteristics.
 
 # Checks for library functions.
-AC_CHECK_LIB(config, config_init)
-
-# Check for the postgres library installation
-PKG_CHECK_MODULES([PQ], libpq)
+PKG_CHECK_MODULES([libpq], [libpq])
+PKG_CHECK_MODULES([libconfig], [libconfig])
 
 AC_CHECK_FUNC([getopt_long], [AC_DEFINE([HAVE_GETOPT_LONG],[1],[getopt_long support])])
 AC_CHECK_FUNC([nftw], [AC_DEFINE([HAVE_NFTW],[1],[nftw support])], [
