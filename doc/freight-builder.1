@@ -32,6 +32,10 @@ Specify the manifest file to convert into a container image
 .TP
 .B -o | --output path/to/output/dir
 Write the resultant source and binary rpms to this directory
+.TP
+.B -c | --container <path/to/container/rpm>
+Instead of building an rpm, introspect an rpm to see if any packages need
+updates within the container
 .SH MANIFEST FILE FORMAT 
 
 The Manifest file codifies the contents of a container image and generally has

@@ -34,6 +34,7 @@ struct option lopts[] = {
 	{"keep", 0, NULL, 'k'},
 	{"output", 1, NULL, 'o'},
 	{"source", 0, NULL, 's'},
+	{"check", 1, NULL, 'c'},
 	{ 0, 0, 0, 0}
 };
 #endif
@@ -41,9 +42,12 @@ struct option lopts[] = {
 static void usage(char **argv)
 {
 #ifdef HAVE_GETOPT_LONG
-	fprintf(stderr, "%s [-h | --help] [-o | --output path  ] [-s || --source] [-k | --keep] <[-m | --manifest]  config>\n", argv[0]);
+	fprintf(stderr, "%s [-h | --help] [-o | --output path  ]"
+			" [-s || --source] [-k | --keep] "
+			"<[-m | --manifest]  config> "
+			"<-c | --check=<container rpm>>\n", argv[0]);
 #else
-	frpintf(stderr, "%s [-h] [-k] [-s] [-o path] <-m config>\n", argv[0]);
+	frpintf(stderr, "%s [-h] [-k] [-s] [-o path] <-m config> <-c container>\n", argv[0]);
 #endif
 }
 
@@ -57,14 +61,16 @@ int main(int argc, char **argv)
 	int keep = 0;
 	char *output = NULL;
 	int source_only=0;
+	char *container_rpm = NULL;
+
 	/*
  	 * Parse command line options
  	 */
 
 #ifdef HAVE_GETOPT_LONG
-	while ((opt = getopt_long(argc, argv, "h,m:ko:s", lopts, &longind)) != -1) {
+	while ((opt = getopt_long(argc, argv, "h,m:ko:sc:", lopts, &longind)) != -1) {
 #else
-	while ((opt = getopt(argc, argv, "h,m:k") != -1) {
+	while ((opt = getopt(argc, argv, "h,m:kc:") != -1) {
 #endif
 		switch(opt) {
 
@@ -87,14 +93,17 @@ int main(int argc, char **argv)
 		case 's':
 			source_only = 1;
 			break;
+		case 'c':
+			container_rpm = optarg;
+			break;
 		}
 	}
 
 	/*
  	 * Do some sanity checks
  	 */
-	if (config == NULL) {
-		fprintf(stderr, "Need to specify a manifest file\n");
+	if ((!config) && (!container_rpm)) {
+		fprintf(stderr, "Need to specify a manifest or container file\n");
 		goto out;
 	}
 
@@ -119,25 +128,31 @@ int main(int argc, char **argv)
 		goto out_release;
 	}
 
-	/*
- 	 * Actually build the image
- 	 */
-	build_srpm_from_manifest(build_env, &manifest);	
+	if (container_rpm) {
+		rc = introspect_container_rpm(build_env, &manifest, container_rpm);
+		if (rc)
+			goto out_cleanup;
+	} else {
+		/*
+		 * Actually build the image
+		 */
+		build_srpm_from_manifest(build_env, &manifest);	
 
-	/*
- 	 * If we need to, build the actual container rpm as well
- 	 */
-	if (!source_only)
-		build_rpm_from_srpm(build_env, &manifest);
+		/*
+		 * If we need to, build the actual container rpm as well
+		 */
+		if (!source_only)
+			build_rpm_from_srpm(build_env, &manifest);
+	}
 
+	rc =0;
+
+out_cleanup:
 	/*
  	 * Then cleanup the working space
  	 */
 	if (!keep)
 		cleanup_pkg_mgmt(build_env);
-
-	rc =0;
-
 out_release:
 	release_manifest(&manifest);
 out:

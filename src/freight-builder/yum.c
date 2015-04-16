@@ -87,7 +87,7 @@ static char *build_rpm_list(const struct manifest *manifest)
 	return result;
 }
 
-static int run_command(char *cmd)
+static int run_command(char *cmd, int print)
 {
 	int rc;
 	FILE *yum_out;
@@ -101,9 +101,11 @@ static int run_command(char *cmd)
 		return rc;
 	}
 
-	while(!feof(yum_out) && !ferror(yum_out)) {
-		count = fread(buf, 1, 128, yum_out);
-		fwrite(buf, count, 1, stderr);
+	if (print) {
+		while(!feof(yum_out) && !ferror(yum_out)) {
+			count = fread(buf, 1, 128, yum_out);
+			fwrite(buf, count, 1, stderr);
+		}
 	}
 
 	rc = pclose(yum_out);
@@ -139,7 +141,7 @@ static int yum_build_rpm(const struct manifest *manifest)
 		 output_path, output_path,
 		 manifest->package.name, manifest->package.version,
 		 manifest->package.release);
-	return run_command(cmd);
+	return run_command(cmd, 1);
 }
 
 /*
@@ -158,7 +160,7 @@ static int yum_build_srpm(const struct manifest *manifest)
  	 */
 	snprintf(cmd, 1024, "tar -C %s -jcf %s/%s-freight.tbz2 ./etc/\n",
 		workdir, workdir, manifest->package.name);
-	rc = run_command(cmd);
+	rc = run_command(cmd, 1);
 	if (rc)
 		goto out;
 
@@ -174,7 +176,7 @@ static int yum_build_srpm(const struct manifest *manifest)
 		manifest->opts.output_path ? manifest->opts.output_path : workdir,
 		workdir, manifest->package.name);
 
-	rc = run_command(cmd);
+	rc = run_command(cmd, 1);
 	if (rc)
 		goto out;
 out:
@@ -364,11 +366,37 @@ cleanup_tmpdir:
 	return -EINVAL;
 }
 
+int yum_inspect(const struct manifest *mfst, const char *rpm)
+{
+	int rc = -EINVAL;
+	char rpmcmd[1024];
+
+	if (build_path("/introspect")) {
+		fprintf(stderr, "unable to create introspect directory\n");
+		goto out;
+	}
+	sprintf(rpmcmd, "yum --installroot=%s/introspect -y --nogpgcheck install %s\n",
+		workdir, rpm);
+
+	rc = run_command(rpmcmd, 1);
+	if (rc) {
+		fprintf(stderr, "Unable to install container rpm\n");
+		goto out;
+	}
+
+	sprintf(rpmcmd, "yum --installroot %s/introspect/ --nogpgcheck check-update", workdir);
+
+	rc = run_command(rpmcmd, 1);
+out:
+	return rc;
+}
+
 struct pkg_ops yum_ops = {
 	.init = yum_init,
 	.cleanup = yum_cleanup,
 	.build_srpm = yum_build_srpm,
-	.build_rpm = yum_build_rpm
+	.build_rpm = yum_build_rpm,
+	.introspect_container = yum_inspect
 };
 
 
