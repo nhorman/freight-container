@@ -21,8 +21,8 @@ AC_CHECK_HEADERS([stdlib.h ftw.h])
 # Checks for typedefs, structures, and compiler characteristics.
 
 # Checks for library functions.
-PKG_CHECK_MODULES([libpq], [libpq])
-PKG_CHECK_MODULES([libconfig], [libconfig])
+PKG_CHECK_MODULES([libpq], [libpq], [], [AC_MSG_ERROR([libpq is required])])
+PKG_CHECK_MODULES([libconfig], [libconfig], [], [AC_MSG_ERROR([libconfig is required])])
 
 AC_CHECK_FUNC([getopt_long], [AC_DEFINE([HAVE_GETOPT_LONG],[1],[getopt_long support])])
 AC_CHECK_FUNC([nftw], [AC_DEFINE([HAVE_NFTW],[1],[nftw support])], [
