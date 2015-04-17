@@ -27,21 +27,21 @@ several advantages:
 * Ease of updates on remote container hosts
 
 ## Update detection
-A key tennet of distribution packaging is the ability to identify the need to
+A key tenet of distribution packaging is the ability to identify the need to
 update a package on a system (for security fixes/enhancements/etc).  By reusing
 those distribution mechanisms, the same advantages can be applied to containers.
-Frieght allows a container rpm to be installed temporarily and inspected using
+Freight allows a container rpm to be installed temporarily and inspected using
 yum so that the need for updates can be reported to an administrator, and
 appropriate action can be taken
 
-## Manifest Level inheritence
+## Manifest Level inheritance
 Containers are generally considered to be immutable.  This gives rise to the
 need to create layered containers in order to address the need for customization
 at a given site.  While layering (via unionfs or overlayfs) provides an elegant
 solution to the problem, it also creates an issue with aliasing, in which the
 contents of a base layer image may be masked by a higher layer image, leading to
 potential security holes.  Freight addresses this by preforming inheritance at
-the manifest level.  By using distribution packaing dependency resolution and
+the manifest level.  By using distribution packaging dependency resolution and
 versioning, even inherited/layered lists of packages can be resolved to a single
 set of packages at their latest versions, ensuing that you know what will be
 executed in a container.
