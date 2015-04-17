@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="UTF-8">
+    <title>Freight-tools by FreightAgent</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="stylesheets/normalize.css" media="screen">
+    <link href='http://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
+  </head>
+  <body>
+    <section class="page-header">
+      <h1 class="project-name">Freight-tools</h1>
+      <h2 class="project-tagline">A utility to construct disk images suitable for use with systemd-nspawn based on stackable manifest files</h2>
+      <a href="https://github.com/FreightAgent/freight-tools" class="btn">View on GitHub</a>
+      <a href="https://github.com/FreightAgent/freight-tools/zipball/master" class="btn">Download .zip</a>
+      <a href="https://github.com/FreightAgent/freight-tools/tarball/master" class="btn">Download .tar.gz</a>
+    </section>
+
+    <section class="main-content">
+      <h1>
+<a id="freight-tools" class="anchor" href="#freight-tools" aria-hidden="true"><span class="octicon octicon-link"></span></a>freight-tools</h1>
+
+<p>A utility suite to construct disk images suitable for use with systemd-nspawn based on stackable manifest files </p>
+
+<h1>
+<a id="about" class="anchor" href="#about" aria-hidden="true"><span class="octicon octicon-link"></span></a>About</h1>
+
+<p>Freight is a system for creating and managing containers using existing
+packaging tools and distribution mechanisms.  Freight focuses on using a
+distributions existing infrastructure tools to create, distribute and manage
+containers on host systems across a site.  Doing so enables reuse of
+administrative skills and distribution features to create a robust, flexible and
+secure managed container environment.</p>
+
+<h1>
+<a id="key-features" class="anchor" href="#key-features" aria-hidden="true"><span class="octicon octicon-link"></span></a>Key features</h1>
+
+<h2>
+<a id="distribution-based-container-creation" class="anchor" href="#distribution-based-container-creation" aria-hidden="true"><span class="octicon octicon-link"></span></a>Distribution based container creation</h2>
+
+<p>Freight uses well established packaging mechanisms (currently rpm/yum, but
+others can easily be added).  To transform a manifest of standard packages into
+a container file system.  This has the advantage of ensuring that the package
+manifest is included in the container image so that it can be administratively
+interrogated later using those same tools (most notably to determine the need
+for package updates)</p>
+
+<h2>
+<a id="distribution-based-container-packaging" class="anchor" href="#distribution-based-container-packaging" aria-hidden="true"><span class="octicon octicon-link"></span></a>Distribution based container packaging</h2>
+
+<p>Containerized file systems are then packaged into their own rpm, which provides
+several advantages:</p>
+
+<ul>
+<li>Reuse of existing distribution mechanisms (yum repositories)</li>
+<li>Clear, well understood versioning that is human readable</li>
+<li>Ease of updates on remote container hosts</li>
+</ul>
+
+<h2>
+<a id="update-detection" class="anchor" href="#update-detection" aria-hidden="true"><span class="octicon octicon-link"></span></a>Update detection</h2>
+
+<p>A key tenet of distribution packaging is the ability to identify the need to
+update a package on a system (for security fixes/enhancements/etc).  By reusing
+those distribution mechanisms, the same advantages can be applied to containers.
+Freight allows a container rpm to be installed temporarily and inspected using
+yum so that the need for updates can be reported to an administrator, and
+appropriate action can be taken</p>
+
+<h2>
+<a id="manifest-level-inheritance" class="anchor" href="#manifest-level-inheritance" aria-hidden="true"><span class="octicon octicon-link"></span></a>Manifest Level inheritance</h2>
+
+<p>Containers are generally considered to be immutable.  This gives rise to the
+need to create layered containers in order to address the need for customization
+at a given site.  While layering (via unionfs or overlayfs) provides an elegant
+solution to the problem, it also creates an issue with aliasing, in which the
+contents of a base layer image may be masked by a higher layer image, leading to
+potential security holes.  Freight addresses this by preforming inheritance at
+the manifest level.  By using distribution packaging dependency resolution and
+versioning, even inherited/layered lists of packages can be resolved to a single
+set of packages at their latest versions, ensuing that you know what will be
+executed in a container.</p>
+
+      <footer class="site-footer">
+        <span class="site-footer-owner"><a href="https://github.com/FreightAgent/freight-tools">Freight-tools</a> is maintained by <a href="https://github.com/FreightAgent">FreightAgent</a>.</span>
+
+        <span class="site-footer-credits">This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the <a href="https://github.com/jasonlong/cayman-theme">Cayman theme</a> by <a href="https://twitter.com/jasonlong">Jason Long</a>.</span>
+      </footer>
+
+    </section>
+
+  
+  </body>
+</html>
+
