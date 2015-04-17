@@ -56,6 +56,7 @@ struct packaging {
  */
 struct cmdline_options {
 	char *output_path;
+	int verbose;
 };
 
 /*

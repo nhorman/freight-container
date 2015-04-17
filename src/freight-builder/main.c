@@ -35,6 +35,7 @@ struct option lopts[] = {
 	{"output", 1, NULL, 'o'},
 	{"source", 0, NULL, 's'},
 	{"check", 1, NULL, 'c'},
+	{"verbose", 0, NULL, 'v'},
 	{ 0, 0, 0, 0}
 };
 #endif
@@ -42,14 +43,19 @@ struct option lopts[] = {
 static void usage(char **argv)
 {
 #ifdef HAVE_GETOPT_LONG
-	fprintf(stderr, "%s [-h | --help] [-o | --output path  ]"
-			" [-s || --source] [-k | --keep] "
+	fprintf(stderr, "%s [-h | --help] [-o | --output path ] "
+			"[-s || --source] "
+			"[-k | --keep] "
 			"<[-m | --manifest]  config> "
-			"<-c | --check=<container rpm>>\n", argv[0]);
+			"<-c | --check=<container rpm>> "
+			"[-v] | [--verbose]\n", argv[0]);
 #else
-	frpintf(stderr, "%s [-h] [-k] [-s] [-o path] <-m config> <-c container>\n", argv[0]);
+	frpintf(stderr, "%s [-h] [-k] [-s] [-v] "
+			"[-o path] <-m config> <-c container>\n", argv[0]);
 #endif
 }
+
+#define OPTSTRING "h,m:ko:sc:v"
 
 int main(int argc, char **argv)
 {
@@ -62,15 +68,15 @@ int main(int argc, char **argv)
 	char *output = NULL;
 	int source_only=0;
 	char *container_rpm = NULL;
-
+	int verbose = 0;
 	/*
  	 * Parse command line options
  	 */
 
 #ifdef HAVE_GETOPT_LONG
-	while ((opt = getopt_long(argc, argv, "h,m:ko:sc:", lopts, &longind)) != -1) {
+	while ((opt = getopt_long(argc, argv, OPTSTRING, lopts, &longind)) != -1) {
 #else
-	while ((opt = getopt(argc, argv, "h,m:kc:") != -1) {
+	while ((opt = getopt(argc, argv, OPTSTRING) != -1) {
 #endif
 		switch(opt) {
 
@@ -96,6 +102,8 @@ int main(int argc, char **argv)
 		case 'c':
 			container_rpm = optarg;
 			break;
+		case 'v':
+			verbose = 1;
 		}
 	}
 
@@ -118,6 +126,7 @@ int main(int argc, char **argv)
  	 * Add any relevant command line info to the manifest
  	 */
 	manifest.opts.output_path = output;
+	manifest.opts.verbose = verbose;
 
 	/*
  	 * Setup the builder working env

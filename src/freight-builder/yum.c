@@ -101,11 +101,10 @@ static int run_command(char *cmd, int print)
 		return rc;
 	}
 
-	if (print) {
-		while(!feof(yum_out) && !ferror(yum_out)) {
-			count = fread(buf, 1, 128, yum_out);
+	while(!feof(yum_out) && !ferror(yum_out)) {
+		count = fread(buf, 1, 128, yum_out);
+		if (print)
 			fwrite(buf, count, 1, stderr);
-		}
 	}
 
 	rc = pclose(yum_out);
@@ -113,10 +112,9 @@ static int run_command(char *cmd, int print)
 	if (rc == -1) {
 		rc = errno;
 		fprintf(stderr, "yum command failed: %s\n", strerror(rc));
-		return rc;
 	}
 
-	return 0;
+	return rc;
 }
 
 /*
@@ -126,6 +124,7 @@ static int yum_build_rpm(const struct manifest *manifest)
 {
 	char cmd[1024];
 	char *output_path;
+	char *quiet = manifest->opts.verbose ? "" : "--quiet";
 
 	output_path = manifest->opts.output_path ? manifest->opts.output_path :
 			workdir;
@@ -134,14 +133,15 @@ static int yum_build_rpm(const struct manifest *manifest)
  	 * This will convert the previously built srpm into a binary rpm that
  	 * can serve as a containerized directory for systemd-nspawn
  	 */
-	snprintf(cmd, 1024, "rpmbuild -D\"__arch_install_post "
+	snprintf(cmd, 1024, "rpmbuild %s -D\"__arch_install_post "
 		 "/usr/lib/rpm/check-rpaths /usr/lib/rpm/check-buildroot\" "
 		 "-D\"_rpmdir %s\" "
 		 "--rebuild %s/%s-freight-container-%s-%s.src.rpm\n",
-		 output_path, output_path,
+		 quiet, output_path, output_path,
 		 manifest->package.name, manifest->package.version,
 		 manifest->package.release);
-	return run_command(cmd, 1);
+	fprintf(stderr, "Building container binary rpm\n");
+	return run_command(cmd, manifest->opts.verbose);
 }
 
 /*
@@ -160,7 +160,8 @@ static int yum_build_srpm(const struct manifest *manifest)
  	 */
 	snprintf(cmd, 1024, "tar -C %s -jcf %s/%s-freight.tbz2 ./etc/\n",
 		workdir, workdir, manifest->package.name);
-	rc = run_command(cmd, 1);
+	fprintf(stderr, "Creating yum configuration for container\n");
+	rc = run_command(cmd, manifest->opts.verbose);
 	if (rc)
 		goto out;
 
@@ -175,8 +176,8 @@ static int yum_build_srpm(const struct manifest *manifest)
 		workdir,
 		manifest->opts.output_path ? manifest->opts.output_path : workdir,
 		workdir, manifest->package.name);
-
-	rc = run_command(cmd, 1);
+	fprintf(stderr, "Building container source rpm\n");
+	rc = run_command(cmd, manifest->opts.verbose);
 	if (rc)
 		goto out;
 out:
@@ -378,15 +379,25 @@ int yum_inspect(const struct manifest *mfst, const char *rpm)
 	sprintf(rpmcmd, "yum --installroot=%s/introspect -y --nogpgcheck install %s\n",
 		workdir, rpm);
 
-	rc = run_command(rpmcmd, 1);
+	fprintf(stderr, "Unpacking container\n");
+	rc = run_command(rpmcmd, mfst->opts.verbose);
 	if (rc) {
 		fprintf(stderr, "Unable to install container rpm\n");
 		goto out;
 	}
 
 	sprintf(rpmcmd, "yum --installroot %s/introspect/ --nogpgcheck check-update", workdir);
-
+	fprintf(stderr, "Looking for packages Requiring update:\n");
 	rc = run_command(rpmcmd, 1);
+
+	if (rc == 0)
+		fprintf(stderr, "All packages up to date\n");
+	/*
+ 	 * yum check-update exist with code 100 if there are updated packages
+ 	 * which is a success exit code to us
+ 	 */
+	if (rc > 1)
+		rc = 0;
 out:
 	return rc;
 }
