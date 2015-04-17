@@ -2,23 +2,49 @@
 A utility suite to construct disk images suitable for use with systemd-nspawn based on stackable manifest files 
 
 # About
-Docker is all the rage these days, but systemd offers its own set of container
-management infrastructure, which is both robust and flexible.  Given that
-systemd is part of several major distributionss, it would be nice to take more
-advantage of these systemd tools.  Freight-tools seeks to provide some
-distributed management of systemd containers in a way that the kubernetes
-project does with docker.  It also seeks to provide some additional features
-above and beyond what docker and kubernetes provide.  Most notably it seeks to
-provide a more tradtional type of management for security issues and updates.
-While Docker containers allow for for easy rebuilding and some level of
-versioning, they fail to integreate metadata for administrators to determine
-_when_ a container is in need of an update.  Freight seeks to enable
-administrators to determine the need for contanier updates by building
-containers out of existing package repositories, and including their
-installation metadata.  By doing so, administrators can easily use existing
-tools like yum to see if updated packages are needed inside a container.
-Further, since the container itself is packaged as an rpm file, it can be
-distributed for update using well tested and established tools and mechainsms.
+Freight is a system for creating and managing containers using existing
+packaging tools and distribution mechanisms.  Freight focuses on using a
+distributions existing infrastructure tools to create, distribute and manage
+containers on host systems across a site.  Doing so enables reuse of
+administrative skills and distribution features to create a robust, flexible and
+secure managed container environment.
+
+# Key features
+
+## Distribution based container creation
+Freight uses well established packaging mechanisms (currently rpm/yum, but
+others can easily be added).  To transform a manifest of standard packages into
+a container file system.  This has the advantage of ensuring that the package
+manifest is included in the container image so that it can be administratively
+interrogated later using those same tools (most notably to determine the need
+for package updates)
+
+## Distribution based container packaging
+Containerized file systems are then packaged into their own rpm, which provides
+several advantages:
+* Reuse of existing distribution mechanisms (yum repositories)
+* Clear, well understood versioning that is human readable
+* Ease of updates on remote container hosts
+
+## Update detection
+A key tennet of distribution packaging is the ability to identify the need to
+update a package on a system (for security fixes/enhancements/etc).  By reusing
+those distribution mechanisms, the same advantages can be applied to containers.
+Frieght allows a container rpm to be installed temporarily and inspected using
+yum so that the need for updates can be reported to an administrator, and
+appropriate action can be taken
+
+## Manifest Level inheritence
+Containers are generally considered to be immutable.  This gives rise to the
+need to create layered containers in order to address the need for customization
+at a given site.  While layering (via unionfs or overlayfs) provides an elegant
+solution to the problem, it also creates an issue with aliasing, in which the
+contents of a base layer image may be masked by a higher layer image, leading to
+potential security holes.  Freight addresses this by preforming inheritance at
+the manifest level.  By using distribution packaing dependency resolution and
+versioning, even inherited/layered lists of packages can be resolved to a single
+set of packages at their latest versions, ensuing that you know what will be
+executed in a container.
 
 # How it works
 Freight uses robust existing technology to provide containerization of
