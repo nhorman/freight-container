@@ -133,14 +133,20 @@ static int yum_build_rpm(const struct manifest *manifest)
  	 * This will convert the previously built srpm into a binary rpm that
  	 * can serve as a containerized directory for systemd-nspawn
  	 */
-	snprintf(cmd, 1024, "rpmbuild %s -D\"__arch_install_post "
+	snprintf(cmd, 1024, "rpmbuild %s "
+		 "-D\"_build_name_fmt "
+		 "%s-freight-container-%s-%s.%%%%{ARCH}.rpm\" "
+		 "-D\"__arch_install_post "
 		 "/usr/lib/rpm/check-rpaths /usr/lib/rpm/check-buildroot\" "
 		 "-D\"_rpmdir %s\" "
 		 "--rebuild %s/%s-freight-container-%s-%s.src.rpm\n",
-		 quiet, output_path, output_path,
+		 quiet, 
+		 manifest->package.name, manifest->package.version,
+		 manifest->package.release,
+		 output_path, output_path,
 		 manifest->package.name, manifest->package.version,
 		 manifest->package.release);
-	fprintf(stderr, "Building container binary rpm\n");
+	fprintf(stderr, "Building container binary rpm\n%s\n", cmd);
 	return run_command(cmd, manifest->opts.verbose);
 }
 
