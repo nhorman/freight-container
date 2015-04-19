@@ -146,7 +146,7 @@ static int yum_build_rpm(const struct manifest *manifest)
 		 output_path, output_path,
 		 manifest->package.name, manifest->package.version,
 		 manifest->package.release);
-	fprintf(stderr, "Building container binary rpm\n%s\n", cmd);
+	fprintf(stderr, "Building container binary rpm\n");
 	return run_command(cmd, manifest->opts.verbose);
 }
 
@@ -164,7 +164,7 @@ static int yum_build_srpm(const struct manifest *manifest)
  	 * Included in the srpm as Source0 of the spec file (written in
  	 * yum_init)
  	 */
-	snprintf(cmd, 1024, "tar -C %s -jcf %s/%s-freight.tbz2 ./etc/\n",
+	snprintf(cmd, 1024, "tar -C %s -jcf %s/%s-freight.tbz2 ./containerfs/\n",
 		workdir, workdir, manifest->package.name);
 	fprintf(stderr, "Creating yum configuration for container\n");
 	rc = run_command(cmd, manifest->opts.verbose);
@@ -208,25 +208,31 @@ static int yum_init(const struct manifest *manifest)
 
 	fprintf(stderr, "Initalizing work directory %s\n", workdir);
 
-	if (build_path("/etc")) {
+	if (build_path("/containerfs")) {
+		fprintf(stderr, "Cannot create containerfs directory: %s\n",
+			strerror(errno));
+		goto cleanup_tmpdir;
+	}
+
+	if (build_path("/containerfs/etc")) {
 		fprintf(stderr, "Cannot create etc directory: %s\n",
 			strerror(errno));
 		goto cleanup_tmpdir;
 	}
 
-	if (build_path("/etc/yum.repos.d")) {
+	if (build_path("/containerfs/etc/yum.repos.d")) {
 		fprintf(stderr, "Cannot create repository directory: %s\n",
 			strerror(errno)); 
 		goto cleanup_tmpdir;
 	}
 
-	if (build_path("/cache")) {
+	if (build_path("/containerfs/cache")) {
 		fprintf(stderr, "Cannot create cache directory: %s\n",
 			strerror(errno)); 
 		goto cleanup_tmpdir;
 	}
 
-	if (build_path("/logs")) {
+	if (build_path("/containerfs/logs")) {
 		fprintf(stderr, "Cannot create log directory: %s\n",
 			strerror(errno)); 
 		goto cleanup_tmpdir;
@@ -239,7 +245,7 @@ static int yum_init(const struct manifest *manifest)
 	repo = manifest->repos;
 	while (repo) {
 		strcpy(tmpdir, workdir);
-		strcat(tmpdir, "/etc/yum.repos.d/");
+		strcat(tmpdir, "/containerfs/etc/yum.repos.d/");
 		strcat(tmpdir, repo->name);
 		strcat(tmpdir, "-fb.repo");
 		repof = fopen(tmpdir, "w");
@@ -262,7 +268,7 @@ static int yum_init(const struct manifest *manifest)
  	 * create a base yum configuration
  	 */
 	strcpy(tmpdir, workdir);
-	strcat(tmpdir, "/etc/yum.conf");
+	strcat(tmpdir, "/containerfs/etc/yum.conf");
 	repof = fopen(tmpdir, "w");
 	if (!repof) {
 		fprintf(stderr, "Unable to create a repo configuration: %s\n",
@@ -329,10 +335,10 @@ static int yum_init(const struct manifest *manifest)
 	fprintf(repof, "%%install\n");
 	fprintf(repof, "cd ${RPM_BUILD_ROOT}\n");
 	fprintf(repof, "tar xvf %%{SOURCE0}\n");
-	fprintf(repof, "yum -y --installroot=${RPM_BUILD_ROOT} install %s\n",
+	fprintf(repof, "yum -y --installroot=${RPM_BUILD_ROOT}/containerfs/ install %s\n",
 		rpmlist); 
 	free(rpmlist);
-	fprintf(repof, "yum --installroot=${RPM_BUILD_ROOT} clean all\n");
+	fprintf(repof, "yum --installroot=${RPM_BUILD_ROOT}/containerfs/ clean all\n");
 	/*
  	 * After yum is done installing, we need to interrogate all the files
  	 * So that we can specify a file list in the %files section
@@ -392,7 +398,7 @@ int yum_inspect(const struct manifest *mfst, const char *rpm)
 		goto out;
 	}
 
-	sprintf(rpmcmd, "yum --installroot %s/introspect/ --nogpgcheck check-update", workdir);
+	sprintf(rpmcmd, "yum --installroot %s/introspect/containerfs/ --nogpgcheck check-update", workdir);
 	fprintf(stderr, "Looking for packages Requiring update:\n");
 	rc = run_command(rpmcmd, 1);
 
