@@ -150,52 +150,8 @@ static int yum_build_rpm(const struct manifest *manifest)
 	return run_command(cmd, manifest->opts.verbose);
 }
 
-/*
- * Build an srpm from our yum config setup we generated
- * in yum_init.
- */
-static int yum_build_srpm(const struct manifest *manifest)
-{
-	int rc = -EINVAL;
-	char cmd[1024];
-
-	/*
- 	 * Tar up the etc directory we generated in our sandbox.  This gets 
- 	 * Included in the srpm as Source0 of the spec file (written in
- 	 * yum_init)
- 	 */
-	snprintf(cmd, 1024, "tar -C %s -jcf %s/%s-freight.tbz2 ./containerfs/\n",
-		workdir, workdir, manifest->package.name);
-	fprintf(stderr, "Creating yum configuration for container\n");
-	rc = run_command(cmd, manifest->opts.verbose);
-	if (rc)
-		goto out;
-
-	/*
- 	 * Then build the srpms using the spec generated in yum_init.  Point our 
- 	 * SOURCES dir at the sandbox to pick up the above tarball, and
- 	 * optionally direct the srpm dir to the output directory if it was
- 	 * specified
- 	 */
-	snprintf(cmd, 512, "rpmbuild -D \"_sourcedir %s\" -D \"_srcrpmdir %s\" "
-		"-bs %s/%s-freight-container.spec\n",
-		workdir,
-		manifest->opts.output_path ? manifest->opts.output_path : workdir,
-		workdir, manifest->package.name);
-	fprintf(stderr, "Building container source rpm\n");
-	rc = run_command(cmd, manifest->opts.verbose);
-	if (rc)
-		goto out;
-out:
-	return rc;
-}
-
 static int yum_init(const struct manifest *manifest)
 {
-	struct repository *repo;
-	FILE *repof;
-	char *rpmlist;
-	
 	getcwd(worktemplate, 256);
 	strcat(worktemplate, "/freight-builder.XXXXXX"); 
 
@@ -205,6 +161,14 @@ static int yum_init(const struct manifest *manifest)
 			worktemplate, strerror(errno));
 		return -EINVAL;
 	}
+	return 0;
+}
+
+static int stage_workdir(const struct manifest *manifest)
+{
+	struct repository *repo;
+	FILE *repof;
+	char *rpmlist;
 
 	fprintf(stderr, "Initalizing work directory %s\n", workdir);
 
@@ -377,6 +341,50 @@ static int yum_init(const struct manifest *manifest)
 cleanup_tmpdir:
 	yum_cleanup();
 	return -EINVAL;
+}
+
+/*
+ * Build an srpm from our yum config setup we generated
+ * in yum_init.
+ */
+static int yum_build_srpm(const struct manifest *manifest)
+{
+	int rc = -EINVAL;
+	char cmd[1024];
+
+	rc = stage_workdir(manifest);
+	if (rc)
+		goto out;
+
+	/*
+ 	 * Tar up the etc directory we generated in our sandbox.  This gets 
+ 	 * Included in the srpm as Source0 of the spec file (written in
+ 	 * yum_init)
+ 	 */
+	snprintf(cmd, 1024, "tar -C %s -jcf %s/%s-freight.tbz2 ./containerfs/\n",
+		workdir, workdir, manifest->package.name);
+	fprintf(stderr, "Creating yum configuration for container\n");
+	rc = run_command(cmd, manifest->opts.verbose);
+	if (rc)
+		goto out;
+
+	/*
+ 	 * Then build the srpms using the spec generated in yum_init.  Point our 
+ 	 * SOURCES dir at the sandbox to pick up the above tarball, and
+ 	 * optionally direct the srpm dir to the output directory if it was
+ 	 * specified
+ 	 */
+	snprintf(cmd, 512, "rpmbuild -D \"_sourcedir %s\" -D \"_srcrpmdir %s\" "
+		"-bs %s/%s-freight-container.spec\n",
+		workdir,
+		manifest->opts.output_path ? manifest->opts.output_path : workdir,
+		workdir, manifest->package.name);
+	fprintf(stderr, "Building container source rpm\n");
+	rc = run_command(cmd, manifest->opts.verbose);
+	if (rc)
+		goto out;
+out:
+	return rc;
 }
 
 int yum_inspect(const struct manifest *mfst, const char *rpm)

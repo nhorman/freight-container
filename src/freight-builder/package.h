@@ -39,8 +39,7 @@ struct pkg_ops {
 	void (*cleanup)();
 	int (*build_srpm)(const struct manifest *manifest);
 	int (*build_rpm)(const struct manifest *manifest);
-	int (*introspect_container)(const struct manifest *mfst,
-				    const char *crpm);
+	int (*introspect_container)(const char *crpm);
 };
 
 struct pkg_ops *init_pkg_mgmt(enum pkg_mgmt_type ptype,
@@ -64,10 +63,9 @@ static inline int build_rpm_from_srpm(struct pkg_ops *ops,
 }
 
 static inline int introspect_container_rpm(struct pkg_ops *ops,
-					const struct manifest *mfst,
 					const char *crpm)
 {
-	return ops->introspect_container(mfst, crpm);
+	return ops->introspect_container(crpm);
 }
 
 #endif
