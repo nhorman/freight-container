@@ -25,12 +25,7 @@
 #include <stdio.h>
 #include <syslog.h>
 
-extern int daemonize;
-
-#define LOG(prio, format, ...) do {\
-if(daemonize) \
-	syslog(LOG_DAEMON|(prio), format, ##args);\
-else\
+#define LOG(prio, format, args...) do {\
 	fprintf(stderr, "(prio): " format, ##args);\
 } while(0)
 

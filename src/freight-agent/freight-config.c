@@ -26,19 +26,24 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <libconfig.h>
+#include <freight-log.h>
 #include <freight-config.h>
 
 void release_configuration(struct agent_config *config)
 {
-	free(config->db);
-	free(config->node);
-	free(config->master);
+	free(config->db.hostaddr);
+	free(config->db.dbname);
+	free(config->db.user);
+	free(config->db.password);
+	free(config->node.container_root);
 }
 
 int read_configuration(char *config_path, struct agent_config *acfg)
 {
-	struct config_t config
+	struct config_t config;
+#if 0
 	int rc;
+#endif
 	struct stat buf;
 
 	memset(acfg, 0, sizeof(struct agent_config));
@@ -54,17 +59,17 @@ int read_configuration(char *config_path, struct agent_config *acfg)
 		LOG(ERROR, "Error in %s:%d : %s\n",
 			config_error_file(&config),
 			config_error_line(&config),
-			config_error_test(&config));
+			config_error_text(&config));
 		goto out;
 	}
-
+#if 0
 	rc = parse_db_config(&config, &acfg->db);
 	if (rc)
 		goto out;
+#endif
 
 out:
 	config_destroy(&config);
-	release_configuration(config
 	return 0;
 }
 
