@@ -29,7 +29,7 @@ extern int daemonize;
 
 #define LOG(prio, format, ...) do {\
 if(daemonize) \
-	syslog(prio, format, ##args);\
+	syslog(LOG_DAEMON|(prio), format, ##args);\
 else\
 	fprintf(stderr, "(prio): " format, ##args);\
 } while(0)

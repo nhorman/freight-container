@@ -27,17 +27,12 @@
 #include <freight-log.h>
 #include <freight-config.h>
 
-/*
- * Global flag to tell us if we're daemonized
- */
-int daemonize = 0;
 struct agent_config config;
 
 #ifdef HAVE_GETOPT_LONG
 struct option lopts[] = {
 	{"help", 0, NULL, 'h'},
 	{"config", 1, NULL, 'c'},
-	{"daemon", 0, NULL, 'd'},
 	{ 0, 0, 0, 0}
 };
 #endif
@@ -45,9 +40,9 @@ struct option lopts[] = {
 static void usage(char **argv)
 {
 #ifdef HAVE_GETOPT_LONG
-	fprintf(stderr, "%s [-h | --help] [-c | --config=<config>] [-d | --daemon]\n", argv[0]);
+	fprintf(stderr, "%s [-h | --help] [-c | --config=<config>]\n", argv[0]);
 #else
-	frpintf(stderr, "%s [-h] [-c <config>] [-d]", argv[0]);
+	frpintf(stderr, "%s [-h] [-c <config>]\n ", argv[0]);
 #endif
 }
 
@@ -77,9 +72,6 @@ int main(int argc, char **argv)
 			break;
 		case 'c':
 			config_file = optarg;
-			break;
-		case 'd':
-			daemonize = 1;
 			break;
 		}
 	}

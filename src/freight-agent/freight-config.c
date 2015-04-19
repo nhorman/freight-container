@@ -20,16 +20,51 @@
  * *********************************************************/
 #include <stdlib.h>
 #include <stdio.h>
+#include <errno.h>      
+#include <string.h>     
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <libconfig.h>
 #include <freight-config.h>
-
-
-int read_configuration(char *config_path, struct agent_config *config)
-{
-	return 0;
-}
 
 void release_configuration(struct agent_config *config)
 {
-	return;
+	free(config->db);
+	free(config->node);
+	free(config->master);
+}
+
+int read_configuration(char *config_path, struct agent_config *acfg)
+{
+	struct config_t config
+	int rc;
+	struct stat buf;
+
+	memset(acfg, 0, sizeof(struct agent_config));
+
+	config_init(&config);
+
+	if (stat(config_path, &buf)) {
+		LOG(ERROR, "Config path does not exist\n");
+		goto out;
+	}
+
+	if (config_read_file(&config, config_path) == CONFIG_FALSE) {
+		LOG(ERROR, "Error in %s:%d : %s\n",
+			config_error_file(&config),
+			config_error_line(&config),
+			config_error_test(&config));
+		goto out;
+	}
+
+	rc = parse_db_config(&config, &acfg->db);
+	if (rc)
+		goto out;
+
+out:
+	config_destroy(&config);
+	release_configuration(config
+	return 0;
 }
 
