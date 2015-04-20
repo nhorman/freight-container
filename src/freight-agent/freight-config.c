@@ -31,6 +31,7 @@
 
 void release_configuration(struct agent_config *config)
 {
+	free(config->db.dbtype);
 	free(config->db.hostaddr);
 	free(config->db.dbname);
 	free(config->db.user);
@@ -38,12 +39,75 @@ void release_configuration(struct agent_config *config)
 	free(config->node.container_root);
 }
 
+static int parse_db_config(config_t *cfg, struct db_config *db)
+{
+	int rc = -EINVAL;
+	config_setting_t *db_cfg = config_lookup(cfg, "db");
+	config_setting_t *tmp;
+
+	if (!db_cfg) {
+		LOG(ERROR, "freight-agent requires a database configuration\n");
+		goto out;
+	}
+
+	tmp = config_setting_get_member(db_cfg, "dbtype");
+	if (!tmp) {
+		LOG(ERROR, "db config requires a type\n");
+		goto out;
+	}
+
+	db->dbtype = strdup(config_setting_get_string(tmp));
+
+	/*
+ 	 * hostaddr, dbname, user and pass are all optional based on type
+ 	 */
+	tmp = config_setting_get_member(db_cfg, "hostaddr");
+	if (tmp)
+		db->hostaddr = strdup(config_setting_get_string(tmp));
+
+	tmp = config_setting_get_member(db_cfg, "dbname");
+	if (tmp)
+		db->dbname = strdup(config_setting_get_string(tmp));
+
+	tmp = config_setting_get_member(db_cfg, "user");
+	if (tmp)
+		db->user = strdup(config_setting_get_string(tmp));
+
+	tmp = config_setting_get_member(db_cfg, "password");
+	if (tmp)
+		db->password = strdup(config_setting_get_string(tmp));
+	
+out:
+	return rc;
+}
+
+static int parse_node_config(config_t *cfg, struct node_config *node)
+{
+	int rc = 0;
+	config_setting_t *node_cfg = config_lookup(cfg, "node");
+	config_setting_t *tmp;
+
+	/*
+ 	 * Not having a node config isn't fatal
+ 	 */
+	if (!node_cfg)
+
+	tmp = config_setting_get_member(node_cfg, "container_root");
+	if (!tmp) {
+		rc = -EINVAL;
+		LOG(ERROR, "node config must contain a container_root");
+		goto out;
+	}
+
+	node->container_root = strdup(config_setting_get_string(tmp));
+out:
+	return rc;
+}
+
 int read_configuration(char *config_path, struct agent_config *acfg)
 {
 	struct config_t config;
-#if 0
-	int rc;
-#endif
+	int rc = -EINVAL;
 	struct stat buf;
 
 	memset(acfg, 0, sizeof(struct agent_config));
@@ -51,7 +115,7 @@ int read_configuration(char *config_path, struct agent_config *acfg)
 	config_init(&config);
 
 	if (stat(config_path, &buf)) {
-		LOG(ERROR, "Config path does not exist\n");
+		LOG(ERROR, "Config path %s does not exist\n", config_path);
 		goto out;
 	}
 
@@ -62,14 +126,23 @@ int read_configuration(char *config_path, struct agent_config *acfg)
 			config_error_text(&config));
 		goto out;
 	}
-#if 0
 	rc = parse_db_config(&config, &acfg->db);
 	if (rc)
-		goto out;
-#endif
+		goto out_release;
+
+	rc = parse_node_config(&config, &acfg->node);
+	if (rc)
+		goto out_release;
+
+	/*
+ 	 * Nothing to parse for the master config...yet
+ 	 */
 
 out:
 	config_destroy(&config);
-	return 0;
+	return rc;
+out_release:
+	release_configuration(acfg);
+	goto out;
 }
 

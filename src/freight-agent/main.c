@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <getopt.h>
+#include <string.h>
 #include <config.h>
 #include <freight-log.h>
 #include <freight-config.h>
@@ -33,6 +34,7 @@ struct agent_config config;
 struct option lopts[] = {
 	{"help", 0, NULL, 'h'},
 	{"config", 1, NULL, 'c'},
+	{"mode", 1, NULL, 'm'},
 	{ 0, 0, 0, 0}
 };
 #endif
@@ -40,9 +42,11 @@ struct option lopts[] = {
 static void usage(char **argv)
 {
 #ifdef HAVE_GETOPT_LONG
-	fprintf(stderr, "%s [-h | --help] [-c | --config=<config>]\n", argv[0]);
+	fprintf(stderr, "%s [-h | --help] "
+		"[-c | --config=<config>] "
+		"[-m] | --mode=<mode>] \n", argv[0]);
 #else
-	frpintf(stderr, "%s [-h] [-c <config>]\n ", argv[0]);
+	frpintf(stderr, "%s [-h] [-c <config>] [-m <mode> ]\n ", argv[0]);
 #endif
 }
 
@@ -51,7 +55,8 @@ int main(int argc, char **argv)
 	int rc = 1;
 	int opt, longind;
 	char *config_file = "/etc/freight-agent/config";
-
+	char *mode = NULL;
+	
 	/*
  	 * Parse command line options
  	 */
@@ -73,6 +78,8 @@ int main(int argc, char **argv)
 		case 'c':
 			config_file = optarg;
 			break;
+		case 'm':
+			mode = optarg;
 		}
 	}
 
@@ -81,7 +88,28 @@ int main(int argc, char **argv)
  	 * Read in the configuration file
  	 */
 	rc = read_configuration(config_file, &config);
+	if (rc)
+		goto out_release;
+
+	/*
+ 	 * Sanity checks
+ 	 */
+	if (!mode) {
+		LOG(ERROR, "You must specify a mode\n");
+		goto out_release;
+	}
+
+	if (!strcmp(mode, "node")) {
+		config.cmdline.mode = OP_MODE_NODE;
+	} else {
+		LOG(ERROR, "Invalid mode spcified\n");
+		goto out_release;
+	}
+
 	rc = 0;
+
+out_release:
+	release_configuration(&config);
 out:
 	return rc;
 }

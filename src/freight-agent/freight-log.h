@@ -26,7 +26,7 @@
 #include <syslog.h>
 
 #define LOG(prio, format, args...) do {\
-	fprintf(stderr, "(prio): " format, ##args);\
+	fprintf(stderr, #prio": "  format, ##args);\
 } while(0)
 
 #endif

@@ -24,6 +24,7 @@
 #define _FREIGHT_CONFIG_H_
 
 struct db_config {
+	char *dbtype;
 	char *hostaddr;
 	char *dbname;
 	char *user;
@@ -37,11 +38,21 @@ struct node_config {
 struct master_config {
 	/* empty for now */
 };
-	
+
+enum op_mode {
+	OP_MODE_NODE = 0,
+	OP_MODE_MASTER = 1,
+};
+
+struct cmdline_config {
+	enum op_mode mode;
+};
+
 struct agent_config {
 	struct db_config db;
 	struct node_config node;
 	struct master_config master;	
+	struct cmdline_config cmdline;
 };
 
 
