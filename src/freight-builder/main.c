@@ -138,7 +138,7 @@ int main(int argc, char **argv)
 	}
 
 	if (container_rpm) {
-		rc = introspect_container_rpm(build_env, container_rpm);
+		rc = introspect_container_rpm(build_env, &manifest, container_rpm);
 		if (rc)
 			goto out_cleanup;
 	} else {
