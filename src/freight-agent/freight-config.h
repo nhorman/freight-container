@@ -23,8 +23,12 @@
 #ifndef _FREIGHT_CONFIG_H_
 #define _FREIGHT_CONFIG_H_
 
+enum db_type {
+	DB_TYPE_POSTGRES = 0,
+};
+
 struct db_config {
-	char *dbtype;
+	enum db_type dbtype;
 	char *hostaddr;
 	char *dbname;
 	char *user;

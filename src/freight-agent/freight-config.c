@@ -31,7 +31,6 @@
 
 void release_configuration(struct agent_config *config)
 {
-	free(config->db.dbtype);
 	free(config->db.hostaddr);
 	free(config->db.dbname);
 	free(config->db.user);
@@ -56,7 +55,12 @@ static int parse_db_config(config_t *cfg, struct db_config *db)
 		goto out;
 	}
 
-	db->dbtype = strdup(config_setting_get_string(tmp));
+	if (!strcmp(config_setting_get_string(tmp), "postgres"))
+		db->dbtype = DB_TYPE_POSTGRES;
+	else {
+		LOG(ERROR "Unknown DB type\n");
+		goto out;
+	}
 
 	/*
  	 * hostaddr, dbname, user and pass are all optional based on type
