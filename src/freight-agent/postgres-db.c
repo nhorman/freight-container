@@ -34,7 +34,7 @@ static int pg_disconnect(struct agent_config *acfg)
 	return 0;
 }
 
-struct db_api postgres_db_api {
+struct db_api postgres_db_api = {
 	.connect = pg_connect,
 	.disconnect = pg_disconnect,
 };

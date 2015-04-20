@@ -106,8 +106,8 @@ int main(int argc, char **argv)
 		goto out_release;
 	}
 
-	if ((config.cmdline.mode == OP_MODE_NODE) && (!config.node)) {
-		LOG(ERROR, "Node mode requires a node configuation section\n");
+	if ((config.cmdline.mode == OP_MODE_NODE) && (!config.node.container_root)) {
+		LOG(ERROR, "Node mode requires a container_root specification\n");
 		goto out_release;
 	}
 

@@ -34,9 +34,9 @@ struct db_api {
 	int (*disconnect)(struct agent_config *acfg);
 };
 
-extern db_api postgres_db_api;
+extern struct db_api postgres_db_api;
 
-static inline struct *db_api get_db_api(struct agent_config *acfg) {
+static inline struct db_api* get_db_api(struct agent_config *acfg) {
 
 	switch (acfg->db.dbtype) {
 	case DB_TYPE_POSTGRES:
@@ -48,30 +48,30 @@ static inline struct *db_api get_db_api(struct agent_config *acfg) {
 
 static inline int db_init(struct db_api *api, struct agent_config *acfg)
 {
-	if (!db_api->init)
+	if (!api->init)
 		return -EOPNOTSUPP;
-	return db_api->init(acfg);	
+	return api->init(acfg);	
 }
 
 static inline void db_cleanup(struct db_api *api, struct agent_config *acfg)
 {
-	if (!db_api->cleanup)
-		return -EOPNOTSUPP;
-	return db_api->cleanup(acfg);	
+	if (!api->cleanup)
+		return;
+	return api->cleanup(acfg);	
 }
 
 static inline int db_connect(struct db_api *api, struct agent_config *acfg)
 {
-	if (!db_api->connect)
+	if (!api->connect)
 		return -EOPNOTSUPP;
-	return db_api->connect(acfg);	
+	return api->connect(acfg);	
 }
 
 static inline int db_disconnect(struct db_api *api, struct agent_config *acfg)
 {
-	if (!db_api->init)
+	if (!api->disconnect)
 		return -EOPNOTSUPP;
-	return db_api->disconnect(acfg);	
+	return api->disconnect(acfg);	
 }
 
 #endif
