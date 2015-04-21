@@ -18,23 +18,85 @@
  * *
  * *Description implements access to postgres db 
  * *********************************************************/
-
+#include <stdlib.h>
 #include <stdio.h>
+#include <libpq-fe.h>
 #include <freight-log.h>
 #include <freight-db.h>
 
+struct postgres_info {
+	PGconn *conn;
+};
 
-static int pg_connect(struct agent_config *acfg)
+static int pg_init(struct agent_config *acfg)
 {
+	struct postgres_info *info = calloc(1, sizeof(struct postgres_info));
+	if (!info)
+		return -ENOMEM;
+	acfg->db.db_priv = info;
 	return 0;
+}
+
+static void pg_cleanup(struct agent_config *acfg)
+{
+	struct postgres_info *info = acfg->db.db_priv;
+
+	free(info);
+	acfg->db.db_priv = NULL;
+	return;
 }
 
 static int pg_disconnect(struct agent_config *acfg)
 {
+	struct postgres_info *info = acfg->db.db_priv;
+	PQfinish(info->conn);
 	return 0;
 }
 
+static int pg_connect(struct agent_config *acfg)
+{
+	int rc = -ENOTCONN;
+
+	struct postgres_info *info = acfg->db.db_priv;
+
+	char * k[] = {
+		"hostaddr",
+		"dbname",
+		"user",
+		"password",
+		NULL
+	};
+	const char *const * keywords = (const char * const *)k;
+
+	char *v[] = {
+		acfg->db.hostaddr,
+		acfg->db.dbname,
+		acfg->db.user,
+		acfg->db.password,
+		NULL
+	};
+
+	const char *const * values = (const char * const *)v;
+
+	info->conn = PQconnectdbParams(keywords, values, 0);
+
+	LOG(INFO, "freight-agent connection...");
+	if (PQstatus(info->conn) == CONNECTION_OK)
+		LOG(INFO, "Done\n");
+	else {
+		LOG(INFO, "Failed\n");
+		pg_disconnect(acfg);
+		goto out;
+	}	
+	rc = 0;
+
+out:
+	return rc;
+}
+
 struct db_api postgres_db_api = {
+	.init = pg_init,
+	.cleanup = pg_cleanup,
 	.connect = pg_connect,
 	.disconnect = pg_disconnect,
 };

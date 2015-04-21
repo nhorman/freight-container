@@ -33,6 +33,7 @@ struct db_config {
 	char *dbname;
 	char *user;
 	char *password;
+	void *db_priv;
 };
 
 struct node_config {
