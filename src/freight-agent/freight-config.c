@@ -62,6 +62,8 @@ static int parse_db_config(config_t *cfg, struct db_config *db)
 		goto out;
 	}
 
+	rc = 0;
+
 	/*
  	 * hostaddr, dbname, user and pass are all optional based on type
  	 */
@@ -89,13 +91,14 @@ static int parse_node_config(config_t *cfg, struct node_config *node)
 {
 	int rc = 0;
 	config_setting_t *node_cfg = config_lookup(cfg, "node");
-	config_setting_t *tmp;
+	config_setting_t *tmp = NULL;
 
 	/*
  	 * Not having a node config isn't fatal
  	 */
 	if (!node_cfg)
-
+		goto out;
+	
 	tmp = config_setting_get_member(node_cfg, "container_root");
 	if (!tmp) {
 		rc = -EINVAL;

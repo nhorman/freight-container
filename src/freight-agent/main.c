@@ -27,6 +27,7 @@
 #include <config.h>
 #include <freight-log.h>
 #include <freight-config.h>
+#include <freight-db.h>
 
 struct agent_config config;
 
@@ -56,15 +57,16 @@ int main(int argc, char **argv)
 	int opt, longind;
 	char *config_file = "/etc/freight-agent/config";
 	char *mode = NULL;
+	struct db_api *api;
 	
 	/*
  	 * Parse command line options
  	 */
 
 #ifdef HAVE_GETOPT_LONG
-	while ((opt = getopt_long(argc, argv, "hc:d", lopts, &longind)) != -1) {
+	while ((opt = getopt_long(argc, argv, "hc:m:", lopts, &longind)) != -1) {
 #else
-	while ((opt = getopt(argc, argv, "hc:d") != -1) {
+	while ((opt = getopt(argc, argv, "hc:m:") != -1) {
 #endif
 		switch(opt) {
 
@@ -111,8 +113,26 @@ int main(int argc, char **argv)
 		goto out_release;
 	}
 
-	rc = 0;
+	api = get_db_api(&config);
+	if (!api) {
+		LOG(ERROR, "No DB configuration selected\n");
+		goto out_release;
+	}
 
+	if (db_init(api, &config)) {
+		LOG(ERROR, "Unable to initalize DB subsystem\n");
+		goto out_release;
+	}
+
+	if (db_connect(api, &config))
+		goto out_cleanup_db;
+	
+
+	rc = 0;
+	db_disconnect(api, &config);
+
+out_cleanup_db:
+	db_cleanup(api, &config);
 out_release:
 	release_configuration(&config);
 out:
