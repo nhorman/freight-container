@@ -1,0 +1,33 @@
+##############################################################
+# Table reference for databases
+#
+###############################################################
+
+
+
+
+
+
+
+
+
+##########################################################################
+# The Nodes table
+#
+# Description: A list of all the nodes that the cluster can use to execute
+# containers
+#
+##########################################################################
+
+
++-------------+-------------------------------------------------+
+|             |                                                 |
+| Hostname    |    status                                       |
++-------------+-------------------------------------------------+
+
+Hostname - The ip addres or hostname of the node in question (Primary Key)
+
+
+Status - The status of the host, an enum of the following values:
+	operating - The host is functioning normally
+	unreachable - The host cannot be contacted or is not responding
