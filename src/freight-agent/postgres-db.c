@@ -80,11 +80,11 @@ static int pg_connect(struct agent_config *acfg)
 
 	info->conn = PQconnectdbParams(keywords, values, 0);
 
-	LOG(INFO, "freight-agent connection...");
 	if (PQstatus(info->conn) == CONNECTION_OK)
-		LOG(INFO, "Done\n");
+		LOG(INFO, "freight-agent connection...Established!\n");
 	else {
-		LOG(INFO, "Failed\n");
+		LOG(INFO, "freight-agent connection...Failed: %s\n",
+			PQerrorMessage(info->conn));
 		pg_disconnect(acfg);
 		goto out;
 	}	
