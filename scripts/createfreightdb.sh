@@ -10,13 +10,15 @@
 
 DBNAME=$1
 NODEUSER=$2
-ADMINUSER=$3
-ADMINPASS=$4
+NODEPASS=$3
+ADMINUSER=$4
+ADMINPASS=$5
 
 usage() {
-	echo "./createfreghtdb.sh <dbname> <nodeuser> <admn user> <pw>"
+	echo "./createfreghtdb.sh <dbname> <nodeuser> <node pass> <admn user> <pw>"
 	echo "dbname - name of the database to use"
 	echo "node user - user that freight nodes access the db with"
+	echo "node pass - password that freight nodes access the db with"
 	echo "admin user - user that freightctl access the db with"
 	echo "pw - password for the admin user"
 }
@@ -29,6 +31,12 @@ then
 fi
 
 if [ -z "$NODEUSER" ]
+then
+	usage
+	exit 0
+fi
+
+if [ -z "$NODEPASS" ]
 then
 	usage
 	exit 0
@@ -53,7 +61,7 @@ psql << EOF
 \x
 CREATE DATABASE $DBNAME;
 
-CREATE ROLE $NODEUSER NOSUPERUSER NOCREATEDB NOCREATEROLE LOGIN;
+CREATE ROLE $NODEUSER PASSWORD '$NOEPASS' NOSUPERUSER NOCREATEDB NOCREATEROLE LOGIN;
 
 CREATE ROLE $ADMINUSER PASSWORD '$ADMINPASS' NOSUPERUSER NOCREATEDB NOCREATEROLE LOGIN;
 
