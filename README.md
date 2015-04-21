@@ -115,4 +115,11 @@ You can skip the steps prior to the confgure command by running autogen.sh
 
 
 
-
+# Demo instructions:
+1. Install and configure postgres on a system.  Ensure that it is reachable from
+   the network.
+2. Clone the freight-tools git tree on the system in the previous step 
+3. run the command: ./scripts/createfreightdb.sh fr fn np fa ap
+4. Build freight-tools
+5. run ./src/freight-agent/freight-agent -c ./doc/freight-agent.config -m node
+6. More here soon!
