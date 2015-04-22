@@ -28,6 +28,7 @@
 #include <freight-log.h>
 #include <freight-config.h>
 #include <freight-db.h>
+#include <mode.h>
 
 struct agent_config config;
 
@@ -128,9 +129,22 @@ int main(int argc, char **argv)
 		goto out_cleanup_db;
 	
 
-	rc = 0;
-	db_disconnect(api, &config);
+	/*
+ 	 * Enter teh appropriate function loop based on mode
+ 	 */
+	if (config.cmdline.mode == OP_MODE_NODE) {
+		rc = enter_mode_loop(api, &config);
+		if (!rc) {
+			LOG(ERROR, "Mode operation terminated abnormally: %s\n",
+				strerror(rc));
+			goto out_disconnect;
+		}
+	}
 
+	rc = 0;
+
+out_disconnect:
+	db_disconnect(api, &config);
 out_cleanup_db:
 	db_cleanup(api, &config);
 out_release:

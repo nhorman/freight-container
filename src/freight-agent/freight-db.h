@@ -27,11 +27,27 @@
 #include <freight-config.h>
 
 
+struct yum_config {
+	char *name;
+	char *url;
+};
+
+struct yum_cfg_list {
+	size_t cnt;
+	struct yum_config list[0];
+};
+
 struct db_api {
+
+	/* setup and teardown functions */
 	int (*init)(struct agent_config *acfg);
 	void (*cleanup)(struct agent_config *acfg);
 	int (*connect)(struct agent_config *acfg);
 	int (*disconnect)(struct agent_config *acfg);
+
+	/* operational methods */
+	struct yum_cfg_list *(*get_yum_cfg)(const struct agent_config *acfg);
+
 };
 
 extern struct db_api postgres_db_api;
@@ -72,6 +88,14 @@ static inline int db_disconnect(struct db_api *api, struct agent_config *acfg)
 	if (!api->disconnect)
 		return -EOPNOTSUPP;
 	return api->disconnect(acfg);	
+}
+
+static inline struct yum_cfg_list* db_get_yum_cfg(const struct db_api *api,
+						  const struct agent_config *acfg)
+{
+	if (!api->get_yum_cfg)
+		return NULL;
+	return api->get_yum_cfg(acfg);
 }
 
 #endif
