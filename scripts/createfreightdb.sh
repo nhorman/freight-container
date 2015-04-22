@@ -95,6 +95,11 @@ CREATE TABLE nodes (
 	state		status NOT NULL
 );
 
+CREATE TABLE yum_config (
+	name	varchar(32) NOT NULL,
+	url	varchar NOT NULL,
+);
+
 EOF
 
 
