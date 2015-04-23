@@ -71,6 +71,10 @@ packaging = {
 	author = "Name <email>";
 };
 
+yum_opts = {
+	releasever = "f21";
+};
+
 ----------------------------------------------
 .fi
 
@@ -97,3 +101,11 @@ image file.
 .PP
 A list of details to include when the container is packaged up as an rpm
 
+.B yum_opts
+.PP
+A list of config specifications to pass to yum:
+.PP
+.B releasever
+This allows yum to specify the rpmdb release version when creating a container
+for updates.  yum repositories with $releasever in their urls will be resolved
+properly with this option

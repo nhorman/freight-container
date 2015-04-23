@@ -336,8 +336,9 @@ static int stage_workdir(const struct manifest *manifest)
 	fprintf(repof, "%%install\n");
 	fprintf(repof, "cd ${RPM_BUILD_ROOT}\n");
 	fprintf(repof, "tar xvf %%{SOURCE0}\n");
-	fprintf(repof, "yum -y --installroot=${RPM_BUILD_ROOT}/%s/containerfs/ install %s\n",
-		manifest->package.name, rpmlist); 
+	fprintf(repof, "yum -y --installroot=${RPM_BUILD_ROOT}/%s/containerfs/ "
+		       " --releasever=%s install %s\n",
+		manifest->package.name, manifest->yum.releasever, rpmlist); 
 	free(rpmlist);
 	fprintf(repof, "yum --installroot=${RPM_BUILD_ROOT}/%s/containerfs/ clean all\n",
 		manifest->package.name);
@@ -442,8 +443,9 @@ int yum_inspect(const struct manifest *mfst, const char *rpm)
 		fprintf(stderr, "unable to create introspect directory\n");
 		goto out;
 	}
-	sprintf(rpmcmd, "yum --installroot=%s/introspect -y --nogpgcheck install %s\n",
-		workdir, rpm);
+	sprintf(rpmcmd, "yum --installroot=%s/introspect -y --nogpgcheck "
+		"--releasever=%s install %s\n",
+		workdir, mfst->yum.releasever, rpm);
 
 	fprintf(stderr, "Unpacking container\n");
 	rc = run_command(rpmcmd, mfst->opts.verbose);

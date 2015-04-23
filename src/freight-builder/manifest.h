@@ -51,6 +51,10 @@ struct packaging {
 	char *author;
 };
 
+struct yum_opts {
+	char *releasever;
+};
+
 /*
  * Command line options to add after parsing the manifest
  */
@@ -68,6 +72,7 @@ struct manifest {
 	struct rpm *rpms;
 	struct options *options;
 	struct packaging package;
+	struct yum_opts yum;
 	struct cmdline_options opts;
 };
 

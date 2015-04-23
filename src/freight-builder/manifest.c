@@ -56,8 +56,28 @@ void release_manifest(struct manifest *manifest)
 	free(manifest->package.release);
 	free(manifest->package.version);
 	free(manifest->package.name);
+	free(manifest->yum.releasever);
 
 	memset(manifest, 0, sizeof(struct manifest));
+}
+
+static int parse_yum_opts(struct config_t *config, struct manifest *manifest)
+{
+	config_setting_t *yum_opts = config_lookup(config, "yum_opts");
+	config_setting_t *releasever;
+
+	/*
+ 	 * yum opts aren't required
+ 	 */
+	if (!yum_opts)
+		return 0;
+
+	releasever = config_setting_get_member(yum_opts, "releasever");
+	if (releasever)
+		manifest->yum.releasever = strdup(
+				config_setting_get_string(releasever));
+
+	return 0;
 }
 
 static int parse_repositories(struct config_t *config, struct manifest *manifest)
@@ -300,6 +320,12 @@ static int __read_manifest(const char *config_path, struct manifest *manifest,
 		if (rc)
 			goto out;
 	}
+
+	/*
+ 	 * Don't need to bother with the return code
+ 	 * since this section is optional
+ 	 */
+	parse_yum_opts(&config, manifest);
 out:
 	config_destroy(&config);
 	return rc;
