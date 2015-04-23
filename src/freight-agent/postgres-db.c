@@ -105,7 +105,7 @@ static struct yum_cfg_list* pg_get_yum_cfg(const struct agent_config *acfg)
 	size_t alloc_size;
 	struct yum_cfg_list *repos = NULL;
 
-	result = PQexec(info->conn, "SELECT * FROM yup_repos");
+	result = PQexec(info->conn, "SELECT * FROM yum_repos");
 
 	rc = PQresultStatus(result);
 	if (rc != PGRES_COMMAND_OK) {
