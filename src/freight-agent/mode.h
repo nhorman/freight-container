@@ -25,6 +25,9 @@
 #include <freight-config.h>
 #include <freight-db.h>
 
+int init_container_root(const struct db_api *api,
+			const struct agent_config *acfg);
+
 int enter_mode_loop(struct db_api *api, struct agent_config *config);
 
 #endif

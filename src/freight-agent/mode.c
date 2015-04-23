@@ -68,8 +68,8 @@ static char *build_path(const char *base, const char *path)
 	return out;
 }
 
-static int init_container_root(const struct db_api *api,
-			       const struct agent_config *acfg)
+int init_container_root(const struct db_api *api,
+			const struct agent_config *acfg)
 {
 	char *dirs[]= {
 		"",

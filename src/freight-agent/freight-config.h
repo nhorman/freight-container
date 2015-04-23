@@ -48,7 +48,7 @@ struct master_config {
 
 enum op_mode {
 	OP_MODE_NODE = 0,
-	OP_MODE_MASTER = 1,
+	OP_MODE_INIT,
 };
 
 struct cmdline_config {

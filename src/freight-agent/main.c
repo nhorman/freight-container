@@ -104,6 +104,8 @@ int main(int argc, char **argv)
 
 	if (!strcmp(mode, "node")) {
 		config.cmdline.mode = OP_MODE_NODE;
+	} else if (!strcmp(mode, "init")) {
+		config.cmdline.mode = OP_MODE_INIT; 
 	} else {
 		LOG(ERROR, "Invalid mode spcified\n");
 		goto out_release;
@@ -132,13 +134,24 @@ int main(int argc, char **argv)
 	/*
  	 * Enter teh appropriate function loop based on mode
  	 */
-	if (config.cmdline.mode == OP_MODE_NODE) {
+	switch (config.cmdline.mode) {
+
+	case OP_MODE_INIT:
+		rc = init_container_root(api, &config);
+		if (rc) {
+			LOG(ERROR, "Init of container root failed: %s\n",
+				strerror(rc));
+			goto out_disconnect;
+		}
+		break;
+	case OP_MODE_NODE:
 		rc = enter_mode_loop(api, &config);
-		if (!rc) {
+		if (rc) {
 			LOG(ERROR, "Mode operation terminated abnormally: %s\n",
 				strerror(rc));
 			goto out_disconnect;
 		}
+		break;
 	}
 
 	rc = 0;

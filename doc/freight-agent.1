@@ -27,6 +27,11 @@ Operate in node mode - freight-agent listens for and executes container requests
 .B --mode master
 Operate in master mode - freight-agent monitors health of nodes and database
 /etc/freight-agent/config
+.TP
+.B --mode init
+Preform a one time initalization of the container working directory for
+freight-agent.  This is useful for setting up for local container install and
+execution.
 .SH CONFIG FILE FORMAT 
 
 The config file has the following format 
