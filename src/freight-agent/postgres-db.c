@@ -94,9 +94,18 @@ out:
 	return rc;
 }
 
+
+struct yum_cfg_list* pg_get_yum_cfg(const struct agent_config *acfg)
+{
+	struct postgres_info *info = acfg->db.db_priv;
+
+	return NULL;
+}
+
 struct db_api postgres_db_api = {
 	.init = pg_init,
 	.cleanup = pg_cleanup,
 	.connect = pg_connect,
 	.disconnect = pg_disconnect,
+	.get_yum_cfg = pg_get_yum_cfg,
 };
