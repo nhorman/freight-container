@@ -47,6 +47,7 @@ struct db_api {
 
 	/* operational methods */
 	struct yum_cfg_list *(*get_yum_cfg)(const struct agent_config *acfg);
+	void (*free_yum_cfg)(struct yum_cfg_list *repos);
 
 };
 
@@ -96,6 +97,14 @@ static inline struct yum_cfg_list* db_get_yum_cfg(const struct db_api *api,
 	if (!api->get_yum_cfg)
 		return NULL;
 	return api->get_yum_cfg(acfg);
+}
+
+static inline void db_free_yum_cfg(const struct db_api *api,
+				   struct yum_cfg_list *repos)
+{
+	if (!api->free_yum_cfg)
+		return;
+	api->free_yum_cfg(repos);
 }
 
 #endif

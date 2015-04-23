@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <libpq-fe.h>
+#include <string.h>
 #include <freight-log.h>
 #include <freight-db.h>
 
@@ -95,11 +96,70 @@ out:
 }
 
 
-struct yum_cfg_list* pg_get_yum_cfg(const struct agent_config *acfg)
+static struct yum_cfg_list* pg_get_yum_cfg(const struct agent_config *acfg)
 {
 	struct postgres_info *info = acfg->db.db_priv;
+	PGresult *result;
+	ExecStatusType rc;
+	int yum_entries;
+	size_t alloc_size;
+	struct yum_cfg_list *repos = NULL;
 
-	return NULL;
+	result = PQexec(info->conn, "SELECT * FROM yup_repos");
+
+	rc = PQresultStatus(result);
+	if (rc != PGRES_COMMAND_OK) {
+		LOG(ERROR, "Unable to query yum_repos table: %s\n",
+			PQresultErrorMessage(result));
+		goto out;
+	}
+
+	yum_entries = PQntuples(result);
+
+	if (yum_entries == 0) {
+		LOG(INFO, "No yum configuration entires. "
+			  "Node will not install containers\n");
+		goto out_clear;
+	}
+
+	alloc_size = sizeof(struct yum_cfg_list) +
+		     (sizeof(struct yum_config)*yum_entries);
+
+	
+	repos = calloc(1, alloc_size);
+	if (!repos) {
+		LOG(INFO, "No memory to report yum configuration\n");
+		goto out_clear;
+	}
+
+	repos->cnt = yum_entries;
+
+	/*
+ 	 * Loop through the result and copy out the table data
+ 	 * Column 0 is the repo name
+ 	 * Column 1 is the repo url
+ 	 */
+	for (yum_entries = 0; yum_entries < repos->cnt; yum_entries++) {
+		repos->list[yum_entries].name =
+			strdup(PQgetvalue(result, yum_entries, 0));
+		repos->list[yum_entries].url =
+			strdup(PQgetvalue(result, yum_entries, 1));
+	}
+
+out_clear:
+	PQclear(result);
+out:		
+	return repos;
+}
+
+static void pg_free_yum_cfg(struct yum_cfg_list *repos)
+{
+	int i;
+	for(i=0; i < repos->cnt; i++) {
+		free(repos->list[i].name);
+		free(repos->list[i].url);
+	}
+	free(repos);
 }
 
 struct db_api postgres_db_api = {
@@ -108,4 +168,5 @@ struct db_api postgres_db_api = {
 	.connect = pg_connect,
 	.disconnect = pg_disconnect,
 	.get_yum_cfg = pg_get_yum_cfg,
+	.free_yum_cfg = pg_free_yum_cfg,
 };
