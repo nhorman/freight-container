@@ -162,15 +162,31 @@ out_cleanup:
 int enter_mode_loop(struct db_api *api, struct agent_config *config)
 {
 	int rc = -EINVAL;
-
+	struct stat buf;
+	
 	/*
  	 * Start by setting up a clean container root
+ 	 * If its not already there
  	 */
-	rc = init_container_root(api, config);
-	if (rc) {
-		LOG(ERROR, "container root could not be initalized\n");
-		goto out;
+	if (stat(config->node.container_root, &buf) != 0) {
+		rc = errno; 
+		if (rc != ENOENT) {
+			LOG(ERROR, "Container root isn't available: %s\n",
+				strerror(rc));
+			LOG(ERROR, "Run freight-agent -m clean\n");
+			goto out;
+		}
 	}
+
+	if (rc == ENOENT) {
+		LOG(INFO, "Creating a container root dir\n");
+		rc = init_container_root(api, config);
+		if (rc) {
+			LOG(ERROR, "container root could not be initalized\n");
+			goto out;
+		}
+	}
+	rc = 0;
 out:
 	return rc;
 }
