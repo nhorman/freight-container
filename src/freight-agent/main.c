@@ -37,6 +37,7 @@ struct option lopts[] = {
 	{"help", 0, NULL, 'h'},
 	{"config", 1, NULL, 'c'},
 	{"mode", 1, NULL, 'm'},
+	{"rpm", 1, NULL, 'r'},
 	{ 0, 0, 0, 0}
 };
 #endif
@@ -46,9 +47,11 @@ static void usage(char **argv)
 #ifdef HAVE_GETOPT_LONG
 	LOG(INFO, "%s [-h | --help] "
 		"[-c | --config=<config>] "
-		"[-m] | --mode=<mode>] \n", argv[0]);
+		"[-m] | --mode=<mode>] "
+		"[-r | --rpm=<rpm>] \n", argv[0]);
 #else
-	frpintf(stderr, "%s [-h] [-c <config>] [-m <mode> ]\n ", argv[0]);
+	frpintf(stderr, "%s [-h] [-c <config>] "
+			"[-m <mode> ] [r <rpm>]\n ", argv[0]);
 #endif
 }
 
@@ -58,6 +61,7 @@ int main(int argc, char **argv)
 	int opt, longind;
 	char *config_file = "/etc/freight-agent/config";
 	char *mode = NULL;
+	char *rpm = NULL;
 	struct db_api *api;
 	
 	/*
@@ -65,9 +69,9 @@ int main(int argc, char **argv)
  	 */
 
 #ifdef HAVE_GETOPT_LONG
-	while ((opt = getopt_long(argc, argv, "hc:m:", lopts, &longind)) != -1) {
+	while ((opt = getopt_long(argc, argv, "hc:m:r:", lopts, &longind)) != -1) {
 #else
-	while ((opt = getopt(argc, argv, "hc:m:") != -1) {
+	while ((opt = getopt(argc, argv, "hc:m:r:") != -1) {
 #endif
 		switch(opt) {
 
@@ -83,6 +87,9 @@ int main(int argc, char **argv)
 			break;
 		case 'm':
 			mode = optarg;
+			break;
+		case 'r':
+			rpm = optarg;
 		}
 	}
 
@@ -108,6 +115,8 @@ int main(int argc, char **argv)
 		config.cmdline.mode = OP_MODE_INIT; 
 	else if (!strcmp(mode, "clean"))
 		config.cmdline.mode = OP_MODE_CLEAN;
+	else if (!strcmp(mode, "install"))
+		config.cmdline.mode = OP_MODE_INSTALL;
 	else {
 		LOG(ERROR, "Invalid mode spcified\n");
 		goto out_release;
@@ -151,6 +160,18 @@ int main(int argc, char **argv)
 			  config.node.container_root);
 		clean_container_root(config.node.container_root);
 		break;
+	case OP_MODE_INSTALL:
+		if (!rpm) {
+			LOG(ERROR, "Must specify a container name or rpm with "
+				   "-r option in install mode\n");
+			goto out_disconnect;
+		}
+		rc = install_container(rpm, &config);
+		if (rc) {
+			LOG(ERROR, "Failed to install container: %s\n",
+				strerror(rc));
+			goto out_disconnect;
+		}
 	case OP_MODE_NODE:
 		rc = enter_mode_loop(api, &config);
 		if (rc) {

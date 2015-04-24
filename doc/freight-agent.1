@@ -38,7 +38,10 @@ Remove that freight-agent container root working directory.  This destroys the
 yum and local rpm databases that track which containers are installed, removes
 the installed containers, and destroys the existing config retrieved from the
 database.
-
+.TP
+.B --mode install
+Install a container name (via yum) or a local rpm to the container working space
+for freight agent
 .SH CONFIG FILE FORMAT 
 
 The config file has the following format 

@@ -27,11 +27,6 @@
 #include <freight-log.h>
 #include <freight-common.h>
 
-void clean_container_root(const char *croot)
-{
-	recursive_dir_cleanup(croot);
-	return;
-}
 
 static int build_dir(const char *base, const char *path)
 {
@@ -56,6 +51,32 @@ static char *build_path(const char *base, const char *path)
 		out = strcat(out, path);
 	}
 	return out;
+}
+
+void clean_container_root(const char *croot)
+{
+	recursive_dir_cleanup(croot);
+	return;
+}
+
+int install_container(const char *rpm, struct agent_config *acfg)
+{
+	struct stat buf;
+	int rc = -ENOENT;
+	char yumcmd[1024];
+
+	if (stat(acfg->node.container_root, &buf) == -ENOENT) {
+		LOG(ERROR, "Container root isn't initalized\n");
+		goto out;
+	}
+
+	sprintf(yumcmd, "yum --installroot=%s -y --nogpgcheck install %s",
+		acfg->node.container_root, rpm);
+
+	rc = run_command(yumcmd, 1);
+
+out:
+	return rc;
 }
 
 int init_container_root(const struct db_api *api,

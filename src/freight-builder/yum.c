@@ -43,13 +43,10 @@ static void yum_cleanup()
 	return;
 }
 
-static int build_path(const char *path, const char *prefix)
+static int build_path(const char *path)
 {
-	sprintf(tmpdir, "%s/%s%s%s",
-		workdir,
-		prefix ? prefix : "",
-		prefix ? "/" : "",
-		path);
+	sprintf(tmpdir, "%s/%s",
+		workdir, path);
 	return mkdir(tmpdir, 0700);
 }
 
@@ -145,43 +142,42 @@ static int stage_workdir(const struct manifest *manifest)
 	struct repository *repo;
 	FILE *repof;
 	char *rpmlist;
+	char pbuf[1024];
+	char *dirlist[] = {
+		"containerfs",
+		"containerfs/etc",
+		"containerfs/etc/yum.repos.d",
+		"containerfs/cache",
+		"containerfs/logs",
+		NULL,
+	};
+
+	int i = 0;
 
 	LOG(INFO, "Initalizing work directory %s\n", workdir);
 
-	if (build_path("", manifest->package.name)) {
+	if (build_path("containers")) {
+		LOG(ERROR, "Cannot create containers directory: %s\n",
+			strerror(errno));
+		goto cleanup_tmpdir;
+	}
+
+	sprintf(pbuf, "containers/%s", manifest->package.name); 
+	if (build_path(pbuf)) {
 		LOG(ERROR, "Cannot create container name directory: %s\n",
 			strerror(errno));
 		goto cleanup_tmpdir;
 	}
 
-	if (build_path("/containerfs", manifest->package.name)) {
-		LOG(ERROR, "Cannot create containerfs directory: %s\n",
-			strerror(errno));
-		goto cleanup_tmpdir;
-	}
-
-	if (build_path("/containerfs/etc", manifest->package.name)) {
-		LOG(ERROR, "Cannot create etc directory: %s\n",
-			strerror(errno));
-		goto cleanup_tmpdir;
-	}
-
-	if (build_path("/containerfs/etc/yum.repos.d", manifest->package.name)) {
-		LOG(ERROR, "Cannot create repository directory: %s\n",
-			strerror(errno)); 
-		goto cleanup_tmpdir;
-	}
-
-	if (build_path("/containerfs/cache", manifest->package.name)) {
-		LOG(ERROR, "Cannot create cache directory: %s\n",
-			strerror(errno)); 
-		goto cleanup_tmpdir;
-	}
-
-	if (build_path("/containerfs/logs", manifest->package.name)) {
-		LOG(ERROR, "Cannot create log directory: %s\n",
-			strerror(errno)); 
-		goto cleanup_tmpdir;
+	while(dirlist[i] != NULL) {
+		sprintf(pbuf, "containers/%s/%s",
+			manifest->package.name, dirlist[i]);
+		if (build_path(pbuf)) {
+			LOG(ERROR, "Cannot create %s directory: %s\n",
+				dirlist[i], strerror(errno));
+			goto cleanup_tmpdir;
+		}
+		i++;
 	}
 
 	/*
@@ -190,7 +186,7 @@ static int stage_workdir(const struct manifest *manifest)
  	 */
 	repo = manifest->repos;
 	while (repo) {
-		sprintf(tmpdir, "%s/%s/containerfs/etc/yum.repos.d/%s-fb.repo",
+		sprintf(tmpdir, "%s/containers/%s/containerfs/etc/yum.repos.d/%s-fb.repo",
 			workdir, manifest->package.name, repo->name);
 		repof = fopen(tmpdir, "w");
 		if (!repof) {
@@ -211,7 +207,7 @@ static int stage_workdir(const struct manifest *manifest)
 	/*
  	 * create a base yum configuration
  	 */
-	sprintf(tmpdir, "%s/%s/containerfs/etc/yum.conf",
+	sprintf(tmpdir, "%s/containers/%s/containerfs/etc/yum.conf",
 		workdir,manifest->package.name);
 	repof = fopen(tmpdir, "w");
 	if (!repof) {
@@ -279,34 +275,36 @@ static int stage_workdir(const struct manifest *manifest)
 	fprintf(repof, "%%install\n");
 	fprintf(repof, "cd ${RPM_BUILD_ROOT}\n");
 	fprintf(repof, "tar xvf %%{SOURCE0}\n");
-	fprintf(repof, "yum -y --installroot=${RPM_BUILD_ROOT}/%s/containerfs/ "
+	fprintf(repof, "yum -y --installroot=${RPM_BUILD_ROOT}/containers/%s/containerfs/ "
 		       " --releasever=%s install %s\n",
 		manifest->package.name, manifest->yum.releasever, rpmlist); 
 	free(rpmlist);
-	fprintf(repof, "yum --installroot=${RPM_BUILD_ROOT}/%s/containerfs/ clean all\n",
+	fprintf(repof, "yum --installroot=${RPM_BUILD_ROOT}/containers/%s/containerfs/ clean all\n",
 		manifest->package.name);
 	/*
  	 * After yum is done installing, we need to interrogate all the files
  	 * So that we can specify a file list in the %files section
  	 */
+	fprintf(repof, "cd containers\n");
 	fprintf(repof, "rm -f /tmp/%s.manifest\n", manifest->package.name);
 	fprintf(repof, "for i in `find . -type d`\n");
 	fprintf(repof, "do\n"); 
-	fprintf(repof, "	echo \"%%dir /$i\" >> /tmp/%s.manifest\n",
+	fprintf(repof, "	echo \"%%dir /containers/$i\" >> /tmp/%s.manifest\n",
 		manifest->package.name);
 	fprintf(repof, "done\n");
 
 	fprintf(repof, "for i in `find . -type f`\n");
 	fprintf(repof, "do\n"); 
-	fprintf(repof, "	echo \"/$i\" >> /tmp/%s.manifest\n",
+	fprintf(repof, "	echo \"/containers/$i\" >> /tmp/%s.manifest\n",
 		manifest->package.name);
 	fprintf(repof, "done\n");
 
 	fprintf(repof, "for i in `find . -type l`\n");
 	fprintf(repof, "do\n"); 
-	fprintf(repof, "	echo \"/$i\" >> /tmp/%s.manifest\n",
+	fprintf(repof, "	echo \"/containers/$i\" >> /tmp/%s.manifest\n",
 		manifest->package.name);
 	fprintf(repof, "done\n");
+	fprintf(repof, "cd -");
 
 	fprintf(repof, "\n\n");
 	fprintf(repof, "%%files -f /tmp/%s.manifest\n",
@@ -344,8 +342,8 @@ static int yum_build_srpm(const struct manifest *manifest)
  	 * Included in the srpm as Source0 of the spec file (written in
  	 * yum_init)
  	 */
-	snprintf(cmd, 1024, "tar -C %s -jcf %s/%s-freight.tbz2 ./%s/\n",
-		workdir, workdir, manifest->package.name, manifest->package.name);
+	snprintf(cmd, 1024, "tar -C %s -jcf %s/%s-freight.tbz2 ./containers/\n",
+		workdir, workdir, manifest->package.name);
 	LOG(INFO, "Creating yum configuration for container\n");
 	rc = run_command(cmd, manifest->opts.verbose);
 	if (rc)
@@ -386,7 +384,7 @@ int yum_inspect(const struct manifest *mfst, const char *rpm)
 		goto out;
 	}
 
-	if (build_path("/introspect", NULL)) {
+	if (build_path("/introspect")) {
 		LOG(ERROR, "unable to create introspect directory\n");
 		goto out;
 	}
@@ -402,7 +400,7 @@ int yum_inspect(const struct manifest *mfst, const char *rpm)
 	}
 	*tmp = '\0'; /* Null Terminate the container name */
 	LOG(INFO, "Container name is %s\n", container_name);
-	sprintf(rpmcmd, "yum --installroot %s/introspect/%s/containerfs/ --nogpgcheck check-update",
+	sprintf(rpmcmd, "yum --installroot %s/introspect/containers/%s/containerfs/ --nogpgcheck check-update",
 		 workdir, container_name);
 	LOG(INFO, "Looking for packages Requiring update:\n");
 	rc = run_command(rpmcmd, 1);

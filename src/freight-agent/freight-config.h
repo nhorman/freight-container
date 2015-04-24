@@ -50,6 +50,7 @@ enum op_mode {
 	OP_MODE_NODE = 0,
 	OP_MODE_INIT,
 	OP_MODE_CLEAN,
+	OP_MODE_INSTALL,
 };
 
 struct cmdline_config {
