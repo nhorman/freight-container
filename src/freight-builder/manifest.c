@@ -28,7 +28,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <libconfig.h>
-#include "manifest.h"
+#include <freight-log.h>
+#include <manifest.h>
 
 void release_manifest(struct manifest *manifest)
 {
@@ -190,48 +191,48 @@ static int parse_packaging(struct config_t *config, struct manifest *manifest)
 	int rc = -EINVAL;
 
 	if (!pkg) {
-		fprintf(stderr, "You must supply a packaging directive\n");
+		LOG(ERROR, "You must supply a packaging directive\n");
 		goto out;
 	}
 
 	tmp = config_setting_get_member(pkg, "name");
 	if (!tmp) {
-		fprintf(stderr, "You must specify a package name\n");
+		LOG(ERROR, "You must specify a package name\n");
 		goto out;
 	}
 	manifest->package.name = strdup(config_setting_get_string(tmp));
 
 	tmp = config_setting_get_member(pkg, "version");
 	if (!tmp) {
-		fprintf(stderr, "You must specify a package version\n");
+		LOG(ERROR, "You must specify a package version\n");
 		goto out_name;
 	}
 	manifest->package.version = strdup(config_setting_get_string(tmp));
 
 	tmp = config_setting_get_member(pkg, "release");
 	if (!tmp) {
-		fprintf(stderr, "You must specify a package release\n");
+		LOG(ERROR, "You must specify a package release\n");
 		goto out_version;
 	}
 	manifest->package.release = strdup(config_setting_get_string(tmp));
 
 	tmp = config_setting_get_member(pkg, "summary");
 	if (!tmp) {
-		fprintf(stderr, "You must specify a package summary\n");
+		LOG(ERROR, "You must specify a package summary\n");
 		goto out_release;
 	}
 	manifest->package.summary = strdup(config_setting_get_string(tmp));
 
 	tmp = config_setting_get_member(pkg, "license");
 	if (!tmp) {
-		fprintf(stderr, "You must specify a package license\n");
+		LOG(ERROR, "You must specify a package license\n");
 		goto out_summary;
 	}
 	manifest->package.license = strdup(config_setting_get_string(tmp));
 
 	tmp = config_setting_get_member(pkg, "author");
 	if (!tmp) {
-		fprintf(stderr, "You must specify a package author\n");
+		LOG(ERROR, "You must specify a package author\n");
 		goto out_license;
 	}
 	manifest->package.author = strdup(config_setting_get_string(tmp));
@@ -270,14 +271,14 @@ static int __read_manifest(const char *config_path, struct manifest *manifest,
  	 * Check for file existance
  	 */
 	if (stat(config_path, &buf)) {
-		fprintf(stderr, "Error, manifest file %s does not exist\n",
+		LOG(ERROR, "Error, manifest file %s does not exist\n",
 			config_path);
 		rc = -ENOENT;
 		goto out;
 	}
 
 	if (config_read_file(&config, config_path) == CONFIG_FALSE) {
-		fprintf(stderr, "Error in %s:%d : %s\n", 
+		LOG(ERROR, "Error in %s:%d : %s\n", 
 			config_error_file(&config), config_error_line(&config),
 			config_error_text(&config));
 		rc = -EINVAL;
@@ -310,7 +311,7 @@ static int __read_manifest(const char *config_path, struct manifest *manifest,
 
 	if (!base) {
 		if (config_lookup(&config, "packaging") != NULL) {
-			fprintf(stderr, "Can't include packaging directive in "
+			LOG(ERROR, "Can't include packaging directive in "
 				"inherited manifest %s\n", config_path);
 			rc = -EINVAL;
 			goto out;

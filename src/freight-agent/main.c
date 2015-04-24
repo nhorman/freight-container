@@ -44,7 +44,7 @@ struct option lopts[] = {
 static void usage(char **argv)
 {
 #ifdef HAVE_GETOPT_LONG
-	fprintf(stderr, "%s [-h | --help] "
+	LOG(INFO, "%s [-h | --help] "
 		"[-c | --config=<config>] "
 		"[-m] | --mode=<mode>] \n", argv[0]);
 #else

@@ -26,6 +26,7 @@
 #include <manifest.h>
 #include <package.h>
 #include <config.h>
+#include <freight-log.h>
 
 #ifdef HAVE_GETOPT_LONG
 struct option lopts[] = {
@@ -43,14 +44,14 @@ struct option lopts[] = {
 static void usage(char **argv)
 {
 #ifdef HAVE_GETOPT_LONG
-	fprintf(stderr, "%s [-h | --help] [-o | --output path ] "
+	LOG(INFO, "%s [-h | --help] [-o | --output path ] "
 			"[-s || --source] "
 			"[-k | --keep] "
 			"<[-m | --manifest]  config> "
 			"<-c | --check=<container rpm>> "
 			"[-v] | [--verbose]\n", argv[0]);
 #else
-	frpintf(stderr, "%s [-h] [-k] [-s] [-v] "
+	LOG(INFO,  "%s [-h] [-k] [-s] [-v] "
 			"[-o path] <-m config> <-c container>\n", argv[0]);
 #endif
 }
@@ -111,7 +112,7 @@ int main(int argc, char **argv)
  	 * Do some sanity checks
  	 */
 	if ((!config) && (!container_rpm)) {
-		fprintf(stderr, "Need to specify a manifest or container file\n");
+		LOG(ERROR, "Need to specify a manifest or container file\n");
 		goto out;
 	}
 
@@ -133,7 +134,7 @@ int main(int argc, char **argv)
  	 */
 	build_env = init_pkg_mgmt(PKG_YUM, &manifest);
 	if (build_env == NULL) {
-		fprintf(stderr, "Failed to init build temp directory\n");
+		LOG(ERROR, "Failed to init build temp directory\n");
 		goto out_release;
 	}
 
