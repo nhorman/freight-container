@@ -30,8 +30,8 @@
 #include <string.h>
 #include <manifest.h>
 #include <package.h>
-#include <freight-common.h>
 #include <freight-log.h>
+#include <freight-common.h>
 
 static char worktemplate[256];
 static char *workdir;
@@ -80,36 +80,6 @@ static char *build_rpm_list(const struct manifest *manifest)
 	}
 
 	return result;
-}
-
-static int run_command(char *cmd, int print)
-{
-	int rc;
-	FILE *yum_out;
-	char buf[128];
-	size_t count;
-	
-	yum_out = popen(cmd, "r");
-	if (yum_out == NULL) {
-		rc = errno;
-		LOG(ERROR, "Unable to exec yum for install: %s\n", strerror(rc));
-		return rc;
-	}
-
-	while(!feof(yum_out) && !ferror(yum_out)) {
-		count = fread(buf, 1, 128, yum_out);
-		if (print)
-			fwrite(buf, count, 1, stderr);
-	}
-
-	rc = pclose(yum_out);
-
-	if (rc == -1) {
-		rc = errno;
-		LOG(ERROR, "yum command failed: %s\n", strerror(rc));
-	}
-
-	return rc;
 }
 
 /*
