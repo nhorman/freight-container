@@ -27,53 +27,17 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
-#include <ftw.h>
 #include <manifest.h>
 #include <package.h>
+#include <freight-common.h>
 
 static char worktemplate[256];
 static char *workdir;
 static char tmpdir[1024];
 
-
-static int remove_path(const char *fpath, const struct stat *sb, int typeflag,
-			struct FTW *ftwbuf)
-{
-	int rc;
-	char *reason;
-	struct stat buf;
-
-	switch (typeflag) {
-	case FTW_F:
-	case FTW_SL:
-	case FTW_SLN:
-	case FTW_NS:
-		rc = unlink(fpath);
-		break;
-	case FTW_DP:
-	case FTW_D:
-		lstat(fpath, &buf);
-		if (buf.st_mode & S_IFLNK)
-			rc = unlink(fpath);
-		else
-			rc = rmdir(fpath);
-		break;
-	default:
-		rc = -EINVAL;
-	}
-
-	if (rc) {
-		reason = strerror(errno);
-		fprintf(stderr, "Could not remove %s: %s", fpath, reason);
-	}
-
-	return rc;
-	
-}
-
 static void yum_cleanup()
 {
-	nftw(workdir, remove_path, 10, FTW_DEPTH|FTW_PHYS);
+	recursive_dir_cleanup(workdir);
 	return;
 }
 

@@ -23,23 +23,13 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
-#include <ftw.h>
 #include <mode.h>
 #include <freight-log.h>
-
-
-static int remove_path(const char *fpath, const struct stat *sb, int typeflag,
-			struct FTW *ftwbuf)
-{
-	if (typeflag == FTW_F)
-		return unlink(fpath);
-
-	return rmdir(fpath);
-}
+#include <freight-common.h>
 
 static void clean_container_root(const char *croot)
 {
-	nftw(croot, remove_path, 10, FTW_DEPTH);
+	recursive_dir_cleanup(croot);
 	return;
 }
 
