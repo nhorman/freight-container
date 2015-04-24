@@ -1,6 +1,6 @@
 
 
-inherit = "./test-manifest/base.manifest";
+inherit = "./examples/test-manifest/base.manifest";
 
 repositories = (
 	{

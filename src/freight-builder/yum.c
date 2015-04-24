@@ -25,6 +25,7 @@
 #include <sys/types.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/utsname.h>
 #include <errno.h>
 #include <string.h>
 #include <manifest.h>
@@ -121,10 +122,14 @@ static int yum_build_rpm(const struct manifest *manifest)
 {
 	char cmd[1024];
 	char *output_path;
+	struct utsname utsdata;
+	int rc;
 	char *quiet = manifest->opts.verbose ? "" : "--quiet";
 
 	output_path = manifest->opts.output_path ? manifest->opts.output_path :
 			workdir;
+
+	uname(&utsdata);
 
 	/*
  	 * This will convert the previously built srpm into a binary rpm that
@@ -144,7 +149,14 @@ static int yum_build_rpm(const struct manifest *manifest)
 		 manifest->package.name, manifest->package.version,
 		 manifest->package.release);
 	fprintf(stderr, "Building container binary rpm\n");
-	return run_command(cmd, manifest->opts.verbose);
+	rc = run_command(cmd, manifest->opts.verbose);
+	if (!rc)
+		fprintf(stderr, "Wrote %s/%s-freight-container-%s-%s.%s.rpm\n",
+			output_path, manifest->package.name,
+			manifest->package.version,
+			manifest->package.release,
+			utsdata.machine);
+	return rc;
 }
 
 static int yum_init(const struct manifest *manifest)
@@ -387,6 +399,10 @@ static int yum_build_srpm(const struct manifest *manifest)
 	rc = run_command(cmd, manifest->opts.verbose);
 	if (rc)
 		goto out;
+	fprintf(stderr, "Wrote srpm %s/%s-freight-container-%s-%s.src.rpm\n",
+		manifest->opts.output_path ? manifest->opts.output_path : workdir,
+		manifest->package.name, manifest->package.version,
+		manifest->package.release);
 out:
 	return rc;
 }
