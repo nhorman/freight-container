@@ -32,6 +32,13 @@ Operate in master mode - freight-agent monitors health of nodes and database
 Preform a one time initalization of the container working directory for
 freight-agent.  This is useful for setting up for local container install and
 execution.
+.TP
+.B --mode clean
+Remove that freight-agent container root working directory.  This destroys the
+yum and local rpm databases that track which containers are installed, removes
+the installed containers, and destroys the existing config retrieved from the
+database.
+
 .SH CONFIG FILE FORMAT 
 
 The config file has the following format 

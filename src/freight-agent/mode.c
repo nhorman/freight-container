@@ -27,7 +27,7 @@
 #include <freight-log.h>
 #include <freight-common.h>
 
-static void clean_container_root(const char *croot)
+void clean_container_root(const char *croot)
 {
 	recursive_dir_cleanup(croot);
 	return;

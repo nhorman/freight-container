@@ -28,6 +28,8 @@
 int init_container_root(const struct db_api *api,
 			const struct agent_config *acfg);
 
+void clean_container_root(const char *croot);
+
 int enter_mode_loop(struct db_api *api, struct agent_config *config);
 
 #endif

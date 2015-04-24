@@ -102,11 +102,13 @@ int main(int argc, char **argv)
 		goto out_release;
 	}
 
-	if (!strcmp(mode, "node")) {
+	if (!strcmp(mode, "node"))
 		config.cmdline.mode = OP_MODE_NODE;
-	} else if (!strcmp(mode, "init")) {
+	else if (!strcmp(mode, "init"))
 		config.cmdline.mode = OP_MODE_INIT; 
-	} else {
+	else if (!strcmp(mode, "clean"))
+		config.cmdline.mode = OP_MODE_CLEAN;
+	else {
 		LOG(ERROR, "Invalid mode spcified\n");
 		goto out_release;
 	}
@@ -143,6 +145,11 @@ int main(int argc, char **argv)
 				strerror(rc));
 			goto out_disconnect;
 		}
+		break;
+	case OP_MODE_CLEAN:
+		LOG(INFO, "Removing container root %s\n",
+			  config.node.container_root);
+		clean_container_root(config.node.container_root);
 		break;
 	case OP_MODE_NODE:
 		rc = enter_mode_loop(api, &config);
