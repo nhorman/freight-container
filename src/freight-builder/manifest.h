@@ -55,6 +55,10 @@ struct yum_opts {
 	char *releasever;
 };
 
+struct container_opts {
+	char *user;
+};
+
 /*
  * Command line options to add after parsing the manifest
  */
@@ -74,6 +78,7 @@ struct manifest {
 	struct packaging package;
 	struct yum_opts yum;
 	struct cmdline_options opts;
+	struct container_opts copts;
 };
 
 void release_manifest(struct manifest *manifest);

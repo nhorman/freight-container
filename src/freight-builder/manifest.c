@@ -254,6 +254,23 @@ out:
 	return rc;
 }
 
+static int parse_container_opts(config_t *config, struct manifest *manifest)
+{
+	config_setting_t *copts = config_lookup(config, "container_opts");
+	config_setting_t *tmp;
+
+	if (!copts)
+		return -ENOENT;
+
+	tmp = config_setting_get_member(copts, "user");
+
+	if (tmp)
+		manifest->copts.user = strdup(
+			config_setting_get_string(tmp));
+
+	return 0;	
+}
+
 static int __read_manifest(const char *config_path, struct manifest *manifest,
 			   int base)
 {
@@ -326,7 +343,10 @@ static int __read_manifest(const char *config_path, struct manifest *manifest,
  	 * Don't need to bother with the return code
  	 * since this section is optional
  	 */
-	parse_yum_opts(&config, manifest);
+	if (base) {
+		parse_yum_opts(&config, manifest);
+		parse_container_opts(&config, manifest);
+	}
 out:
 	config_destroy(&config);
 	return rc;

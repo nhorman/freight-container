@@ -261,11 +261,15 @@ static int stage_workdir(const struct manifest *manifest)
  	 * buildrequires include yum as we're going to install a tree with it 
  	 */
 	fprintf(repof, "BuildRequires: yum\n");
-
 	fprintf(repof, "\n\n");
+
+	/*
+ 	 * Description section
+ 	 */
 	fprintf(repof, "%%description\n");
 	fprintf(repof, "A container rpm for freight\n");
 	fprintf(repof, "\n\n");
+
 
 	/*
  	 * The install section actually has yum do the install to
@@ -281,6 +285,24 @@ static int stage_workdir(const struct manifest *manifest)
 	free(rpmlist);
 	fprintf(repof, "yum --installroot=${RPM_BUILD_ROOT}/containers/%s/containerfs/ clean all\n",
 		manifest->package.name);
+
+	/*
+ 	 * After we install, we may need to add a user to the
+ 	 * container
+ 	 */
+	if (manifest->copts.user) {
+		/*
+ 		 * Need to ensure that we have shadowutils installed
+ 		 */
+		fprintf(repof, "yum -y --installroot=${RPM_BUILD_ROOT}/containers/"
+			"%s/containerfs/ --nogpgcheck install shadow-utils\n",
+			manifest->package.name); 
+		fprintf(repof, "chroot ${RPM_BUILD_ROOT}"
+			       "/containers/%s/containerfs "
+			       "/usr/sbin/useradd %s\n",
+			       manifest->package.name, manifest->copts.user);
+	}
+
 	/*
  	 * After yum is done installing, we need to interrogate all the files
  	 * So that we can specify a file list in the %files section
@@ -304,14 +326,17 @@ static int stage_workdir(const struct manifest *manifest)
 	fprintf(repof, "	echo \"/containers/$i\" >> /tmp/%s.manifest\n",
 		manifest->package.name);
 	fprintf(repof, "done\n");
-	fprintf(repof, "cd -");
+	fprintf(repof, "cd -\n");
 
+	/*
+ 	 * Spec %files section
+ 	 */
 	fprintf(repof, "\n\n");
 	fprintf(repof, "%%files -f /tmp/%s.manifest\n",
 		manifest->package.name);
 
 	/*
- 	 * And an empty chagnelog
+ 	 * changelog section
  	 */
 	fprintf(repof, "\n\n");
 	fprintf(repof, "%%changelog\n");

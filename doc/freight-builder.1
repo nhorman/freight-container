@@ -75,6 +75,10 @@ yum_opts = {
 	releasever = "f21";
 };
 
+container_opts = {
+	user = "username";
+};
+
 ----------------------------------------------
 .fi
 
@@ -109,3 +113,11 @@ A list of config specifications to pass to yum:
 This allows yum to specify the rpmdb release version when creating a container
 for updates.  yum repositories with $releasever in their urls will be resolved
 properly with this option
+
+.B container_opts
+.PP
+A list of options to direct behavior of an instance of the container when
+executed
+.PP
+.B user
+The container will run as the specified user
