@@ -28,6 +28,7 @@
 #include <sys/utsname.h>
 #include <errno.h>
 #include <string.h>
+#include <libconfig.h>
 #include <manifest.h>
 #include <package.h>
 #include <freight-log.h>
@@ -143,6 +144,8 @@ static int stage_workdir(const struct manifest *manifest)
 	FILE *repof;
 	char *rpmlist;
 	char pbuf[1024];
+	config_t config;
+	config_setting_t *tmp;
 	char *dirlist[] = {
 		"containerfs",
 		"containerfs/etc",
@@ -168,6 +171,35 @@ static int stage_workdir(const struct manifest *manifest)
 			strerror(errno));
 		goto cleanup_tmpdir;
 	}
+
+	config_init(&config);
+	tmp = config_root_setting(&config);
+	if (!tmp) {
+		LOG(ERROR, "Cannot get root setting for container config\n");
+		goto cleanup_tmpdir;
+	}
+	tmp = config_setting_add(tmp, "container_opts", CONFIG_TYPE_GROUP);
+	if (!tmp) {
+		LOG(ERROR, "Cannot create container_opts group\n");
+		goto cleanup_tmpdir;
+	}
+	tmp = config_setting_add(tmp, "user", CONFIG_TYPE_STRING);
+	if (!tmp) {
+		LOG(ERROR, "Cannot create user setting in config\n");
+		goto cleanup_tmpdir;
+	}
+	if (config_setting_set_string(tmp, manifest->copts.user) == CONFIG_FALSE) {
+		LOG(ERROR, "Can't set user setting value\n");
+		goto cleanup_tmpdir;
+	}
+	sprintf(pbuf, "%s/containers/%s/container_config",
+		workdir, manifest->package.name);
+	if (config_write_file(&config, pbuf) == CONFIG_FALSE) {
+		LOG(ERROR, "Failed to write %s: %s\n",
+			pbuf, config_error_text(&config));
+		goto cleanup_tmpdir;
+	}
+	config_destroy(&config);
 
 	while(dirlist[i] != NULL) {
 		sprintf(pbuf, "containers/%s/%s",
