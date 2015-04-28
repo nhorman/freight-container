@@ -316,8 +316,6 @@ static int stage_workdir(const struct manifest *manifest)
 		       " --releasever=%s install %s\n",
 		manifest->package.name, manifest->yum.releasever, rpmlist); 
 	free(rpmlist);
-	fprintf(repof, "yum --installroot=${RPM_BUILD_ROOT}/containers/%s/containerfs/ clean all\n",
-		manifest->package.name);
 
 	/*
  	 * After we install, we may need to add a user to the
@@ -336,6 +334,11 @@ static int stage_workdir(const struct manifest *manifest)
 			       manifest->package.name, manifest->copts.user);
 	}
 
+	/*
+ 	 * This needs to hapen last so we can clean out the yum cache
+ 	 */
+	fprintf(repof, "yum --installroot=${RPM_BUILD_ROOT}/containers/%s/containerfs/ clean all\n",
+		manifest->package.name);
 	/*
  	 * After yum is done installing, we need to interrogate all the files
  	 * So that we can specify a file list in the %files section
