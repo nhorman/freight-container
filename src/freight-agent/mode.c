@@ -103,7 +103,7 @@ int uninstall_container(const char *rpm, struct agent_config *acfg)
 	if (stat(yumcmd, &buf) == -ENOENT)
 		goto out;
 
-	sprintf(yumcmd, "yum --installroot=%s -y erase %s-freight-container",
+	sprintf(yumcmd, "yum --installroot=%s -y erase %s",
 		acfg->node.container_root, rpm);
 	rc = run_command(yumcmd, acfg->cmdline.verbose);
 

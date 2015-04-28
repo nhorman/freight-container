@@ -102,11 +102,11 @@ static int yum_build_rpm(const struct manifest *manifest)
  	 */
 	snprintf(cmd, 1024, "rpmbuild %s "
 		 "-D\"_build_name_fmt "
-		 "%s-freight-container-%s-%s.%%%%{ARCH}.rpm\" "
+		 "%s-%s-%s.%%%%{ARCH}.rpm\" "
 		 "-D\"__arch_install_post "
 		 "/usr/lib/rpm/check-rpaths /usr/lib/rpm/check-buildroot\" "
 		 "-D\"_rpmdir %s\" "
-		 "--rebuild %s/%s-freight-container-%s-%s.src.rpm\n",
+		 "--rebuild %s/%s-%s-%s.src.rpm\n",
 		 quiet, 
 		 manifest->package.name, manifest->package.version,
 		 manifest->package.release,
@@ -116,7 +116,7 @@ static int yum_build_rpm(const struct manifest *manifest)
 	LOG(INFO, "Building container binary rpm\n");
 	rc = run_command(cmd, manifest->opts.verbose);
 	if (!rc)
-		LOG(INFO, "Wrote %s/%s-freight-container-%s-%s.%s.rpm\n",
+		LOG(INFO, "Wrote %s/%s-%s-%s.%s.rpm\n",
 			output_path, manifest->package.name,
 			manifest->package.version,
 			manifest->package.release,
@@ -261,7 +261,7 @@ static int stage_workdir(const struct manifest *manifest)
 	if (!rpmlist)
 		goto cleanup_tmpdir;
 
-	sprintf(tmpdir, "%s/%s-freight-container.spec", workdir,
+	sprintf(tmpdir, "%s/%s.spec", workdir,
 		manifest->package.name);
 
 	repof = fopen(tmpdir, "w");
@@ -275,7 +275,7 @@ static int stage_workdir(const struct manifest *manifest)
  	 * This builds out our spec file for the source RPM
  	 * We start with the usual tags
  	 */
-	fprintf(repof, "Name: %s-freight-container\n",
+	fprintf(repof, "Name: %s\n",
 		manifest->package.name);
 	fprintf(repof, "Version: %s\n", manifest->package.version);
 	fprintf(repof, "Release: %s\n", manifest->package.release);
@@ -413,7 +413,7 @@ static int yum_build_srpm(const struct manifest *manifest)
  	 * specified
  	 */
 	snprintf(cmd, 512, "rpmbuild -D \"_sourcedir %s\" -D \"_srcrpmdir %s\" "
-		"-bs %s/%s-freight-container.spec\n",
+		"-bs %s/%s.spec\n",
 		workdir,
 		manifest->opts.output_path ? manifest->opts.output_path : workdir,
 		workdir, manifest->package.name);
@@ -421,7 +421,7 @@ static int yum_build_srpm(const struct manifest *manifest)
 	rc = run_command(cmd, manifest->opts.verbose);
 	if (rc)
 		goto out;
-	LOG(INFO, "Wrote srpm %s/%s-freight-container-%s-%s.src.rpm\n",
+	LOG(INFO, "Wrote srpm %s/%s-%s-%s.src.rpm\n",
 		manifest->opts.output_path ? manifest->opts.output_path : workdir,
 		manifest->package.name, manifest->package.version,
 		manifest->package.release);
@@ -434,7 +434,7 @@ int yum_inspect(const struct manifest *mfst, const char *rpm)
 	int rc = -EINVAL;
 	char rpmcmd[1024];
 	char *container_name = basename(rpm);
-	char *tmp = strstr(container_name, "-freight-container");
+	char *tmp = strstr(container_name, "");
 
 	if (!container_name) {
 		LOG(ERROR, "Unable to grab file name from path\n");
