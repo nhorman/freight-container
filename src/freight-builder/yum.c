@@ -280,6 +280,7 @@ static int stage_workdir(const struct manifest *manifest)
 	fprintf(repof, "Version: %s\n", manifest->package.version);
 	fprintf(repof, "Release: %s\n", manifest->package.release);
 	fprintf(repof, "License: %s\n", manifest->package.license);
+	fprintf(repof, "Group: Containers/Freight\n");
 	/*
  	 * We don't want these rpms to provide anything that the host system
  	 * might want
