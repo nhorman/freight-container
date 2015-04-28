@@ -51,10 +51,13 @@ enum op_mode {
 	OP_MODE_INIT,
 	OP_MODE_CLEAN,
 	OP_MODE_INSTALL,
+	OP_MODE_UNINSTALL, 
+	OP_MODE_LIST,
 };
 
 struct cmdline_config {
 	enum op_mode mode;
+	int verbose;
 };
 
 struct agent_config {

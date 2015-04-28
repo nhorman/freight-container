@@ -32,6 +32,9 @@ void clean_container_root(const char *croot);
 
 int install_container(const char *rpm, struct agent_config *acfg);
 
+int uninstall_container(const char *rpm, struct agent_config *acfg);
+
 int enter_mode_loop(struct db_api *api, struct agent_config *config);
 
+void list_containers(char *scope, struct agent_config *config);
 #endif

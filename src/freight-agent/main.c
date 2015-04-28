@@ -38,6 +38,8 @@ struct option lopts[] = {
 	{"config", 1, NULL, 'c'},
 	{"mode", 1, NULL, 'm'},
 	{"rpm", 1, NULL, 'r'},
+	{"list", 1, NULL, 'l'},
+	{"verbose", 0, NULL, 'v'},
 	{ 0, 0, 0, 0}
 };
 #endif
@@ -48,10 +50,11 @@ static void usage(char **argv)
 	LOG(INFO, "%s [-h | --help] "
 		"[-c | --config=<config>] "
 		"[-m] | --mode=<mode>] "
-		"[-r | --rpm=<rpm>] \n", argv[0]);
+		"[-r | --rpm=<rpm>] "
+		"[-l | --list=all|local] \n", argv[0]);
 #else
 	frpintf(stderr, "%s [-h] [-c <config>] "
-			"[-m <mode> ] [r <rpm>]\n ", argv[0]);
+			"[-m <mode> ] [r <rpm>] [-l all|local] \n ", argv[0]);
 #endif
 }
 
@@ -63,15 +66,16 @@ int main(int argc, char **argv)
 	char *mode = NULL;
 	char *rpm = NULL;
 	struct db_api *api;
-	
+	char *list = "all";
+	int verbose = 0;	
 	/*
  	 * Parse command line options
  	 */
 
 #ifdef HAVE_GETOPT_LONG
-	while ((opt = getopt_long(argc, argv, "hc:m:r:", lopts, &longind)) != -1) {
+	while ((opt = getopt_long(argc, argv, "hc:m:r:l:v", lopts, &longind)) != -1) {
 #else
-	while ((opt = getopt(argc, argv, "hc:m:r:") != -1) {
+	while ((opt = getopt(argc, argv, "hc:m:r:l:v") != -1) {
 #endif
 		switch(opt) {
 
@@ -90,9 +94,21 @@ int main(int argc, char **argv)
 			break;
 		case 'r':
 			rpm = optarg;
+			break;
+		case 'l':
+			list = optarg;
+			break;
+		case 'v':
+			verbose = 1;
+			break;
 		}
 	}
 
+
+	if (strcmp(list, "all") && strcmp(list, "local")) {
+		LOG(ERROR, "list option must be all or local\n");
+		goto out;
+	}
 
 	/*
  	 * Read in the configuration file
@@ -100,6 +116,8 @@ int main(int argc, char **argv)
 	rc = read_configuration(config_file, &config);
 	if (rc)
 		goto out_release;
+
+	config.cmdline.verbose = verbose;
 
 	/*
  	 * Sanity checks
@@ -117,13 +135,17 @@ int main(int argc, char **argv)
 		config.cmdline.mode = OP_MODE_CLEAN;
 	else if (!strcmp(mode, "install"))
 		config.cmdline.mode = OP_MODE_INSTALL;
+	else if (!strcmp(mode, "uninstall"))
+		config.cmdline.mode = OP_MODE_UNINSTALL;
+	else if (!strcmp(mode, "list"))
+		config.cmdline.mode = OP_MODE_LIST;
 	else {
 		LOG(ERROR, "Invalid mode spcified\n");
 		goto out_release;
 	}
 
-	if ((config.cmdline.mode == OP_MODE_NODE) && (!config.node.container_root)) {
-		LOG(ERROR, "Node mode requires a container_root specification\n");
+	if (!config.node.container_root) {
+		LOG(ERROR, "Mode requires a container_root specification\n");
 		goto out_release;
 	}
 
@@ -172,6 +194,22 @@ int main(int argc, char **argv)
 				strerror(rc));
 			goto out_disconnect;
 		}
+		break;
+	case OP_MODE_UNINSTALL:
+		if (!rpm) {
+			LOG(ERROR, "Must specify the container name with -r\n");
+			goto out_disconnect;
+		}
+		rc = uninstall_container(rpm, &config);
+		if (rc) {
+			LOG(ERROR, "Uninstall of container %s failed: %s\n",
+				rpm, strerror(rc));
+			goto out_disconnect;
+		}
+		break;
+	case OP_MODE_LIST:
+		list_containers(list, &config);
+		break;
 	case OP_MODE_NODE:
 		rc = enter_mode_loop(api, &config);
 		if (rc) {

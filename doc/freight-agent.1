@@ -18,6 +18,12 @@ Display options and usage for the daemon
 .B -c | --config </path/to/config/file>
 Specify the config file to use with freight-agent (defaults to
 .TP
+.B -l | --list <all|local>
+Select local or global scope in list mode
+.TP
+.B -v | --verbose
+Verbose output
+.TP
 .B -m | --mode <mode>
 Specify the mode which freight agent is operating in
 .TP
@@ -39,9 +45,18 @@ yum and local rpm databases that track which containers are installed, removes
 the installed containers, and destroys the existing config retrieved from the
 database.
 .TP
+.B --mode list
+List the containers that are installed locally or available in the configured
+repositories
+.TP
 .B --mode install
 Install a container name (via yum) or a local rpm to the container working space
 for freight agent
+.TP
+.B --mode uninstal
+Uninstall a container image by name
+
+
 .SH CONFIG FILE FORMAT 
 
 The config file has the following format 

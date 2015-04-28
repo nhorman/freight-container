@@ -59,6 +59,19 @@ void clean_container_root(const char *croot)
 	return;
 }
 
+void list_containers(char *scope, struct agent_config *acfg)
+{
+	char yumcmd[1024];
+
+	sprintf(yumcmd, "yum --installroot=%s list %s",
+		acfg->node.container_root,
+		!strcmp(scope, "local") ? "installed" : "all");
+
+	run_command(yumcmd, 1); 
+
+	return;
+}
+
 int install_container(const char *rpm, struct agent_config *acfg)
 {
 	struct stat buf;
@@ -73,7 +86,26 @@ int install_container(const char *rpm, struct agent_config *acfg)
 	sprintf(yumcmd, "yum --installroot=%s -y --nogpgcheck install %s",
 		acfg->node.container_root, rpm);
 
-	rc = run_command(yumcmd, 1);
+	rc = run_command(yumcmd, acfg->cmdline.verbose);
+
+out:
+	return rc;
+}
+
+int uninstall_container(const char *rpm, struct agent_config *acfg)
+{
+	char yumcmd[1024];
+	struct stat buf;
+	int rc = -ENOENT;
+
+	sprintf(yumcmd, "%s/containers/%s", acfg->node.container_root, rpm);
+
+	if (stat(yumcmd, &buf) == -ENOENT)
+		goto out;
+
+	sprintf(yumcmd, "yum --installroot=%s -y erase %s-freight-container",
+		acfg->node.container_root, rpm);
+	rc = run_command(yumcmd, acfg->cmdline.verbose);
 
 out:
 	return rc;
