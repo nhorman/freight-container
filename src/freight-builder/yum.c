@@ -342,7 +342,7 @@ static int stage_workdir(const struct manifest *manifest)
  	 */
 	fprintf(repof, "cd containers\n");
 	fprintf(repof, "rm -f /tmp/%s.manifest\n", manifest->package.name);
-	fprintf(repof, "for i in `find . -type d`\n");
+	fprintf(repof, "for i in `find . -type d | grep -v ^.$`\n");
 	fprintf(repof, "do\n"); 
 	fprintf(repof, "	echo \"%%dir /containers/$i\" >> /tmp/%s.manifest\n",
 		manifest->package.name);
