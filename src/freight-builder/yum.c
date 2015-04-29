@@ -150,8 +150,10 @@ static int stage_workdir(const struct manifest *manifest)
 		"containerfs",
 		"containerfs/etc",
 		"containerfs/etc/yum.repos.d",
-		"containerfs/cache",
-		"containerfs/logs",
+		"containerfs/var",
+		"containerfs/var/cache",
+		"containerfs/var/cache/yum",
+		"containerfs/var/log",
 		NULL,
 	};
 
@@ -248,9 +250,9 @@ static int stage_workdir(const struct manifest *manifest)
 		goto cleanup_tmpdir;
 	}
 	fprintf(repof, "[main]\n");
-	fprintf(repof, "cachedir=/cache\n");
+	fprintf(repof, "cachedir=/var/cache/yum\n");
 	fprintf(repof, "keepcache=1\n");
-	fprintf(repof, "logfile=/logs/yum.log\n");
+	fprintf(repof, "logfile=/var/log/yum.log\n");
 	fprintf(repof, "reposdir=/etc/yum.repos.d/\n");
 	fclose(repof);
 
