@@ -2,21 +2,10 @@
 
 inherit = "./examples/test-manifest/base.manifest";
 
-repositories = (
-	{
-		name = "fedora";
-		url = "http://mirror.uoregon.edu/fedora/linux/releases/$releasever/Server/$basearch/os/";
-	},
-	{
-		name = "fedora-updates";
-		url = "http://mirror.uoregon.edu/fedora/linux/updates/$releasever/$basearch/";
-	}
-);
-
+# just use the repositories from the base manifest
 
 manifest = (
-	"coreutils",
-	"fedora-release"
+	"httpd"
 );
 
 packaging = {
@@ -32,7 +21,4 @@ yum_opts = {
 	releasever = "21";
 };
 
-container_opts = {
-	user = "testuser";
-};
 
