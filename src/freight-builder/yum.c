@@ -97,6 +97,13 @@ static int yum_build_rpm(const struct manifest *manifest)
 	uname(&utsdata);
 
 	/*
+ 	 * Set QA_RPATHS properly to prevent rpm build warnings about standard
+ 	 * paths in the RPM.  That has to happen for containers, so the warning
+ 	 * is expected
+ 	 */
+	setenv("QA_RPATHS", "0x0001", 1);
+
+	/*
  	 * This will convert the previously built srpm into a binary rpm that
  	 * can serve as a containerized directory for systemd-nspawn
  	 */
