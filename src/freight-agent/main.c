@@ -40,6 +40,7 @@ struct option lopts[] = {
 	{"rpm", 1, NULL, 'r'},
 	{"list", 1, NULL, 'l'},
 	{"verbose", 0, NULL, 'v'},
+	{"name", 1, NULL, 'n'},
 	{ 0, 0, 0, 0}
 };
 #endif
@@ -51,10 +52,12 @@ static void usage(char **argv)
 		"[-c | --config=<config>] "
 		"[-m] | --mode=<mode>] "
 		"[-r | --rpm=<rpm>] "
+		"[-n | --name=<name>] "
 		"[-l | --list=all|local] \n", argv[0]);
 #else
 	frpintf(stderr, "%s [-h] [-c <config>] "
-			"[-m <mode> ] [r <rpm>] [-l all|local] \n ", argv[0]);
+			"[-m <mode> ] [r <rpm>] "
+			"[-n | --name <name>] [-l all|local] \n ", argv[0]);
 #endif
 }
 
@@ -67,15 +70,16 @@ int main(int argc, char **argv)
 	char *rpm = NULL;
 	struct db_api *api;
 	char *list = "all";
+	char *name = NULL;
 	int verbose = 0;	
 	/*
  	 * Parse command line options
  	 */
 
 #ifdef HAVE_GETOPT_LONG
-	while ((opt = getopt_long(argc, argv, "hc:m:r:l:v", lopts, &longind)) != -1) {
+	while ((opt = getopt_long(argc, argv, "hc:m:r:l:vn:", lopts, &longind)) != -1) {
 #else
-	while ((opt = getopt(argc, argv, "hc:m:r:l:v") != -1) {
+	while ((opt = getopt(argc, argv, "hc:m:r:l:vn:") != -1) {
 #endif
 		switch(opt) {
 
@@ -91,6 +95,9 @@ int main(int argc, char **argv)
 			break;
 		case 'm':
 			mode = optarg;
+			break;
+		case 'n':
+			name = optarg;
 			break;
 		case 'r':
 			rpm = optarg;
@@ -139,6 +146,8 @@ int main(int argc, char **argv)
 		config.cmdline.mode = OP_MODE_UNINSTALL;
 	else if (!strcmp(mode, "list"))
 		config.cmdline.mode = OP_MODE_LIST;
+	else if (!strcmp(mode, "exec"))
+		config.cmdline.mode = OP_MODE_EXEC;
 	else {
 		LOG(ERROR, "Invalid mode spcified\n");
 		goto out_release;
@@ -210,6 +219,21 @@ int main(int argc, char **argv)
 	case OP_MODE_LIST:
 		list_containers(list, &config);
 		break;
+	case OP_MODE_EXEC:
+		if (!rpm) {
+			LOG(ERROR, "Must specify the container name with -r\n");
+			goto out_disconnect;
+		}
+		if (!name) {
+			LOG(ERROR, "Must specify a container instance name with -n\n");
+			goto out_disconnect;
+		}
+		rc = exec_container(rpm, name, &config);
+		if (rc) {
+			LOG(ERROR, "Exec of container %s failed: %s\n",
+				rpm, strerror(rc));
+			goto out_disconnect;
+		}
 	case OP_MODE_NODE:
 		rc = enter_mode_loop(api, &config);
 		if (rc) {

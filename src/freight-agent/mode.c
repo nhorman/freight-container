@@ -23,10 +23,55 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <libconfig.h>
 #include <mode.h>
 #include <freight-log.h>
 #include <freight-common.h>
 
+
+static char** execarray = NULL;
+
+
+struct container_options {
+	char *user;
+};
+
+static int parse_container_options(char *config_path,
+			           struct container_options *copts)
+{
+	config_t config;
+	config_setting_t *tmp, *tmp2;
+	int rc = -EINVAL;
+
+	memset(copts, 0, sizeof(struct container_options));
+
+	config_init(&config);
+
+	if(config_read_file(&config, config_path) == CONFIG_FALSE) {
+		LOG(ERROR, "Cannot parse container config %s: %s\n",
+		    config_path, strerror(errno));
+		goto out;
+	}
+
+	tmp = config_lookup(&config, "container_opts");
+
+	if (!tmp)
+		goto out;
+
+	rc = 0;
+	tmp2 = config_setting_get_member(tmp, "user");
+	if (!tmp2)
+		goto out;
+
+	copts->user = strdup(config_setting_get_string(tmp2));
+
+out:
+	config_destroy(&config);
+	return rc;
+}
 
 static int build_dir(const char *base, const char *path)
 {
@@ -197,6 +242,112 @@ out_cleanup:
 	clean_container_root(croot);
 	goto out;
 }
+
+
+static void daemonize(const struct agent_config *acfg)
+{
+	int i, fd;
+
+	/* Become our own process group */
+	setsid();
+
+	/* pick a root dir until systemd fixes it up */
+	chdir("/tmp");
+
+	/*
+ 	 * Close all file descriptors
+ 	 */
+	for ( i=getdtablesize(); i>=0; --i)   
+		close(i);
+
+	fd = open("/dev/null", O_RDWR, 0);
+	if (fd != -1) {
+		dup2 (fd, STDIN_FILENO);  
+		dup2 (fd, STDOUT_FILENO);  
+		dup2 (fd, STDERR_FILENO);  
+    
+		if (fd > 2)  
+			close (fd);  
+	}
+}
+
+int exec_container(const char *rpm, const char *name,
+                   const struct agent_config *acfg)
+{
+	pid_t pid;
+	int eoc;
+	struct container_options copts;
+	char config_path[1024];
+
+	sprintf(config_path, "%s/containers/%s/container_config",
+		acfg->node.container_root, rpm);
+
+	/*
+ 	 * Lets parse the container configuration
+ 	 */
+	if (parse_container_options(config_path, &copts))
+		return -ENOENT;
+
+	/*
+ 	 * Now we need to do here is fork
+ 	 */
+	pid = fork();
+
+	/*
+ 	 * Pid error
+ 	 */
+	if (pid < 0)
+		return errno;	
+
+	/*
+ 	 * Parent should return immediately
+ 	 */
+	if (pid > 0)
+		return 0;
+
+	/*
+ 	 * child from here out
+ 	 * we should daemonize
+ 	 * NOTE: AFTER DAEMONIZING, LOG() doesn't work, 
+ 	 * we will need to use machinectl to check on status
+ 	 */
+	daemonize(acfg);
+
+	/*
+ 	 * Now lets start building our execv line
+ 	 */
+	eoc = 6; /*systemd-nspawn -D <dir> -b -M <name> */
+
+	if (copts.user)
+		eoc += 2; /* -u <user> */
+
+	eoc++; /* NULL teriminator */
+
+	/*
+ 	 * Allocate the argv array
+ 	 */
+	execarray = malloc(sizeof(const char *) * eoc);
+	if (!execarray)
+		exit(1);
+
+	sprintf(config_path, "%s/containers/%s/containerfs",
+		acfg->node.container_root, rpm);
+	eoc = 0;
+	execarray[eoc++] = "systemd-nspawn"; /* argv[0] */
+	execarray[eoc++] = "-D"; /* -D */
+	execarray[eoc++] = config_path; /* <dir> */
+	execarray[eoc++] = "-M"; /*-M*/
+	execarray[eoc++] = name;
+	execarray[eoc++] = "-b"; /* -b */
+	if (copts.user) {
+		execarray[eoc++] = "-u"; /* -u */
+		execarray[eoc++] = copts.user; /* <user> */
+	}
+	execarray[eoc++] = NULL;
+
+	exit(execvp("systemd-nspawn", execarray));
+}
+
 
 /*
  * This is our mode entry function, we setup freight-agent to act as a container

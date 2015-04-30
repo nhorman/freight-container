@@ -192,14 +192,16 @@ static int stage_workdir(const struct manifest *manifest)
 		LOG(ERROR, "Cannot create container_opts group\n");
 		goto cleanup_tmpdir;
 	}
-	tmp = config_setting_add(tmp, "user", CONFIG_TYPE_STRING);
-	if (!tmp) {
-		LOG(ERROR, "Cannot create user setting in config\n");
-		goto cleanup_tmpdir;
-	}
-	if (config_setting_set_string(tmp, manifest->copts.user) == CONFIG_FALSE) {
-		LOG(ERROR, "Can't set user setting value\n");
-		goto cleanup_tmpdir;
+	if (manifest->copts.user) {
+		tmp = config_setting_add(tmp, "user", CONFIG_TYPE_STRING);
+		if (!tmp) {
+			LOG(ERROR, "Cannot create user setting in config\n");
+			goto cleanup_tmpdir;
+		}
+		if (config_setting_set_string(tmp, manifest->copts.user) == CONFIG_FALSE) {
+			LOG(ERROR, "Can't set user setting value\n");
+			goto cleanup_tmpdir;
+		}
 	}
 	sprintf(pbuf, "%s/containers/%s/container_config",
 		workdir, manifest->package.name);

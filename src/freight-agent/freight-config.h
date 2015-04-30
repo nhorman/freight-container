@@ -54,6 +54,7 @@ enum op_mode {
 	OP_MODE_INSTALL,
 	OP_MODE_UNINSTALL, 
 	OP_MODE_LIST,
+	OP_MODE_EXEC,
 };
 
 struct cmdline_config {

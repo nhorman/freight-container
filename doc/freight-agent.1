@@ -21,8 +21,14 @@ Specify the config file to use with freight-agent (defaults to
 .B -l | --list <all|local>
 Select local or global scope in list mode
 .TP
+.B -r | --rpm <rpm>
+Select the rpm or container name to [un]install or execute
+.TP
 .B -v | --verbose
 Verbose output
+.TP
+.B -n | --name <name>
+Specify the instance name of the container when executing
 .TP
 .B -m | --mode <mode>
 Specify the mode which freight agent is operating in
@@ -55,6 +61,9 @@ for freight agent
 .TP
 .B --mode uninstal
 Uninstall a container image by name
+.TP
+.B -m exec
+Execute an instance of a container
 
 
 .SH CONFIG FILE FORMAT 
