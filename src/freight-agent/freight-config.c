@@ -45,7 +45,8 @@ static int parse_db_config(config_t *cfg, struct db_config *db)
 	config_setting_t *tmp;
 
 	if (!db_cfg) {
-		LOG(ERROR, "freight-agent requires a database configuration\n");
+		db->dbtype = DB_TYPE_NONE;
+		rc = 0;
 		goto out;
 	}
 

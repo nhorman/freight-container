@@ -52,8 +52,13 @@ struct db_api {
 };
 
 extern struct db_api postgres_db_api;
+extern struct db_api nodb_api;
 
-static inline struct db_api* get_db_api(struct agent_config *acfg) {
+static inline struct db_api* get_db_api(struct agent_config *acfg)
+{
+
+	if (acfg->db.dbtype == DB_TYPE_NONE)
+		return &nodb_api;
 
 	switch (acfg->db.dbtype) {
 	case DB_TYPE_POSTGRES:

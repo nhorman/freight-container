@@ -25,7 +25,8 @@
 
 
 enum db_type {
-	DB_TYPE_POSTGRES = 0,
+	DB_TYPE_NONE = 0,
+	DB_TYPE_POSTGRES,
 };
 
 

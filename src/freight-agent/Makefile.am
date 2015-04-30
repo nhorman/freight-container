@@ -6,5 +6,6 @@ AM_LDFLAGS = ${libpq_LIBS} ${libconfig_LIBS}
 
 bin_PROGRAMS = freight-agent
 
-freight_agent_SOURCES = main.c freight-config.c postgres-db.c mode.c
+freight_agent_SOURCES = main.c freight-config.c\
+			postgres-db.c mode.c nodb.c
 

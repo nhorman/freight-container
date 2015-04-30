@@ -165,7 +165,7 @@ int main(int argc, char **argv)
 	
 
 	/*
- 	 * Enter teh appropriate function loop based on mode
+ 	 * Enter the appropriate function loop based on mode
  	 */
 	switch (config.cmdline.mode) {
 
