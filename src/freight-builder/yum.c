@@ -299,6 +299,8 @@ static int stage_workdir(const struct manifest *manifest)
 	fprintf(repof, "AutoReqProv: no\n");
 	fprintf(repof, "Summary: %s\n", manifest->package.summary);
 	fprintf(repof, "Source0: %s-freight.tbz2\n", manifest->package.name);
+	if (manifest->package.post_script)
+		fprintf(repof, "Source1: post_script\n");
 	fprintf(repof, "\n\n");
 
 	/*
@@ -343,6 +345,22 @@ static int stage_workdir(const struct manifest *manifest)
 			       "/containers/%s/containerfs "
 			       "/usr/sbin/useradd %s\n",
 			       manifest->package.name, manifest->copts.user);
+	}
+
+	if (manifest->package.post_script) {
+		fprintf(repof, "echo executing post script\n");
+		fprintf(repof, "cp %%{SOURCE1} ${RPM_BUILD_ROOT}"
+			       "/containers/%s/containerfs/\n",
+			       manifest->package.name);
+		fprintf(repof, "chmod 755 ${RPM_BUILD_ROOT}"
+			       "/containers/%s/containerfs/post_script\n",
+			       manifest->package.name);
+		fprintf(repof, "chroot ${RPM_BUILD_ROOT}"
+			       "/containers/%s/containerfs "
+			       "/post_script\n", manifest->package.name);
+		fprintf(repof, "rm -f ${RPM_BUILD_ROOT}/containers/%s/"
+			       "containerfs/post_script\n",
+			       manifest->package.name);
 	}
 
 	/*
@@ -416,11 +434,19 @@ static int yum_build_srpm(const struct manifest *manifest)
  	 */
 	snprintf(cmd, 1024, "tar -C %s -jcf %s/%s-freight.tbz2 ./containers/\n",
 		workdir, workdir, manifest->package.name);
-	LOG(INFO, "Creating yum configuration for container\n");
+	
+	LOG(INFO, "Creating yum configuration tarball for container\n");
 	rc = run_command(cmd, manifest->opts.verbose);
 	if (rc)
 		goto out;
 
+	if (manifest->package.post_script) {
+		sprintf(cmd, "cp %s %s/post_script",
+			manifest->package.post_script, workdir);
+		if (run_command(cmd, manifest->opts.verbose))
+			goto out;
+	}
+		
 	/*
  	 * Then build the srpms using the spec generated in yum_init.  Point our 
  	 * SOURCES dir at the sandbox to pick up the above tarball, and

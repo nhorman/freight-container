@@ -57,6 +57,7 @@ void release_manifest(struct manifest *manifest)
 	free(manifest->package.release);
 	free(manifest->package.version);
 	free(manifest->package.name);
+	free(manifest->package.post_script);
 	free(manifest->yum.releasever);
 
 	memset(manifest, 0, sizeof(struct manifest));
@@ -236,6 +237,12 @@ static int parse_packaging(struct config_t *config, struct manifest *manifest)
 		goto out_license;
 	}
 	manifest->package.author = strdup(config_setting_get_string(tmp));
+
+	
+	tmp = config_setting_get_member(pkg, "post_script");
+	if (tmp)
+		manifest->package.post_script = 
+			strdup(config_setting_get_string(tmp));
 
 	rc = 0;
 	goto out;

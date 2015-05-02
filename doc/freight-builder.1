@@ -69,6 +69,7 @@ packaging = {
 	summary = "Summarize This container here";
 	license = "GPLv2|BSD|Proprietary";	
 	author = "Name <email>";
+	post_script ="/path/to/script";
 };
 
 yum_opts = {
@@ -104,6 +105,12 @@ image file.
 .B packaging 
 .PP
 A list of details to include when the container is packaged up as an rpm
+
+.B post_script
+.PP
+Path to a file to be executed in the container root after the install is
+complete.  Note that the script is run in a chroot so external files will not be
+accessible
 
 .B yum_opts
 .PP

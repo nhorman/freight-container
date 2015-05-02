@@ -5,6 +5,8 @@ inherit = "./examples/test-manifest/base.manifest";
 # just use the repositories from the base manifest
 
 manifest = (
+	"passwd",
+	"policycoreutils",
 	"httpd"
 );
 
@@ -15,6 +17,7 @@ packaging = {
 	summary = "example container";
 	license = "GPLv2";
 	author = "Neil Horman <root@localhost.com>";
+	post_script = "./examples/test-manifest/post_install";
 };
 
 yum_opts = {
