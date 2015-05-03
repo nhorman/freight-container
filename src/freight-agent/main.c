@@ -53,11 +53,11 @@ static void usage(char **argv)
 		"[-m] | --mode=<mode>] "
 		"[-r | --rpm=<rpm>] "
 		"[-n | --name=<name>] "
-		"[-l | --list=all|local] \n", argv[0]);
+		"[-l | --list=all|local|running] \n", argv[0]);
 #else
 	frpintf(stderr, "%s [-h] [-c <config>] "
 			"[-m <mode> ] [r <rpm>] "
-			"[-n | --name <name>] [-l all|local] \n ", argv[0]);
+			"[-n | --name <name>] [-l all|local|running] \n ", argv[0]);
 #endif
 }
 
@@ -112,8 +112,10 @@ int main(int argc, char **argv)
 	}
 
 
-	if (strcmp(list, "all") && strcmp(list, "local")) {
-		LOG(ERROR, "list option must be all or local\n");
+	if (strcmp(list, "all") &&
+	    strcmp(list, "local") &&
+	    strcmp(list, "running")) {
+		LOG(ERROR, "list option must be all,running or local\n");
 		goto out;
 	}
 

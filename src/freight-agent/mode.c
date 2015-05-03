@@ -106,13 +106,18 @@ void clean_container_root(const char *croot)
 
 void list_containers(char *scope, struct agent_config *acfg)
 {
-	char yumcmd[1024];
+	char cmd[1024];
 
-	sprintf(yumcmd, "yum --installroot=%s list %s",
+	if (!strcmp(scope, "running")) {
+		run_command("machinectl list", 1);
+		return;
+	}
+
+	sprintf(cmd, "yum --installroot=%s list %s",
 		acfg->node.container_root,
 		!strcmp(scope, "local") ? "installed" : "all");
 
-	run_command(yumcmd, 1); 
+	run_command(cmd, 1); 
 
 	return;
 }
@@ -337,7 +342,7 @@ int exec_container(const char *rpm, const char *name,
 	execarray[eoc++] = "-D"; /* -D */
 	execarray[eoc++] = config_path; /* <dir> */
 	execarray[eoc++] = "-M"; /*-M*/
-	execarray[eoc++] = name;
+	execarray[eoc++] = (char *)name;
 	execarray[eoc++] = "-b"; /* -b */
 	if (copts.user) {
 		execarray[eoc++] = "-u"; /* -u */
