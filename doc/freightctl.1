@@ -1,0 +1,28 @@
+.TH freightctl "1" "Apr 2015" "Neil Horman"
+.SH NAME
+freightctl \- Control utility to manage freight-agent database 
+.SH SYNOPSIS
+\fBfrieghtctl [options] <operation>
+.SH DESCRIPTION
+.B freightctl
+Is a command and control utility to manipulate the database for a freight-agent
+cluster.
+.SH OPTIONS
+.TP
+\fB freightctl [OPTIONS] 
+.TP
+.B -h | --help
+Display options and usage for the daemon 
+.TP
+.B -c | --config </path/to/config/file>
+Specify the config file to use with freight-agent (defaults to
+.TP
+.B -v | --verbose
+Verbose output
+
+.SH COMMANDS
+
+.SH CONFIG FILE FORMAT 
+
+See the freight-agent man page for a description of the config file.  freghtctl
+only uses the db section of the configuration

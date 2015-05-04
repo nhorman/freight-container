@@ -4,8 +4,11 @@ ${libpq_CFLAGS} ${libconfig_CFLAGS} \
 
 AM_LDFLAGS = ${libpq_LIBS} ${libconfig_LIBS}
 
-bin_PROGRAMS = freight-agent
+bin_PROGRAMS = freight-agent freightctl
 
 freight_agent_SOURCES = main.c freight-config.c\
 			postgres-db.c mode.c nodb.c
 
+freightctl_SOURCES = freightctl_main.c \
+		freight-config.c postgres-db.c\
+		nodb.c
