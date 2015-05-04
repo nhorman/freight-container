@@ -97,7 +97,7 @@ CREATE TABLE nodes (
 
 CREATE TABLE yum_config (
 	name	varchar(32) NOT NULL,
-	url	varchar NOT NULL,
+	url	varchar(512) NOT NULL
 );
 
 EOF
@@ -108,7 +108,7 @@ then
 	echo "Error creating tables, aborting"
 	psql << EOF
 \x
-DROP DATABSAE $DBNAME;
+DROP DATABASE $DBNAME;
 DROP ROLE $NODEUSER;
 DROP ROLE $ADMINUSER;
 EOF
