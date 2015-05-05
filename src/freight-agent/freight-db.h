@@ -28,8 +28,8 @@
 
 
 struct yum_config {
-	char *name;
-	char *url;
+	const char *name;
+	const char *url;
 };
 
 struct yum_cfg_list {
@@ -48,6 +48,7 @@ struct db_api {
 	/* operational methods */
 	struct yum_cfg_list *(*get_yum_cfg)(const struct agent_config *acfg);
 	void (*free_yum_cfg)(struct yum_cfg_list *repos);
+	int (*add_repo)(struct yum_config *cfg, const struct agent_config *acfg);
 
 };
 
@@ -110,6 +111,15 @@ static inline void db_free_yum_cfg(const struct db_api *api,
 	if (!api->free_yum_cfg)
 		return;
 	api->free_yum_cfg(repos);
+}
+
+static inline int add_repo(const struct db_api *api,
+			    struct yum_config *cfg,
+			    const struct agent_config *acfg)
+{
+	if (!api->add_repo)
+		return -EOPNOTSUPP;
+	return api->add_repo(cfg, acfg);
 }
 
 #endif

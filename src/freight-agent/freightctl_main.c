@@ -31,6 +31,38 @@
 
 struct agent_config config;
 
+
+
+/*
+ * The repo operation takes 5 arguments
+ * <add|del> - add or remove a repo
+ * <name> - The name of the repo to add/remove
+ * <url> - the url of the repo (for an add operation)
+ */
+static int repo_op(char **argv, int argc,
+		   const struct agent_config *acfg,
+		   const struct db_api *api)
+{
+	int rc = -EINVAL;
+	struct yum_config cfg;
+
+	if (argc < 2)
+		goto out;
+
+	if (!strcmp(argv[0], "add")) {
+		LOG(ERROR, "Adding repository %s:%s\n",
+			argv[1], argv[2]);
+		cfg.name = argv[1];
+		cfg.url = argv[2];
+		rc = add_repo(api, &cfg, acfg);
+	} else if (!strcmp(argv[0], "del")) {
+		LOG(INFO, "Deleting repository\n");
+	} else
+		rc = -EINVAL;
+out:
+	return rc;	
+}
+
 #ifdef HAVE_GETOPT_LONG
 struct option lopts[] = {
 	{"help", 0, NULL, 'h'},
@@ -120,7 +152,10 @@ int main(int argc, char **argv)
 	
 
 	if (!strcmp(op, "repo")) {
-		LOG(INFO, "Preforming repo operation\n");	
+		rc = repo_op(&argv[optind+1], argc-optind, &config, api);
+		if (rc)
+			LOG(ERROR, "Could not preform repo op: %s\n",
+				strerror(rc));
 	} else {
 		LOG(ERROR, "Unknown operation\n");
 		goto out_disconnect;

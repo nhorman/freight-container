@@ -105,7 +105,7 @@ static struct yum_cfg_list* pg_get_yum_cfg(const struct agent_config *acfg)
 	size_t alloc_size;
 	struct yum_cfg_list *repos = NULL;
 
-	result = PQexec(info->conn, "SELECT * FROM yum_repos");
+	result = PQexec(info->conn, "SELECT * FROM yum_config");
 
 	rc = PQresultStatus(result);
 	if (rc != PGRES_COMMAND_OK) {
@@ -156,10 +156,36 @@ static void pg_free_yum_cfg(struct yum_cfg_list *repos)
 {
 	int i;
 	for(i=0; i < repos->cnt; i++) {
-		free(repos->list[i].name);
-		free(repos->list[i].url);
+		free((char *)repos->list[i].name);
+		free((char *)repos->list[i].url);
 	}
 	free(repos);
+}
+
+static int pg_add_repo(struct yum_config *cfg,
+		       const struct agent_config *acfg)
+{
+	char sql[1024];
+	struct postgres_info *info = acfg->db.db_priv;
+	PGresult *result;
+	ExecStatusType rc;
+	int retc = -EINVAL;
+
+	snprintf(sql, 1024, "INSERT into yum_config VALUES ('%s', '%s')",
+		 cfg->name, cfg->url);
+
+	result = PQexec(info->conn, sql);
+
+	rc = PQresultStatus(result);
+	if (rc != PGRES_COMMAND_OK) {
+		LOG(ERROR, "Unable to add repo to the db table: %s\n",
+			PQresultErrorMessage(result));
+		goto out;
+	}
+
+	retc = 0;
+out:
+	return retc;
 }
 
 struct db_api postgres_db_api = {
@@ -169,4 +195,5 @@ struct db_api postgres_db_api = {
 	.disconnect = pg_disconnect,
 	.get_yum_cfg = pg_get_yum_cfg,
 	.free_yum_cfg = pg_free_yum_cfg,
+	.add_repo = pg_add_repo,
 };
