@@ -83,17 +83,22 @@ static int build_dir(const char *base, const char *path)
 	return mkdir(tmp, 0700);
 }
 
-static char *build_path(const char *base, const char *path)
+static char *build_path(const char *base, const char *path, char *name)
 {
 	char *out;
 	size_t tsz;
 
 	tsz = strlen(base) + strlen(path) + 2;
 
+	if (name)
+		tsz += strlen(name);
+
 	out = calloc(1, tsz);
 	if (out) {
 		out = strcpy(out, base);
 		out = strcat(out, path);
+		if (name)
+			strcat(out, name);
 	}
 	return out;
 }
@@ -179,6 +184,7 @@ int init_container_root(const struct db_api *api,
 	};
 	const char *croot = acfg->node.container_root;
 	char *tmp;
+	char repo[1024];
 	int i, rc;
 	FILE *fptr;
 	struct yum_cfg_list *yum_cfg;
@@ -215,7 +221,7 @@ int init_container_root(const struct db_api *api,
  	 * It should be able to rely on defaults as the environment is setup for
  	 * it
  	 */
-	tmp = build_path(croot, "/etc/yum.conf");
+	tmp = build_path(croot, "/etc/yum.conf", NULL);
 	fptr = fopen(tmp, "w");
 	if (!fptr) {
 		rc = errno;
@@ -239,7 +245,25 @@ int init_container_root(const struct db_api *api,
 		LOG(WARNING, "No yum config in database, we won't be able "
 			     "to fetch containers!\n");
 	else {
-		/* Iterate over the yum entries here and build repo files */
+		for (i=0; i < yum_cfg->cnt; i++) {
+			snprintf(repo, 1024, "%s/etc/yum.repos.d/%s.repo", croot,
+				 yum_cfg->list[i].name);
+			fptr = fopen(repo, "w");
+			if (!fptr) {
+				LOG(ERROR, "Unable to write /etc/yum.repos.d/%s.repo\n",
+					yum_cfg->list[i].name);
+				goto out_cleanup;
+			}
+
+			fprintf(fptr, "[%s]\n", yum_cfg->list[i].name);
+			fprintf(fptr, "name=%s\n", yum_cfg->list[i].name);
+			fprintf(fptr, "baseurl=%s\n", yum_cfg->list[i].url);
+			fprintf(fptr, "gpgcheck=0\n"); /* for now */
+			fprintf(fptr, "enabled=1\n");
+			fclose(fptr);
+		}
+
+		db_free_yum_cfg(api, yum_cfg);
 	}
 out:
 	return rc;
