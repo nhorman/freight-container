@@ -1,0 +1,9 @@
+#!/bin/sh
+
+#We need to setup the root password
+chcon system_u:object_r:shadow_t:s0 /etc/shadow
+echo redhat | passwd -f --stdin root
+
+#Then we need to enable the web server
+systemctl enable httpd
+
