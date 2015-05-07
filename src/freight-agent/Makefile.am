@@ -11,4 +11,4 @@ freight_agent_SOURCES = main.c freight-config.c\
 
 freightctl_SOURCES = freightctl_main.c \
 		freight-config.c postgres-db.c\
-		nodb.c
+		nodb.c freight-db.c

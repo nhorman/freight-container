@@ -48,8 +48,8 @@ struct db_api {
 	/* operational methods */
 	struct yum_cfg_list *(*get_yum_cfg)(const struct agent_config *acfg);
 	void (*free_yum_cfg)(struct yum_cfg_list *repos);
-	int (*add_repo)(struct yum_config *cfg, const struct agent_config *acfg);
-	int (*del_repo)(char *name, const struct agent_config *acfg);
+
+	int (*send_raw_sql)(const char *values, const struct agent_config *acfg);
 
 };
 
@@ -114,22 +114,11 @@ static inline void db_free_yum_cfg(const struct db_api *api,
 	api->free_yum_cfg(repos);
 }
 
-static inline int add_repo(const struct db_api *api,
-			    struct yum_config *cfg,
-			    const struct agent_config *acfg)
-{
-	if (!api->add_repo)
-		return -EOPNOTSUPP;
-	return api->add_repo(cfg, acfg);
-}
+extern int add_repo(const struct db_api *api,
+		    struct yum_config *cfg,
+		    const struct agent_config *acfg);
 
-static inline int del_repo(const struct db_api *api, 
-			  char *name,
-			  const struct agent_config *acfg)
-{
-	if (!api->del_repo)
-		return -EOPNOTSUPP;
-	return api->del_repo(name, acfg);
-}
-
+extern int del_repo(const struct db_api *api,
+		    const char *name,
+		    const struct agent_config *acfg);
 #endif

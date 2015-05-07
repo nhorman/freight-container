@@ -50,13 +50,13 @@ static int repo_op(char **argv, int argc,
 		goto out;
 
 	if (!strcmp(argv[0], "add")) {
-		LOG(ERROR, "Adding repository %s:%s\n",
-			argv[1], argv[2]);
+		LOG(INFO, "Adding repository %s\n", argv[1]);
 		cfg.name = argv[1];
 		cfg.url = argv[2];
 		rc = add_repo(api, &cfg, acfg);
 	} else if (!strcmp(argv[0], "del")) {
-		LOG(INFO, "Deleting repository\n");
+		LOG(INFO, "Deleteing repository %s\n", argv[1]);
+		rc = del_repo(api, argv[1], acfg);
 	} else
 		rc = -EINVAL;
 out:
