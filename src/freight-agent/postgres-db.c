@@ -108,8 +108,8 @@ static struct yum_cfg_list* pg_get_yum_cfg(const struct agent_config *acfg)
 	result = PQexec(info->conn, "SELECT * FROM yum_config");
 
 	rc = PQresultStatus(result);
-	if (rc != PGRES_COMMAND_OK) {
-		LOG(ERROR, "Unable to query yum_repos table: %s\n",
+	if (rc != PGRES_TUPLES_OK) {
+		LOG(ERROR, "Unable to query yum_config table: %s\n",
 			PQresultErrorMessage(result));
 		goto out;
 	}
