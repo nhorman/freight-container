@@ -81,14 +81,19 @@ EOF
 	exit 0
 fi
 
+export PGPASSWORD=$ADMINPASS
 
 #
 # create the appropriate tables
 #
-psql -h 127.0.0.1 -W $DBNAME $ADMINUSER << EOF
+psql -h 127.0.0.1 -w $DBNAME $ADMINUSER << EOF
 \x
 
 CREATE TYPE status as ENUM ('operating', 'unreachable');
+
+CREATE TABLE tennants (
+	tennant	varchar(512) NOT NULL PRIMARY KEY
+);
 
 CREATE TABLE nodes (
 	hostname	varchar(256) PRIMARY KEY,

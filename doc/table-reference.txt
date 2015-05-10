@@ -5,6 +5,17 @@
 
 
 
+##########################################################################
+# The Tennant table
+# This is a single column table that does nothing but store the available
+# tennants of the system.  It is used to help implement Row level security
+# for multitennancy
+##########################################################################
+
++-------------+
+|             |
+| tennant     |
++-------------+
 
 ##########################################################################
 # The yum config table
@@ -12,16 +23,18 @@
 # Description: A list of all the container repositories an agent should
 # configure for use 
 #
+# Name - Repository key
+#
+# URL - Repository url
+#
+# Tennant - Tennant for this repository (foreign key to tennant table)
 ##########################################################################
 
 
 +-------------+-------------------------------------------------+
-|             |                                                 |
-| name        |    url                                          |
+|             |                     |                           |
+| name        |    url              |       tennant(F.K.)       |
 +-------------+-------------------------------------------------+
-
-name - The name of the repository
-url - The url that the repository should be fetched from
 
 
 ##########################################################################
@@ -35,8 +48,9 @@ url - The url that the repository should be fetched from
 
 +-------------+-------------------------------------------------+
 |             |                                                 |
-| Hostname    |    status                                       |
+| Hostname    |                      status                     |
 +-------------+-------------------------------------------------+
+
 
 Hostname - The ip addres or hostname of the node in question (Primary Key)
 
@@ -44,3 +58,20 @@ Hostname - The ip addres or hostname of the node in question (Primary Key)
 Status - The status of the host, an enum of the following values:
 	operating - The host is functioning normally
 	unreachable - The host cannot be contacted or is not responding
+
+
+##########################################################################
+# The Host/Tennant map 
+#
+# Description: A list of which hosts are to service which tennants 
+# 
+#
+##########################################################################
++-------------+-------------------------------------------------+
+|             |                                                 |
+| Hostname    |                      tennant(F.K.)              |
++-------------+-------------------------------------------------+
+
+Hostname - The name of a given node
+
+tennant - The tennant that is subscribed to that node (foreign key to tennants)
