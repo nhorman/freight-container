@@ -100,9 +100,16 @@ CREATE TABLE nodes (
 	state		status NOT NULL
 );
 
+CREATE TABLE tennant_hosts (
+	hostname	varchar(512) NOT NULL references nodes(hostname),
+	tennant		varchar(512) NOT NULL references tennants(tennant),
+	id		SERIAL PRIMARY KEY
+);
+
 CREATE TABLE yum_config (
 	name	varchar(32) NOT NULL,
-	url	varchar(512) NOT NULL
+	url	varchar(512) NOT NULL,
+	tennant varchar(512) NOT NULL references tennants(tennant)
 );
 
 EOF
