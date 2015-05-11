@@ -89,7 +89,7 @@ export PGPASSWORD=$ADMINPASS
 psql -h 127.0.0.1 -w $DBNAME $ADMINUSER << EOF
 \x
 
-CREATE TYPE status as ENUM ('operating', 'unreachable');
+CREATE TYPE status as ENUM ('offline', 'operating', 'unreachable');
 
 CREATE TABLE tennants (
 	tennant	varchar(512) NOT NULL PRIMARY KEY
