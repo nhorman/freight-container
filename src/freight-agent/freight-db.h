@@ -121,4 +121,12 @@ extern int add_repo(const struct db_api *api,
 extern int del_repo(const struct db_api *api,
 		    const char *name,
 		    const struct agent_config *acfg);
+
+extern int add_host(const struct db_api *api,
+		    const char *hostname,
+		    const struct agent_config *acfg);
+
+extern int del_host(const struct db_api *api,
+		    const char *hostname,
+		    const struct agent_config *acfg);
 #endif

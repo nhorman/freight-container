@@ -21,6 +21,16 @@ Specify the config file to use with freight-agent (defaults to
 Verbose output
 
 .SH COMMANDS
+.B host [add|del] <hostname>
+Adds or removes a host from the list of available nodes to execute containers.
+note! Admin only operation
+
+.B host [subscribe|unsubscribe] <hostname>
+Marks the given host as elligible to serve containers for a given tennant (as
+defined by the login credentials in the freight configuration
+
+.B [add|del] repo <name> <url>
+Adds or removes a repository from the database for a given tennant
 
 .SH CONFIG FILE FORMAT 
 

@@ -63,6 +63,31 @@ out:
 	return rc;	
 }
 
+/*
+ * The host operation takes 5 arguments
+ * <add|del> - add or remove a repo
+ * <host> - The name of the host to add/remove
+ */
+static int host_op(char **argv, int argc,
+		   const struct agent_config *acfg,
+		   const struct db_api *api)
+{
+	int rc = -EINVAL;
+
+	if (argc < 2)
+		goto out;
+
+	if (!strcmp(argv[0], "add")) {
+		LOG(INFO, "Adding host %s\n", argv[1]);
+		rc = add_host(api, argv[1], acfg);
+	} else if (!strcmp(argv[0], "del")) {
+		LOG(INFO, "Deleteing host %s\n", argv[1]);
+		rc = del_host(api, argv[1], acfg);
+	} else
+		rc = -EINVAL;
+out:
+	return rc;	
+}
 #ifdef HAVE_GETOPT_LONG
 struct option lopts[] = {
 	{"help", 0, NULL, 'h'},
@@ -155,6 +180,11 @@ int main(int argc, char **argv)
 		rc = repo_op(&argv[optind+1], argc-optind, &config, api);
 		if (rc)
 			LOG(ERROR, "Could not preform repo op: %s\n",
+				strerror(rc));
+	} else if (!strcmp(op, "host")) { 
+		rc = host_op(&argv[optind+1], argc-optind, &config, api);
+		if (rc)
+			LOG(ERROR, "Could not preform host op: %s\n",
 				strerror(rc));
 	} else {
 		LOG(ERROR, "Unknown operation\n");

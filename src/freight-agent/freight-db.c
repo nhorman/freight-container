@@ -62,3 +62,41 @@ extern int del_repo(const struct db_api *api,
 
 	return api->send_raw_sql(sql, acfg);
 }
+
+
+int add_host(const struct db_api *api,
+	     const char *hostname,
+	     const struct agent_config *acfg)
+{
+	char *sql = alloca(strlen(hostname)+
+			   strlen("INSERT into nodes VALUES")+
+			   128);
+
+	if (!sql)
+		return -ENOMEM;
+
+	if (!api->send_raw_sql)
+		return -EOPNOTSUPP;
+
+	sprintf(sql, "INSERT into nodes VALUES ('%s', '%s')",
+		hostname, "offline");
+	return api->send_raw_sql(sql, acfg);
+}
+
+extern int del_host(const struct db_api *api,
+		    const char *hostname,
+		    const struct agent_config *acfg)
+{
+	char *sql = alloca(strlen(hostname)+
+			   strlen("DELETE from nodes WHERE hostname = ''"));
+
+	if (!sql)
+		return -ENOMEM;
+
+	if (!api->send_raw_sql)
+		return -EOPNOTSUPP;
+
+	sprintf(sql, "DELETE from nodes WHERE hostname = '%s'", hostname);
+
+	return api->send_raw_sql(sql, acfg);
+}
