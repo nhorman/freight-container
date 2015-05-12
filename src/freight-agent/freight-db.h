@@ -37,6 +37,12 @@ struct yum_cfg_list {
 	struct yum_config list[0];
 };
 
+struct tbl_entry {
+	int row;
+	int col;
+	char *tbl_value;
+};
+
 struct db_api {
 
 	/* setup and teardown functions */
@@ -51,6 +57,9 @@ struct db_api {
 
 	int (*send_raw_sql)(const char *values, const struct agent_config *acfg);
 
+	int (*show_table)(const char *tbl, const char *cols, const char *filter,
+			  int (*show_table_entry)(const struct tbl_entry *),
+			  const struct agent_config *acfg);
 };
 
 extern struct db_api postgres_db_api;
@@ -129,4 +138,18 @@ extern int add_host(const struct db_api *api,
 extern int del_host(const struct db_api *api,
 		    const char *hostname,
 		    const struct agent_config *acfg);
+
+extern int subscribe_host(const struct db_api *api,
+			  const char *tennant,
+			  const char *host,
+			  const struct agent_config *acfg);
+
+extern int unsubscribe_host(const struct db_api *api,
+			  const char *tennant,
+			  const char *host,
+			  const struct agent_config *acfg);
+extern int list_subscriptions(const struct db_api *api,
+			     const char *tennant,
+			     const struct agent_config *acfg);
+
 #endif

@@ -103,7 +103,7 @@ CREATE TABLE nodes (
 CREATE TABLE tennant_hosts (
 	hostname	varchar(512) NOT NULL references nodes(hostname),
 	tennant		varchar(512) NOT NULL references tennants(tennant),
-	id		SERIAL PRIMARY KEY
+	PRIMARY KEY (hostname, tennant)
 );
 
 CREATE TABLE yum_config (

@@ -83,6 +83,16 @@ static int host_op(char **argv, int argc,
 	} else if (!strcmp(argv[0], "del")) {
 		LOG(INFO, "Deleteing host %s\n", argv[1]);
 		rc = del_host(api, argv[1], acfg);
+	} else if (!strcmp(argv[0], "subscribe")) {
+		LOG(INFO, "Subscribing host %s to tennant %s\n",
+			argv[1], argv[2]);
+		rc = subscribe_host(api, argv[1], argv[2], acfg);
+	} else if (!strcmp(argv[0], "unsubscribe")) {
+		LOG(INFO, "Unsubscribing host %s from tennant %s\n",
+			argv[1], argv[2]);
+		rc = unsubscribe_host(api, argv[2], argv[1], acfg);
+	} else if (!strcmp(argv[0], "list")) {
+		rc = list_subscriptions(api, argv[1], acfg);
 	} else
 		rc = -EINVAL;
 out:

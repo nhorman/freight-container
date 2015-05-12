@@ -67,6 +67,7 @@ GRANT SELECT ON nodes to $TENNANT;
 GRANT INSERT ON yum_config to $TENNANT;
 GRANT DELETE ON yum_config to $TENNANT;
 GRANT SELECT ON yum_config to $TENNANT;
+GRANT SELECT ON tennant_hosts to $TENNANT;
 EOF
 
 if [ $? -ne 0 ]

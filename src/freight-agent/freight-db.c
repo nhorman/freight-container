@@ -24,6 +24,7 @@
 #include <errno.h>
 #include <alloca.h>
 #include <string.h>
+#include <freight-log.h>
 #include <freight-db.h>
 
 int add_repo(const struct db_api *api,
@@ -83,7 +84,7 @@ int add_host(const struct db_api *api,
 	return api->send_raw_sql(sql, acfg);
 }
 
-extern int del_host(const struct db_api *api,
+int del_host(const struct db_api *api,
 		    const char *hostname,
 		    const struct agent_config *acfg)
 {
@@ -99,4 +100,72 @@ extern int del_host(const struct db_api *api,
 	sprintf(sql, "DELETE from nodes WHERE hostname = '%s'", hostname);
 
 	return api->send_raw_sql(sql, acfg);
+}
+
+int subscribe_host(const struct db_api *api,
+                          const char *tennant,
+                          const char *host,
+			  const struct agent_config *acfg)
+{
+
+	char *sql = alloca(strlen(tennant)+ strlen(host) + 
+			   strlen("INSERT into tennant_hosts VALUES") + 128);
+
+	if (!sql)
+		return -ENOMEM;
+
+	if (!api->send_raw_sql)
+		return -EOPNOTSUPP;
+
+	sprintf(sql, "INSERT into tennant_hosts VALUES('%s', '%s')",
+		tennant, host);
+
+	return api->send_raw_sql(sql, acfg);
+}
+
+int unsubscribe_host(const struct db_api *api,
+                          const char *tennant,
+                          const char *host,
+			  const struct agent_config *acfg)
+{
+	char sql[1024];
+
+	if (!api->send_raw_sql)
+		return -EOPNOTSUPP;
+
+	sprintf(sql, "DELETE from tennant_hosts WHERE hostname ='%s' AND tennant = '%s'", host, tennant);
+
+	return api->send_raw_sql(sql, acfg);
+
+}
+
+
+
+static int print_subscription(const struct tbl_entry *entry)
+{
+	/*
+ 	 * We only print out column 0 here, as that holds the host name
+ 	 */
+	if (!entry->col)
+		LOG(INFO, "%s\n", entry->tbl_value);
+	return 0;
+}
+
+int list_subscriptions(const struct db_api *api,
+		       const char *tennant,
+		       const struct agent_config *acfg)
+{
+	char filter[512];
+	const char *real_tennant = tennant ? tennant : acfg->db.user;
+
+	if (!api->show_table)
+		return -EOPNOTSUPP;
+
+	sprintf(filter, "tennant = '%s'", real_tennant);
+
+	LOG(INFO, "Hosts subscribed to tennant %s:\n", real_tennant);
+	return api->show_table("tennant_hosts", "*", filter,
+				print_subscription,
+				acfg);
+	
 }
