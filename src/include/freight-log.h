@@ -29,4 +29,8 @@
 	fprintf(stderr, #prio": "  format, ##args);\
 } while(0)
 
+#define LOGRAW(format, args...) do {\
+	fprintf(stderr, format, ##args);\
+} while (0)
+
 #endif

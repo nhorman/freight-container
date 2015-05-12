@@ -147,7 +147,7 @@ static int print_subscription(const struct tbl_entry *entry)
  	 * We only print out column 0 here, as that holds the host name
  	 */
 	if (!entry->col)
-		LOG(INFO, "%s\n", entry->tbl_value);
+		LOGRAW("%s\n", entry->tbl_value);
 	return 0;
 }
 
@@ -163,7 +163,7 @@ int list_subscriptions(const struct db_api *api,
 
 	sprintf(filter, "tennant = '%s'", real_tennant);
 
-	LOG(INFO, "Hosts subscribed to tennant %s:\n", real_tennant);
+	LOGRAW("\nHosts subscribed to tennant %s:\n", real_tennant);
 	return api->show_table("tennant_hosts", "*", filter,
 				print_subscription,
 				acfg);
