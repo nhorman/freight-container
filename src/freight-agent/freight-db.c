@@ -41,8 +41,8 @@ int add_repo(const struct db_api *api,
 	if (!api->send_raw_sql)
 		return -EOPNOTSUPP;
 
-	sprintf(sql, "INSERT into yum_config VALUES ('%s', '%s')",
-		cfg->name, cfg->url);
+	sprintf(sql, "INSERT into yum_config VALUES ('%s', '%s', '%s')",
+		cfg->name, cfg->url, acfg->db.user);
 	return api->send_raw_sql(sql, acfg);
 }
 
@@ -50,8 +50,9 @@ extern int del_repo(const struct db_api *api,
 		    const char *name,
 		    const struct agent_config *acfg)
 {
-	char *sql = alloca(strlen(name)+
-			   strlen("DELETE from yum_config WHERE name = ''"));
+	char *sql = alloca(strlen(name) + strlen(acfg->db.user) +
+			   strlen("DELETE from yum_config WHERE "
+				  "name = AND tennant = ''''"));
 
 	if (!sql)
 		return -ENOMEM;
@@ -59,7 +60,8 @@ extern int del_repo(const struct db_api *api,
 	if (!api->send_raw_sql)
 		return -EOPNOTSUPP;
 
-	sprintf(sql, "DELETE from yum_config WHERE name = '%s'", name);
+	sprintf(sql, "DELETE from yum_config WHERE name = '%s' "
+		     "AND tennant='%s'", name, acfg->db.user);
 
 	return api->send_raw_sql(sql, acfg);
 }
