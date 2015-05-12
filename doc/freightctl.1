@@ -29,7 +29,11 @@ note! Admin only operation
 Marks the given host as elligible to serve containers for a given tennant (as
 defined by the login credentials in the freight configuration
 
-.B [add|del] repo <name> <url>
+.B host list [tennant]
+Querys the database to determine which hosts a tennant may use.  [tennant]
+option is only required if the db admin is querying
+
+.B repo [add|del] <name> <url>
 Adds or removes a repository from the database for a given tennant
 
 .SH CONFIG FILE FORMAT 
