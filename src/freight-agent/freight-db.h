@@ -37,12 +37,6 @@ struct yum_cfg_list {
 	struct yum_config list[0];
 };
 
-struct tbl_entry {
-	int row;
-	int col;
-	char *tbl_value;
-};
-
 struct tbl {
 	int rows;
 	int cols;
@@ -63,9 +57,6 @@ struct db_api {
 
 	int (*send_raw_sql)(const char *values, const struct agent_config *acfg);
 
-	int (*show_table)(const char *tbl, const char *cols, const char *filter,
-			  int (*show_table_entry)(const struct tbl_entry *),
-			  const struct agent_config *acfg);
 	struct tbl* (*get_table)(const char *tbl, const char *cols, const char *filter,
 				 const struct agent_config *acfg);
 };
