@@ -46,7 +46,7 @@ struct tbl_entry {
 struct tbl {
 	int rows;
 	int cols;
-	char ** value[0];
+	char *** value;
 };
 
 struct db_api {

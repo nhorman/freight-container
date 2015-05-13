@@ -29,7 +29,34 @@
 
 struct tbl *alloc_tbl(int rows, int cols)
 {
-	struct tbl *table = calloc(rows*cols, sizeof(char *));
+	int r;
+
+	struct tbl *table = calloc(1, sizeof(struct tbl));
+	if (!table)
+		goto out;
+	table->rows = rows;
+	table->cols = cols;
+
+	table->value = calloc(1, sizeof(char **)*rows);
+	if (!table->value)
+		goto out_free_table;
+
+	for(r = 0; r < rows; r++) {
+		table->value[r] = calloc(1, sizeof(char *)*cols);
+		if (!table->value[r])
+			goto out_free_cols;
+	}
+
+	return table;
+
+out_free_cols:
+	for (r = 0; r < rows; r++ )
+		free(table->value[r]);
+	free(table->value);
+out_free_table:
+	free(table);
+	table = NULL;
+out:
 	return table;
 }
 
@@ -37,9 +64,17 @@ void free_tbl(struct tbl *table)
 {
 	int i, j;
 
+	if (!table)
+		return;
+
 	for (i = 0; i < table->rows; i++)
 		for (j = 0; j < table->cols; j++)
 			free(table->value[i][j]);
+
+	for (i = 0; i < table->rows; i++)
+		free(table->value[i]);
+
+	free(table->value);
 	free(table);
 }
 
@@ -158,33 +193,30 @@ int unsubscribe_host(const struct db_api *api,
 }
 
 
-
-static int print_subscription(const struct tbl_entry *entry)
-{
-	/*
- 	 * We only print out column 0 here, as that holds the host name
- 	 */
-	if (!entry->col)
-		LOGRAW("%s\n", entry->tbl_value);
-	return 0;
-}
-
 int list_subscriptions(const struct db_api *api,
 		       const char *tennant,
 		       const struct agent_config *acfg)
 {
 	char filter[512];
+	struct tbl *table;
+	int r;
 	const char *real_tennant = tennant ? tennant : acfg->db.user;
 
-	if (!api->show_table)
+	if (!api->get_table)
 		return -EOPNOTSUPP;
 
 	sprintf(filter, "tennant = '%s'", real_tennant);
 
-	LOGRAW("\nHosts subscribed to tennant %s:\n", real_tennant);
-	return api->show_table("tennant_hosts", "*", filter,
-				print_subscription,
-				acfg);
+	table = api->get_table("tennant_hosts", "*", filter, acfg);
+	if (!table)
+		LOGRAW("\nNo hosts subscribed to tennant %s\n", real_tennant);
+	else {
+		LOGRAW("\nHosts subscribed to tennant %s:\n", real_tennant);
+		for (r = 0; r < table->rows; r ++)	
+			LOGRAW("\t%s\n", table->value[r][0]);
+	}
+	free_tbl(table);
+	return 0;
 	
 }
 

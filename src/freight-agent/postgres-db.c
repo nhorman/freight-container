@@ -184,19 +184,17 @@ out:
 	return retc;
 }
 
-static int pg_show_table(const char *table,
+static struct tbl* pg_get_table(const char *table,
 			 const char *cols,
 			 const char *filter,
-			 int (*show_table_entry)(const struct tbl_entry *),
 			 const struct agent_config *acfg)
 {
 	struct postgres_info *info = acfg->db.db_priv;
-	int ret = -EINVAL;
 	PGresult *result;
 	ExecStatusType rc;
 	int row, col, r, c;
 	char sql[1024];
-	struct tbl_entry elem;
+	struct tbl *rtable = NULL;
 
 	sprintf(sql, "SELECT %s from %s WHERE %s", cols, table, filter);
 	result = PQexec(info->conn, sql);
@@ -211,28 +209,24 @@ static int pg_show_table(const char *table,
 	row = PQntuples(result);
 	col = PQnfields(result);
 
+	rtable = alloc_tbl(row, col);
+	if (!rtable)
+		goto out_clear;
+	
 	/*
  	 * Loop through the result and copy out the table data
  	 * Column 0 is the repo name
  	 * Column 1 is the repo url
  	 */
-	for (r = 0; r < row; r++) {
-		elem.row = r;
-		for (c = 0; c < col; c++) {
-			elem.col = c;
-			elem.tbl_value = PQgetvalue(result, r, c);
-			ret = show_table_entry(&elem);
-			if (ret)
-				goto out_clear;
-		}	
-	}
+	for (r = 0; r < row; r++) 
+		for (c = 0; c < col; c++)
+			rtable->value[r][c] = strdup(PQgetvalue(result, r, c));
 
-	ret = 0;
 
 out_clear:
 	PQclear(result);
 out:		
-	return ret;
+	return rtable;
 }
 
 struct db_api postgres_db_api = {
@@ -243,5 +237,5 @@ struct db_api postgres_db_api = {
 	.get_yum_cfg = pg_get_yum_cfg,
 	.free_yum_cfg = pg_free_yum_cfg,
 	.send_raw_sql = pg_send_raw_sql,
-	.show_table = pg_show_table,
+	.get_table = pg_get_table,
 };
