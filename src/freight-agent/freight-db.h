@@ -43,6 +43,12 @@ struct tbl_entry {
 	char *tbl_value;
 };
 
+struct tbl {
+	int rows;
+	int cols;
+	char ** value[0];
+};
+
 struct db_api {
 
 	/* setup and teardown functions */
@@ -60,6 +66,8 @@ struct db_api {
 	int (*show_table)(const char *tbl, const char *cols, const char *filter,
 			  int (*show_table_entry)(const struct tbl_entry *),
 			  const struct agent_config *acfg);
+	struct tbl* (*get_table)(const char *tbl, const char *cols, const char *filter,
+				 const struct agent_config *acfg);
 };
 
 extern struct db_api postgres_db_api;
@@ -123,6 +131,10 @@ static inline void db_free_yum_cfg(const struct db_api *api,
 	api->free_yum_cfg(repos);
 }
 
+extern struct tbl *alloc_tbl(int rows, int cols);
+
+extern void free_tbl(struct tbl *table);
+
 extern int add_repo(const struct db_api *api,
 		    struct yum_config *cfg,
 		    const struct agent_config *acfg);
@@ -152,4 +164,7 @@ extern int list_subscriptions(const struct db_api *api,
 			     const char *tennant,
 			     const struct agent_config *acfg);
 
+extern struct tbl* get_tennants_for_host(const struct db_api *api,
+				         const char *host,
+				         const struct agent_config *acfg);
 #endif

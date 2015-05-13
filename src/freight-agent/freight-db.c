@@ -19,13 +19,29 @@
  * *Description API for DB connections
  * *********************************************************/
 
-
+#include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
 #include <alloca.h>
 #include <string.h>
 #include <freight-log.h>
 #include <freight-db.h>
+
+struct tbl *alloc_tbl(int rows, int cols)
+{
+	struct tbl *table = calloc(rows*cols, sizeof(char *));
+	return table;
+}
+
+void free_tbl(struct tbl *table)
+{
+	int i, j;
+
+	for (i = 0; i < table->rows; i++)
+		for (j = 0; j < table->cols; j++)
+			free(table->value[i][j]);
+	free(table);
+}
 
 int add_repo(const struct db_api *api,
 	    struct yum_config *cfg,
@@ -170,4 +186,18 @@ int list_subscriptions(const struct db_api *api,
 				print_subscription,
 				acfg);
 	
+}
+
+struct tbl* get_tennants_for_host(const struct db_api *api,
+				   const char *host,
+			  	   const struct agent_config *acfg)
+{
+	char filter[1024];
+
+	if (!api->get_table)
+		return NULL;
+
+	sprintf(filter, "hostname = '%s'", host);
+
+	return api->get_table("yum_config", "*", filter, acfg);
 }
