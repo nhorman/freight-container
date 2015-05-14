@@ -177,6 +177,10 @@ int main(int argc, char **argv)
 
 	/*
  	 * Enter the appropriate function loop based on mode
+ 	 * Note, for all modes other than node mode (in which we 
+ 	 * monitor the database for mutiple tennant requests, all the modes
+ 	 * here are for the local user only, meaning everything goes to the 
+ 	 * 'local' tennant
  	 */
 	switch (config.cmdline.mode) {
 
@@ -199,7 +203,7 @@ int main(int argc, char **argv)
 				   "-r option in install mode\n");
 			goto out_disconnect;
 		}
-		rc = install_container(rpm, &config);
+		rc = local_install_container(rpm, &config);
 		if (rc) {
 			LOG(ERROR, "Failed to install container: %s\n",
 				strerror(rc));
@@ -211,7 +215,7 @@ int main(int argc, char **argv)
 			LOG(ERROR, "Must specify the container name with -r\n");
 			goto out_disconnect;
 		}
-		rc = uninstall_container(rpm, &config);
+		rc = local_uninstall_container(rpm, &config);
 		if (rc) {
 			LOG(ERROR, "Uninstall of container %s failed: %s\n",
 				rpm, strerror(rc));
@@ -219,7 +223,7 @@ int main(int argc, char **argv)
 		}
 		break;
 	case OP_MODE_LIST:
-		list_containers(list, &config);
+		local_list_containers(list, &config);
 		break;
 	case OP_MODE_EXEC:
 		if (!rpm) {
@@ -230,7 +234,7 @@ int main(int argc, char **argv)
 			LOG(ERROR, "Must specify a container instance name with -n\n");
 			goto out_disconnect;
 		}
-		rc = exec_container(rpm, name, &config);
+		rc = local_exec_container(rpm, name, &config);
 		if (rc) {
 			LOG(ERROR, "Exec of container %s failed: %s\n",
 				rpm, strerror(rc));

@@ -109,7 +109,8 @@ void clean_container_root(const char *croot)
 	return;
 }
 
-void list_containers(char *scope, struct agent_config *acfg)
+void list_containers(char *scope, const char *tennant,
+		     struct agent_config *acfg)
 {
 	char cmd[1024];
 
@@ -118,8 +119,8 @@ void list_containers(char *scope, struct agent_config *acfg)
 		return;
 	}
 
-	sprintf(cmd, "yum --installroot=%s list %s",
-		acfg->node.container_root,
+	sprintf(cmd, "yum --installroot=%s/%s list %s",
+		acfg->node.container_root, tennant,
 		!strcmp(scope, "local") ? "installed" : "all");
 
 	run_command(cmd, 1); 
@@ -127,19 +128,24 @@ void list_containers(char *scope, struct agent_config *acfg)
 	return;
 }
 
-int install_container(const char *rpm, struct agent_config *acfg)
+int install_container(const char *rpm, const char *tennant,
+		      struct agent_config *acfg)
 {
 	struct stat buf;
 	int rc = -ENOENT;
 	char yumcmd[1024];
+	char *troot = alloca(strlen(acfg->node.container_root) +
+			     strlen(tennant) + 10);
 
-	if (stat(acfg->node.container_root, &buf) == -ENOENT) {
+	sprintf(troot, "%s/%s", acfg->node.container_root, tennant);
+
+	if (stat(troot, &buf) == -ENOENT) {
 		LOG(ERROR, "Container root isn't initalized\n");
 		goto out;
 	}
 
 	sprintf(yumcmd, "yum --installroot=%s -y --nogpgcheck install %s",
-		acfg->node.container_root, rpm);
+		troot, rpm);
 
 	rc = run_command(yumcmd, acfg->cmdline.verbose);
 
@@ -147,19 +153,21 @@ out:
 	return rc;
 }
 
-int uninstall_container(const char *rpm, struct agent_config *acfg)
+int uninstall_container(const char *rpm, const char *tennant,
+			struct agent_config *acfg)
 {
 	char yumcmd[1024];
 	struct stat buf;
 	int rc = -ENOENT;
 
-	sprintf(yumcmd, "%s/containers/%s", acfg->node.container_root, rpm);
+	sprintf(yumcmd, "%s/%s/containers/%s", acfg->node.container_root,
+		tennant, rpm);
 
 	if (stat(yumcmd, &buf) == -ENOENT)
 		goto out;
 
-	sprintf(yumcmd, "yum --installroot=%s -y erase %s",
-		acfg->node.container_root, rpm);
+	sprintf(yumcmd, "yum --installroot=%s/%s -y erase %s",
+		acfg->node.container_root, tennant, rpm);
 	rc = run_command(yumcmd, acfg->cmdline.verbose);
 
 out:
@@ -352,7 +360,7 @@ static void daemonize(const struct agent_config *acfg)
 	}
 }
 
-int exec_container(const char *rpm, const char *name,
+int exec_container(const char *rpm, const char *name, const char *tennant,
                    const struct agent_config *acfg)
 {
 	pid_t pid;
@@ -360,8 +368,8 @@ int exec_container(const char *rpm, const char *name,
 	struct container_options copts;
 	char config_path[1024];
 
-	sprintf(config_path, "%s/containers/%s/container_config",
-		acfg->node.container_root, rpm);
+	sprintf(config_path, "%s/%s/containers/%s/container_config",
+		acfg->node.container_root, tennant, rpm);
 
 	/*
  	 * Lets parse the container configuration
@@ -411,8 +419,8 @@ int exec_container(const char *rpm, const char *name,
 	if (!execarray)
 		exit(1);
 
-	sprintf(config_path, "%s/containers/%s/containerfs",
-		acfg->node.container_root, rpm);
+	sprintf(config_path, "%s/%s/containers/%s/containerfs",
+		acfg->node.container_root, tennant, rpm);
 	eoc = 0;
 	execarray[eoc++] = "systemd-nspawn"; /* argv[0] */
 	execarray[eoc++] = "-D"; /* -D */

@@ -30,14 +30,28 @@ int init_container_root(const struct db_api *api,
 
 void clean_container_root(const char *croot);
 
-int install_container(const char *rpm, struct agent_config *acfg);
+int install_container(const char *rpm, const char *tennant,
+		      struct agent_config *acfg);
 
-int uninstall_container(const char *rpm, struct agent_config *acfg);
+int uninstall_container(const char *rpm, const char *tennant,
+			struct agent_config *acfg);
 
 int enter_mode_loop(struct db_api *api, struct agent_config *config);
 
-void list_containers(char *scope, struct agent_config *config);
+void list_containers(char *scope, const char *tennant,
+		     struct agent_config *config);
 
 int exec_container(const char *rpm, const char *name,
+		   const char *tennant,
 		   const struct agent_config *acfg);
+
+/*
+ * These are convienience definitions that allow for local operation
+ * where we imply the 'local' tennant for local use
+ */
+#define local_install_container(r, c) install_container(r, "local", c)
+#define local_uninstall_container(r, c) uninstall_container(r, "local", c)
+#define local_list_containers(s, c) list_containers(s, "local", c)
+#define local_exec_container(r, n, c) exec_container(r, n, "local", c)
+
 #endif
