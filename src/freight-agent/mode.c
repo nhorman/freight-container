@@ -166,8 +166,10 @@ out:
 	return rc;
 }
 
-int init_container_root(const struct db_api *api,
-			const struct agent_config *acfg)
+static int init_tennant_root(const struct db_api *api,
+			       const char *croot,
+			       const char *tennant,
+			       const struct agent_config *acfg)
 {
 	char *dirs[]= {
 		"",
@@ -182,33 +184,24 @@ int init_container_root(const struct db_api *api,
 		"etc/yum.repos.d",
 		NULL,
 	};
-	const char *croot = acfg->node.container_root;
+	char *troot = alloca(strlen(croot) + strlen(tennant) + 10); 
 	char *tmp;
 	char repo[1024];
 	int i, rc;
 	FILE *fptr;
 	struct yum_cfg_list *yum_cfg;
 
+	sprintf(troot, "%s/%s/", croot, tennant);
+
 	/*
  	 * Sanity check the container root, it can't be the 
  	 * system root
  	 */
 	rc = -EINVAL;
-	if (!strcmp(croot, "/")) {
-		LOG(ERROR, "container root cannot be system root!\n");
-		goto out_cleanup;
-	}
-		
-	/*
- 	 * Start by emptying the container root
- 	 */
-	LOG(INFO, "Cleaning container root\n");
-	clean_container_root(croot);
-
 	LOG(INFO, "Building freight-agent environment\n");
 	for (i=0; dirs[i] != NULL; i++) {
 
-		rc = build_dir(croot, dirs[i]);
+		rc = build_dir(troot, dirs[i]);
 		if (rc) {
 			LOG(ERROR, "Could not create %s: %s\n",
 				dirs[i], strerror(rc));
@@ -221,7 +214,7 @@ int init_container_root(const struct db_api *api,
  	 * It should be able to rely on defaults as the environment is setup for
  	 * it
  	 */
-	tmp = build_path(croot, "/etc/yum.conf", NULL);
+	tmp = build_path(troot, "/etc/yum.conf", NULL);
 	fptr = fopen(tmp, "w");
 	if (!fptr) {
 		rc = errno;
@@ -246,7 +239,7 @@ int init_container_root(const struct db_api *api,
 			     "to fetch containers!\n");
 	else {
 		for (i=0; i < yum_cfg->cnt; i++) {
-			snprintf(repo, 1024, "%s/etc/yum.repos.d/%s.repo", croot,
+			snprintf(repo, 1024, "%s/etc/yum.repos.d/%s.repo", troot,
 				 yum_cfg->list[i].name);
 			fptr = fopen(repo, "w");
 			if (!fptr) {
@@ -268,10 +261,69 @@ int init_container_root(const struct db_api *api,
 out:
 	return rc;
 out_cleanup:
-	clean_container_root(croot);
+	clean_container_root(troot);
 	goto out;
 }
 
+int init_container_root(const struct db_api *api,
+			const struct agent_config *acfg)
+{
+	const char *croot = acfg->node.container_root;
+	int rc = -EINVAL;
+	struct tbl *table;
+	char hostname[512];
+	int r;
+	/*
+	 * Sanity check the container root, it can't be the 
+	 * system root
+	 */
+	rc = -EINVAL;
+	if (!strcmp(croot, "/")) {
+		LOG(ERROR, "container root cannot be system root!\n");
+		goto out;
+	}
+
+        /*
+	 * Start by emptying the container root
+	 */
+        LOG(INFO, "Cleaning container root\n");
+        clean_container_root(croot);
+
+	/*
+ 	 * Create the overall root
+ 	 */
+	if ((rc = build_dir(croot, ""))) {
+		LOG(ERROR, "Could not create %s %s\n",
+			croot, strerror(rc));
+		goto out;
+	}
+
+	/*
+ 	 * Now get a list of tennants
+ 	 */
+	if (gethostname(hostname, 512)) {
+		LOG(ERROR, "Could not get hostname: %s\n",
+			strerror(errno));
+		goto out;
+	}
+
+	table = get_tennants_for_host(api, hostname, acfg);
+	if (!table) {
+		LOG(ERROR, "Unable to obtain list of tennants\n");
+		goto out;
+	}
+
+	/*
+ 	 * Now init the root space for each tennant
+ 	 */
+	for(r = 0; r < table->rows; r++) {
+		rc = init_tennant_root(api, croot, table->value[r][0], acfg);
+	}
+
+	free_tbl(table);
+out:
+	return rc;
+}
 
 static void daemonize(const struct agent_config *acfg)
 {

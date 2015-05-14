@@ -69,6 +69,24 @@ static void nodb_free_yum_cfg(struct yum_cfg_list *repos)
 	free(repos);
 }
 
+struct tbl* nodb_get_table(const char *tbl, const char *cols, const char *filter,
+                                 const struct agent_config *acfg)
+{
+	struct tbl *table = NULL;
+
+	/*
+ 	 * For this local dummy database, we always just return a local tennant 
+ 	 * From the tennant_hosts table
+ 	 */
+	if (!strcmp(tbl, "tennant_hosts")) {
+		table = alloc_tbl(1,1);
+		if (table)
+			table->value[0][0] = strdup("local");
+	}
+
+	return table;
+}
+
 struct db_api nodb_api = {
 	.init = nodb_init,
 	.cleanup = nodb_cleanup,
@@ -76,4 +94,5 @@ struct db_api nodb_api = {
 	.disconnect = nodb_disconnect,
 	.get_yum_cfg = nodb_get_yum_cfg,
 	.free_yum_cfg = nodb_free_yum_cfg,
+	.get_table = nodb_get_table,
 };

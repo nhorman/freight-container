@@ -231,5 +231,5 @@ struct tbl* get_tennants_for_host(const struct db_api *api,
 
 	sprintf(filter, "hostname = '%s'", host);
 
-	return api->get_table("yum_config", "*", filter, acfg);
+	return api->get_table("tennant_hosts", "*", filter, acfg);
 }
