@@ -85,6 +85,31 @@ systemd-nspawn -D /path/to/directory -b
 if the container has had systemd installed to itself (see the systemd-nspawn man
 page for details).
 
+Freight also has tools to support clustered container management:
+
+Freight-agent acts as a front end to to container rpm management.  It can
+operate in a local mode, were it can initalize a multiple container execution
+environment and manage containers built with freight-builder.  It can also
+operate in a 'node' mode where it listens for events and configuration from a
+postgres database to direct the installation and execution of containers from a
+central location.  In this mode yum repositories can be established holding
+container rpms built with freight-builder, and those repositories can be
+disseminated via the aforementioned database, as well as directives to launch
+instances of those containers
+
+freightctl is the administrative interface to a freight cluster.  This utiity
+allows an administrator to preform the following operations:
+
+* Create new tennants for a cluster
+* Add and remove hosts from a cluster
+* Subscribe hosts to a tennant so that a given tennant can exec containers there 
+
+Tennants Can also use freightctl to direct container actvities:
+* Addition/removal of repositories for containers
+* Execution and shutdown of containers within their cluster
+
+
+# Advantages
 This method of container packaging is adventageous as it provides several
 features:
 
