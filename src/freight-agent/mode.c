@@ -327,7 +327,7 @@ int init_container_root(const struct db_api *api,
  	 * Now init the root space for each tennant
  	 */
 	for(r = 0; r < table->rows; r++) {
-		rc = init_tennant_root(api, croot, table->value[r][0], acfg);
+		rc = init_tennant_root(api, croot, table->value[r][1], acfg);
 	}
 
 	free_tbl(table);
