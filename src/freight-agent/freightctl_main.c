@@ -44,16 +44,13 @@ static int repo_op(char **argv, int argc,
 		   const struct db_api *api)
 {
 	int rc = -EINVAL;
-	struct yum_config cfg;
 
 	if (argc < 2)
 		goto out;
 
 	if (!strcmp(argv[0], "add")) {
 		LOG(INFO, "Adding repository %s\n", argv[1]);
-		cfg.name = argv[1];
-		cfg.url = argv[2];
-		rc = add_repo(api, &cfg, acfg);
+		rc = add_repo(api, argv[1], argv[2], acfg);
 	} else if (!strcmp(argv[0], "del")) {
 		LOG(INFO, "Deleteing repository %s\n", argv[1]);
 		rc = del_repo(api, argv[1], acfg);

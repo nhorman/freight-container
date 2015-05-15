@@ -79,10 +79,10 @@ void free_tbl(struct tbl *table)
 }
 
 int add_repo(const struct db_api *api,
-	    struct yum_config *cfg,
+	     const char *name, const char *url,
 	    const struct agent_config *acfg)
 {
-	char *sql = alloca(strlen(cfg->name)+strlen(cfg->url)+
+	char *sql = alloca(strlen(name)+strlen(url)+
 			   strlen("INSERT into yum_config VALUES")+
 			   128);
 
@@ -93,7 +93,7 @@ int add_repo(const struct db_api *api,
 		return -EOPNOTSUPP;
 
 	sprintf(sql, "INSERT into yum_config VALUES ('%s', '%s', '%s')",
-		cfg->name, cfg->url, acfg->db.user);
+		name, url, acfg->db.user);
 	return api->send_raw_sql(sql, acfg);
 }
 

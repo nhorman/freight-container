@@ -50,25 +50,6 @@ static int nodb_connect(struct agent_config *acfg)
 	return 0;
 }
 
-
-static struct yum_cfg_list* nodb_get_yum_cfg(const struct agent_config *acfg)
-{
-	struct yum_cfg_list *repos = NULL;
-
-	repos = calloc(1, sizeof(struct yum_cfg_list));
-	if (!repos) {
-		LOG(INFO, "No memory to report yum configuration\n");
-		goto out;
-	}
-out:
-	return repos;
-}
-
-static void nodb_free_yum_cfg(struct yum_cfg_list *repos)
-{
-	free(repos);
-}
-
 struct tbl* nodb_get_table(const char *tbl, const char *cols, const char *filter,
                                  const struct agent_config *acfg)
 {
@@ -92,7 +73,5 @@ struct db_api nodb_api = {
 	.cleanup = nodb_cleanup,
 	.connect = nodb_connect,
 	.disconnect = nodb_disconnect,
-	.get_yum_cfg = nodb_get_yum_cfg,
-	.free_yum_cfg = nodb_free_yum_cfg,
 	.get_table = nodb_get_table,
 };

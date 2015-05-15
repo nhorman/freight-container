@@ -27,16 +27,6 @@
 #include <freight-config.h>
 
 
-struct yum_config {
-	const char *name;
-	const char *url;
-};
-
-struct yum_cfg_list {
-	size_t cnt;
-	struct yum_config list[0];
-};
-
 struct tbl {
 	int rows;
 	int cols;
@@ -52,9 +42,6 @@ struct db_api {
 	int (*disconnect)(struct agent_config *acfg);
 
 	/* operational methods */
-	struct yum_cfg_list *(*get_yum_cfg)(const struct agent_config *acfg);
-	void (*free_yum_cfg)(struct yum_cfg_list *repos);
-
 	int (*send_raw_sql)(const char *values, const struct agent_config *acfg);
 
 	struct tbl* (*get_table)(const char *tbl, const char *cols, const char *filter,
@@ -106,28 +93,13 @@ static inline int db_disconnect(struct db_api *api, struct agent_config *acfg)
 	return api->disconnect(acfg);	
 }
 
-static inline struct yum_cfg_list* db_get_yum_cfg(const struct db_api *api,
-						  const struct agent_config *acfg)
-{
-	if (!api->get_yum_cfg)
-		return NULL;
-	return api->get_yum_cfg(acfg);
-}
-
-static inline void db_free_yum_cfg(const struct db_api *api,
-				   struct yum_cfg_list *repos)
-{
-	if (!api->free_yum_cfg)
-		return;
-	api->free_yum_cfg(repos);
-}
-
 extern struct tbl *alloc_tbl(int rows, int cols);
 
 extern void free_tbl(struct tbl *table);
 
 extern int add_repo(const struct db_api *api,
-		    struct yum_config *cfg,
+		    const char *name,
+		    const char *url,
 		    const struct agent_config *acfg);
 
 extern int del_repo(const struct db_api *api,
