@@ -158,4 +158,8 @@ extern int list_subscriptions(const struct db_api *api,
 extern struct tbl* get_tennants_for_host(const struct db_api *api,
 				         const char *host,
 				         const struct agent_config *acfg);
+
+extern struct tbl* get_repos_for_tennant(const struct db_api *api,
+					 const char *tennant,
+					 const struct agent_config *acfg);
 #endif

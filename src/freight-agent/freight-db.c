@@ -233,3 +233,17 @@ struct tbl* get_tennants_for_host(const struct db_api *api,
 
 	return api->get_table("tennant_hosts", "*", filter, acfg);
 }
+
+struct tbl* get_repos_for_tennant(const struct db_api *api,
+				  const char *tennant,
+				  const struct agent_config *acfg)
+{
+	char filter[512];
+
+	if (!api->get_table)
+		return NULL;
+
+	sprintf(filter, "tennant='%s'", tennant);
+
+	return api->get_table("yum_config", "name, url", filter, acfg);
+}

@@ -29,6 +29,7 @@
 #include <libconfig.h>
 #include <mode.h>
 #include <freight-log.h>
+#include <freight-db.h>
 #include <freight-common.h>
 
 
@@ -197,7 +198,7 @@ static int init_tennant_root(const struct db_api *api,
 	char repo[1024];
 	int i, rc;
 	FILE *fptr;
-	struct yum_cfg_list *yum_cfg;
+	struct tbl *yum_config = NULL;
 
 	sprintf(troot, "%s/%s/", croot, tennant);
 
@@ -241,30 +242,31 @@ static int init_tennant_root(const struct db_api *api,
 	/*
  	 * Now we need to check the database for our repository configuration
  	 */
-	yum_cfg = db_get_yum_cfg(api, acfg);
-	if (!yum_cfg)
+	yum_config = get_repos_for_tennant(api, tennant, acfg);
+ 
+	if (!yum_config)
 		LOG(WARNING, "No yum config in database, we won't be able "
 			     "to fetch containers!\n");
 	else {
-		for (i=0; i < yum_cfg->cnt; i++) {
+		for (i=0; i < yum_config->rows; i++) {
 			snprintf(repo, 1024, "%s/etc/yum.repos.d/%s.repo", troot,
-				 yum_cfg->list[i].name);
+				 yum_config->value[i][0]);
 			fptr = fopen(repo, "w");
 			if (!fptr) {
 				LOG(ERROR, "Unable to write /etc/yum.repos.d/%s.repo\n",
-					yum_cfg->list[i].name);
+					yum_config->value[i][0]);
 				goto out_cleanup;
 			}
 
-			fprintf(fptr, "[%s]\n", yum_cfg->list[i].name);
-			fprintf(fptr, "name=%s\n", yum_cfg->list[i].name);
-			fprintf(fptr, "baseurl=%s\n", yum_cfg->list[i].url);
+			fprintf(fptr, "[%s]\n", yum_config->value[i][0]);
+			fprintf(fptr, "name=%s\n", yum_config->value[i][0]);
+			fprintf(fptr, "baseurl=%s\n", yum_config->value[i][1]);
 			fprintf(fptr, "gpgcheck=0\n"); /* for now */
 			fprintf(fptr, "enabled=1\n");
 			fclose(fptr);
 		}
 
-		db_free_yum_cfg(api, yum_cfg);
+		free_tbl(yum_config);
 	}
 out:
 	return rc;
