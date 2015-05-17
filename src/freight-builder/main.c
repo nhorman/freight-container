@@ -135,7 +135,7 @@ int main(int argc, char **argv)
 	build_env = init_pkg_mgmt(PKG_YUM, &manifest);
 	if (build_env == NULL) {
 		LOG(ERROR, "Failed to init build temp directory\n");
-		goto out_release;
+		goto out_cleanup;
 	}
 
 	if (container_rpm) {

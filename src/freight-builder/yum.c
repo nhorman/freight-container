@@ -23,6 +23,8 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/statfs.h>
+#include <sys/vfs.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/utsname.h>
@@ -35,6 +37,8 @@
 #include <freight-common.h>
 
 static char *worktemplate;
+#define BTRFS_SUPER_MAGIC     0x9123683E
+
 static char *workdir;
 
 static void yum_cleanup()
@@ -115,7 +119,11 @@ static int yum_init(const struct manifest *manifest)
 {
 	char path[1024];
 	getcwd(path, 1024);
+	struct statfs buf;
+
+	getcwd(path, 256);
 	worktemplate = strjoin(path, "/freight-builder.XXXXXX", NULL);
+
 	if (!worktemplate)
 		return -ENOMEM;
 
@@ -125,6 +133,18 @@ static int yum_init(const struct manifest *manifest)
 			worktemplate, strerror(errno));
 		return -EINVAL;
 	}
+
+	if (statfs(worktemplate, &buf) == -1) {
+		LOG(ERROR, "Cannnot interrogate working directory %s: %s\n",
+			worktemplate, strerror(errno));
+		return -EINVAL;
+	}
+
+	if (buf.f_type != BTRFS_SUPER_MAGIC) {
+		LOG(ERROR, "Build directory must be btrfs\n");
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
