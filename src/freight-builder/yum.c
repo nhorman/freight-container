@@ -122,7 +122,13 @@ static int yum_init(const struct manifest *manifest)
 	struct statfs buf;
 
 	getcwd(path, 256);
-	worktemplate = strjoin(path, "/freight-builder.XXXXXX", NULL);
+
+	if (manifest->opts.workdir)
+		worktemplate = strjoin(manifest->opts.workdir,
+				       "/freight-builder.XXXXXX", NULL);
+	else
+		worktemplate = strjoin(path,
+				       "/freight-builder.XXXXXX", NULL);
 
 	if (!worktemplate)
 		return -ENOMEM;

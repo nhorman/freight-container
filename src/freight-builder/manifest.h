@@ -65,6 +65,7 @@ struct container_opts {
  */
 struct cmdline_options {
 	char *output_path;
+	char *workdir;
 	int verbose;
 };
 

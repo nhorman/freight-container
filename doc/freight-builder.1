@@ -36,8 +36,15 @@ Write the resultant source and binary rpms to this directory
 .B -c | --container <path/to/container/rpm>
 Instead of building an rpm, introspect an rpm to see if any packages need
 updates within the container
-.SH MANIFEST FILE FORMAT 
+.TP
+.B -v | --verbose
+Make freight-builder output lots of diagnostic information
+.TP.
+.B -w | --workdir
+Specify the base directory in which freight-builder uses as working space to
+build rpms
 
+.SH MANIFEST FILE FORMAT 
 The Manifest file codifies the contents of a container image and generally has
 this format:
 
