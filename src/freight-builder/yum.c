@@ -154,148 +154,23 @@ static int yum_init(const struct manifest *manifest)
 	return 0;
 }
 
-static int stage_workdir(const struct manifest *manifest)
+static int build_spec_file(const struct manifest *manifest)
 {
-	struct repository *repo;
 	FILE *repof;
 	char *rpmlist;
 	char *tmpdir;
-	char *pbuf;
-	config_t config;
-	config_setting_t *tmp;
-	char *dirlist[] = {
-		"containerfs",
-		"containerfs/etc",
-		"containerfs/etc/yum.repos.d",
-		"containerfs/var",
-		"containerfs/var/cache",
-		"containerfs/var/cache/yum",
-		"containerfs/var/log",
-		NULL,
-	};
+	int rc = -EINVAL;
 
-	int i = 0;
-
-	LOG(INFO, "Initalizing work directory %s\n", workdir);
-
-	if (build_path("containers")) {
-		LOG(ERROR, "Cannot create containers directory: %s\n",
-			strerror(errno));
-		goto cleanup_tmpdir;
-	}
-
-	pbuf = strjoina("containers/", manifest->package.name, NULL); 
-	if (build_path(pbuf)) {
-		LOG(ERROR, "Cannot create container name directory: %s\n",
-			strerror(errno));
-		goto cleanup_tmpdir;
-	}
-
-	config_init(&config);
-	tmp = config_root_setting(&config);
-	if (!tmp) {
-		LOG(ERROR, "Cannot get root setting for container config\n");
-		goto cleanup_tmpdir;
-	}
-	tmp = config_setting_add(tmp, "container_opts", CONFIG_TYPE_GROUP);
-	if (!tmp) {
-		LOG(ERROR, "Cannot create container_opts group\n");
-		goto cleanup_tmpdir;
-	}
-	if (manifest->copts.user) {
-		tmp = config_setting_add(tmp, "user", CONFIG_TYPE_STRING);
-		if (!tmp) {
-			LOG(ERROR, "Cannot create user setting in config\n");
-			goto cleanup_tmpdir;
-		}
-		if (config_setting_set_string(tmp, manifest->copts.user) == CONFIG_FALSE) {
-			LOG(ERROR, "Can't set user setting value\n");
-			goto cleanup_tmpdir;
-		}
-	}
-	pbuf = strjoina(workdir, "/containers/", manifest->package.name, "/container_config", NULL);
-	if (config_write_file(&config, pbuf) == CONFIG_FALSE) {
-		LOG(ERROR, "Failed to write %s: %s\n",
-			pbuf, config_error_text(&config));
-		goto cleanup_tmpdir;
-	}
-	config_destroy(&config);
-
-	while(dirlist[i] != NULL) {
-		pbuf = strjoin("containers/", manifest->package.name, "/", dirlist[i], NULL);
-		if (!pbuf)
-			goto cleanup_nomem;
-
-		if (build_path(pbuf)) {
-			LOG(ERROR, "Cannot create %s directory: %s\n",
-				dirlist[i], strerror(errno));
-			free(pbuf);
-			goto cleanup_tmpdir;
-		}
-		i++;
-		free(pbuf);
-	}
-
-	/*
- 	 * for each item in the repos list
- 	 * lets create a file with that repository listed
- 	 */
-	repo = manifest->repos;
-	while (repo) {
-		tmpdir = strjoin(workdir, "/containers/", manifest->package.name, "/containerfs/etc/yum.repos.d/",
-				 repo->name, "-fb.repo", NULL);
-		if (!tmpdir)
-			goto cleanup_nomem;
-
-		repof = fopen(tmpdir, "w");
-		if (!repof) {
-			LOG(ERROR, "Error opening %s: %s\n",
-				tmpdir, strerror(errno));
-			free(tmpdir);
-			goto cleanup_tmpdir;
-		}
-
-		fprintf(repof, "[%s-fb]\n", repo->name);
-		fprintf(repof, "name=%s-fb\n", repo->name);
-		fprintf(repof, "baseurl=%s\n", repo->url);
-		fprintf(repof, "gpgcheck=0\n"); /* for now */
-		fprintf(repof, "enabled=1\n");
-		fclose(repof);
-		free(tmpdir);
-		repo = repo->next;
-	}
-
-	/*
- 	 * create a base yum configuration
- 	 */
-	tmpdir = strjoina(workdir, "/containers/", manifest->package.name,
-			  "/containerfs/etc/yum.conf", NULL);
-	repof = fopen(tmpdir, "w");
-	if (!repof) {
-		LOG(ERROR, "Unable to create a repo configuration: %s\n",
-			strerror(errno));
-		goto cleanup_tmpdir;
-	}
-	fprintf(repof, "[main]\n");
-	fprintf(repof, "cachedir=/var/cache/yum\n");
-	fprintf(repof, "keepcache=1\n");
-	fprintf(repof, "logfile=/var/log/yum.log\n");
-	fprintf(repof, "reposdir=/etc/yum.repos.d/\n");
-	fclose(repof);
-
-	/*
- 	 * Build the spec file
- 	 */
 	rpmlist = build_rpm_list(manifest);
 	if (!rpmlist)
-		goto cleanup_tmpdir;
+		goto out;
 
 	tmpdir = strjoina(workdir, "/", manifest->package.name, ".spec", NULL);
 	repof = fopen(tmpdir, "w");
 	if (!repof) {
 		LOG(ERROR, "Unable to create a spec file: %s\n",
 			strerror(errno));
-		goto cleanup_tmpdir;
+		goto out;
 	}
 
 	/*
@@ -422,11 +297,138 @@ static int stage_workdir(const struct manifest *manifest)
 	fprintf(repof, "\n\n");
 	fprintf(repof, "%%changelog\n");
 	fclose(repof);
+	rc = 0;
+out:
+	return rc;
+}
+
+static int stage_workdir(const struct manifest *manifest)
+{
+	struct repository *repo;
+	FILE *repof;
+	char pbuf[1024];
+	config_t config;
+	config_setting_t *tmp;
+	char *tmpdir;
+	char *dirlist[] = {
+		"containerfs",
+		"containerfs/etc",
+		"containerfs/etc/yum.repos.d",
+		"containerfs/var",
+		"containerfs/var/cache",
+		"containerfs/var/cache/yum",
+		"containerfs/var/log",
+		NULL,
+	};
+
+	int i = 0;
+
+	LOG(INFO, "Initalizing work directory %s\n", workdir);
+
+	if (build_path("containers")) {
+		LOG(ERROR, "Cannot create containers directory: %s\n",
+			strerror(errno));
+		goto cleanup_tmpdir;
+	}
+
+	sprintf(pbuf, "containers/%s", manifest->package.name); 
+	if (build_path(pbuf)) {
+		LOG(ERROR, "Cannot create container name directory: %s\n",
+			strerror(errno));
+		goto cleanup_tmpdir;
+	}
+
+	config_init(&config);
+	tmp = config_root_setting(&config);
+	if (!tmp) {
+		LOG(ERROR, "Cannot get root setting for container config\n");
+		goto cleanup_tmpdir;
+	}
+	tmp = config_setting_add(tmp, "container_opts", CONFIG_TYPE_GROUP);
+	if (!tmp) {
+		LOG(ERROR, "Cannot create container_opts group\n");
+		goto cleanup_tmpdir;
+	}
+	if (manifest->copts.user) {
+		tmp = config_setting_add(tmp, "user", CONFIG_TYPE_STRING);
+		if (!tmp) {
+			LOG(ERROR, "Cannot create user setting in config\n");
+			goto cleanup_tmpdir;
+		}
+		if (config_setting_set_string(tmp, manifest->copts.user) == CONFIG_FALSE) {
+			LOG(ERROR, "Can't set user setting value\n");
+			goto cleanup_tmpdir;
+		}
+	}
+	sprintf(pbuf, "%s/containers/%s/container_config",
+		workdir, manifest->package.name);
+	if (config_write_file(&config, pbuf) == CONFIG_FALSE) {
+		LOG(ERROR, "Failed to write %s: %s\n",
+			pbuf, config_error_text(&config));
+		goto cleanup_tmpdir;
+	}
+	config_destroy(&config);
+
+	while(dirlist[i] != NULL) {
+		sprintf(pbuf, "containers/%s/%s",
+			manifest->package.name, dirlist[i]);
+		if (build_path(pbuf)) {
+			LOG(ERROR, "Cannot create %s directory: %s\n",
+				dirlist[i], strerror(errno));
+			goto cleanup_tmpdir;
+		}
+		i++;
+	}
+
+	/*
+ 	 * for each item in the repos list
+ 	 * lets create a file with that repository listed
+ 	 */
+	repo = manifest->repos;
+	while (repo) {
+		tmpdir = strjoina(workdir, "/containers/", manifest->package.name,
+				  "/containerfs/etc/yum.repos.d/", repo->name, "-fb.repo");
+		repof = fopen(tmpdir, "w");
+		if (!repof) {
+			LOG(ERROR, "Error opening %s: %s\n",
+				tmpdir, strerror(errno));
+			goto cleanup_tmpdir;
+		}
+
+		fprintf(repof, "[%s-fb]\n", repo->name);
+		fprintf(repof, "name=%s-fb\n", repo->name);
+		fprintf(repof, "baseurl=%s\n", repo->url);
+		fprintf(repof, "gpgcheck=0\n"); /* for now */
+		fprintf(repof, "enabled=1\n");
+		fclose(repof);
+		repo = repo->next;
+	}
+
+	/*
+ 	 * create a base yum configuration
+ 	 */
+	tmpdir = strjoina(workdir, "/containers/", manifest->package.name,
+			  "/containerfs/etc/yum.conf");
+	repof = fopen(tmpdir, "w");
+	if (!repof) {
+		LOG(ERROR, "Unable to create a repo configuration: %s\n",
+			strerror(errno));
+		goto cleanup_tmpdir;
+	}
+	fprintf(repof, "[main]\n");
+	fprintf(repof, "cachedir=/var/cache/yum\n");
+	fprintf(repof, "keepcache=1\n");
+	fprintf(repof, "logfile=/var/log/yum.log\n");
+	fprintf(repof, "reposdir=/etc/yum.repos.d/\n");
+	fclose(repof);
+
+	/*
+ 	 * Build the spec file
+ 	 */
+	if (build_spec_file(manifest))
+		goto cleanup_tmpdir;
 
 	return 0;
-cleanup_nomem:
-	yum_cleanup();
-	return -ENOMEM;
 
 cleanup_tmpdir:
 	yum_cleanup();
