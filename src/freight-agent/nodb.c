@@ -60,9 +60,9 @@ struct tbl* nodb_get_table(const char *tbl, const char *cols, const char *filter
  	 * From the tennant_hosts table
  	 */
 	if (!strcmp(tbl, "tennant_hosts")) {
-		table = alloc_tbl(1,1);
+		table = alloc_tbl(1,2);
 		if (table)
-			table->value[0][0] = strdup("local");
+			table->value[0][1] = strdup("local");
 	}
 
 	return table;
