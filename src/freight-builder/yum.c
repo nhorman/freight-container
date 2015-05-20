@@ -198,6 +198,8 @@ static int build_spec_file(const struct manifest *manifest)
  	 * buildrequires include yum as we're going to install a tree with it 
  	 */
 	fprintf(repof, "BuildRequires: yum\n");
+	fprintf(repof, "BuildRequires: btrfs-progs\n");
+
 	fprintf(repof, "\n\n");
 
 	/*
@@ -215,6 +217,12 @@ static int build_spec_file(const struct manifest *manifest)
  	 */
 	fprintf(repof, "%%install\n");
 	fprintf(repof, "cd ${RPM_BUILD_ROOT}\n");
+	fprintf(repof, "mkdir -p containers/%s\n", manifest->package.name);
+	/*
+ 	 * Create a subvolume to snapshot post install
+ 	 */
+	fprintf(repof, "btrfs subvolume create containers/%s/containerfs\n", manifest->package.name);
+
 	fprintf(repof, "tar xvf %%{SOURCE0}\n");
 	fprintf(repof, "yum -y --installroot=${RPM_BUILD_ROOT}/containers/%s/containerfs/ "
 		       " --releasever=%s install %s\n",
@@ -259,8 +267,31 @@ static int build_spec_file(const struct manifest *manifest)
  	 */
 	fprintf(repof, "yum --installroot=${RPM_BUILD_ROOT}/containers/%s/containerfs/ clean all\n",
 		manifest->package.name);
+
+
 	/*
- 	 * After yum is done installing, we need to interrogate all the files
+ 	 * Now that the install is done, lets take a snapshot of the image
+ 	 */
+	fprintf(repof, "btrfs subvolume snapshot -r containers/%s/containerfs "
+		       "containers/%s/snapshot\n", manifest->package.name,
+		       manifest->package.name);
+
+	/*
+ 	 * once we have the snapshot, we export it to a file
+ 	 */
+	fprintf(repof, "btrfs send -f containers/%s/btrfs.img containers/%s/snapshot\n",
+		       manifest->package.name, manifest->package.name);
+
+	/*
+ 	 * Then delete the real subvolumes
+ 	 */
+	fprintf(repof, "btrfs subvolume delete containers/%s/containerfs\n",
+		       manifest->package.name);
+	fprintf(repof, "btrfs subvolume delete containers/%s/snapshot\n",
+		       manifest->package.name);
+
+	/*
+ 	 * After we export the subvolume, we need to interrogate all the files
  	 * So that we can specify a file list in the %files section
  	 */
 	fprintf(repof, "cd containers\n");
@@ -283,6 +314,7 @@ static int build_spec_file(const struct manifest *manifest)
 		manifest->package.name);
 	fprintf(repof, "done\n");
 	fprintf(repof, "cd -\n");
+
 
 	/*
  	 * Spec %files section
