@@ -25,12 +25,14 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/vfs.h>
 #include <fcntl.h>
 #include <libconfig.h>
 #include <mode.h>
 #include <freight-log.h>
 #include <freight-common.h>
 
+#define BTRFS_SUPER_MAGIC     0x9123683E
 
 static char** execarray = NULL;
 
@@ -251,6 +253,7 @@ out:
 int init_container_root(const struct db_api *api,
 			const struct agent_config *acfg)
 {
+	struct statfs buf;
 	const char *croot = acfg->node.container_root;
 	int rc = -EINVAL;
 	struct tbl *table;
@@ -281,6 +284,20 @@ int init_container_root(const struct db_api *api,
 		goto out;
 	}
 
+	/*
+ 	 * Check to make sure its btrfs
+ 	 */
+	if (statfs(acfg->node.container_root, &buf) == -1) {
+		LOG(ERROR, "Cannnot interrogate container_root %s: %s\n",
+		acfg->node.container_root, strerror(errno));
+		goto out;
+	}
+
+	if (buf.f_type != BTRFS_SUPER_MAGIC) {
+		LOG(ERROR, "Container root must be btrfs\n");
+		goto out;
+	}
+ 
 	/*
  	 * Now get a list of tennants
  	 */
