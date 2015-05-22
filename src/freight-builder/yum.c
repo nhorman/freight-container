@@ -313,8 +313,18 @@ static int build_spec_file(const struct manifest *manifest)
 	fprintf(repof, "	echo \"/containers/$i\" >> /tmp/%s.manifest\n",
 		manifest->package.name);
 	fprintf(repof, "done\n");
-	fprintf(repof, "cd -\n");
+	fprintf(repof, "cd -\n\n");
 
+	/*
+ 	 * Spec %post section
+ 	 * Note: %post scripts here need to be run with --nochroot specified
+ 	 * because wherever freight-agent installs them won't have a working
+ 	 * /bin/sh
+ 	 */
+	fprintf(repof, "%%post\n"
+		       "btrfs-receive -f /containers/"
+		       "%%{name}/btrfs.img /containers/"
+		       "%%{name}/\n");
 
 	/*
  	 * Spec %files section

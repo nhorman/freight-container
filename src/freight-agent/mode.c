@@ -26,6 +26,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/vfs.h>
+#include <sys/mount.h>
 #include <fcntl.h>
 #include <libconfig.h>
 #include <mode.h>
@@ -148,6 +149,7 @@ out:
 	return rc;
 }
 
+
 static int init_tennant_root(const struct db_api *api,
 			       const char *croot,
 			       const char *tenant,
@@ -155,6 +157,9 @@ static int init_tennant_root(const struct db_api *api,
 {
 	char *dirs[]= {
 		"",
+		"bin",
+		"lib",
+		"lib64",
 		"containers",
 		"var",
 		"var/lib",
@@ -189,6 +194,17 @@ static int init_tennant_root(const struct db_api *api,
 			goto out_cleanup;
 		}
 	}
+
+	/*
+ 	 * Now hard link the new directory trees
+ 	 */
+	sprintf(repo, "cp --link -a %s/common/bin/ %s/bin/", croot, troot);
+	rc = run_command(repo, acfg->cmdline.verbose);
+	if (rc) {
+		LOG(ERROR, "Unable to link support utilities for tennant %s\n",
+		    tennant);
+		goto out_cleanup;
+	} 
 
 	/*
  	 * Create the yum.conf file
@@ -258,6 +274,7 @@ int init_container_root(const struct db_api *api,
 	int rc = -EINVAL;
 	struct tbl *table;
 	char hostname[512];
+	char cbuf[1024];
 	int r;
 	/*
 	 * Sanity check the container root, it can't be the 
@@ -297,7 +314,21 @@ int init_container_root(const struct db_api *api,
 		LOG(ERROR, "Container root must be btrfs\n");
 		goto out;
 	}
- 
+
+	/*
+ 	 * Start by creating our support binanies for use with container
+ 	 * installs
+ 	 */
+	LOG(INFO, "Install support utilities.  This could take a minute..");
+	sprintf(cbuf, "yum --installroot=%s/common "
+		      "--nogpgcheck --releasever=21 -y "
+		      "install bash btrfs-progs\n", croot); 
+	rc = run_command(cbuf, acfg->cmdline.verbose);
+	if (rc) {
+		LOG(ERROR, "Failed to install support utilities\n");
+		goto out;
+	}
+
 	/*
  	 * Now get a list of tennants
  	 */
