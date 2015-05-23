@@ -204,8 +204,10 @@ static int init_tennant_root(const struct db_api *api,
 	rc |= run_command(repo, acfg->cmdline.verbose);
 	sprintf(repo, "cp --link -a %s/common/lib64/ %s/", croot, troot);
 	rc |= run_command(repo, acfg->cmdline.verbose);
-
-	rc = run_command(repo, acfg->cmdline.verbose);
+	/* Except for var, as we want a private rpdb copy */
+	sprintf(repo, "cp -r -a %s/common/var/lib/rpm/ %s/var/lib/", croot, troot);
+	rc |= run_command(repo, acfg->cmdline.verbose);
+	
 	if (rc) {
 		LOG(ERROR, "Unable to link support utilities for tennant %s\n",
 		    tennant);
@@ -334,6 +336,10 @@ int init_container_root(const struct db_api *api,
 		LOG(ERROR, "Failed to install support utilities\n");
 		goto out;
 	}
+
+	sprintf(cbuf, "yum --installroot=%s/common "
+		      "clean all\n", croot);
+	run_command(cbuf, acfg->cmdline.verbose);
 
 	/*
  	 * Now get a list of tennants
