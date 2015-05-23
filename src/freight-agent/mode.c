@@ -160,6 +160,7 @@ static int init_tennant_root(const struct db_api *api,
 		"bin",
 		"lib",
 		"lib64",
+		"usr",
 		"containers",
 		"var",
 		"var/lib",
@@ -203,6 +204,8 @@ static int init_tennant_root(const struct db_api *api,
 	sprintf(repo, "cp --link -a %s/common/lib/ %s/", croot, troot);
 	rc |= run_command(repo, acfg->cmdline.verbose);
 	sprintf(repo, "cp --link -a %s/common/lib64/ %s/", croot, troot);
+	rc |= run_command(repo, acfg->cmdline.verbose);
+	sprintf(repo, "cp --link -a %s/common/usr/ %s/", croot, troot);
 	rc |= run_command(repo, acfg->cmdline.verbose);
 	/* Except for var, as we want a private rpdb copy */
 	sprintf(repo, "cp -r -a %s/common/var/lib/rpm/ %s/var/lib/", croot, troot);
