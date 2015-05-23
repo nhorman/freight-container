@@ -198,7 +198,13 @@ static int init_tennant_root(const struct db_api *api,
 	/*
  	 * Now hard link the new directory trees
  	 */
-	sprintf(repo, "cp --link -a %s/common/bin/ %s/bin/", croot, troot);
+	sprintf(repo, "cp --link -a %s/common/bin/ %s/", croot, troot);
+	rc = run_command(repo, acfg->cmdline.verbose);
+	sprintf(repo, "cp --link -a %s/common/lib/ %s/", croot, troot);
+	rc |= run_command(repo, acfg->cmdline.verbose);
+	sprintf(repo, "cp --link -a %s/common/lib64/ %s/", croot, troot);
+	rc |= run_command(repo, acfg->cmdline.verbose);
+
 	rc = run_command(repo, acfg->cmdline.verbose);
 	if (rc) {
 		LOG(ERROR, "Unable to link support utilities for tennant %s\n",
@@ -322,7 +328,7 @@ int init_container_root(const struct db_api *api,
 	LOG(INFO, "Install support utilities.  This could take a minute..");
 	sprintf(cbuf, "yum --installroot=%s/common "
 		      "--nogpgcheck --releasever=21 -y "
-		      "install bash btrfs-progs\n", croot); 
+		      "install sh btrfs-progs\n", croot); 
 	rc = run_command(cbuf, acfg->cmdline.verbose);
 	if (rc) {
 		LOG(ERROR, "Failed to install support utilities\n");
