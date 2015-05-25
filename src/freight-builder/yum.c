@@ -322,9 +322,9 @@ static int build_spec_file(const struct manifest *manifest)
  	 * /bin/sh
  	 */
 	fprintf(repof, "%%post\n"
-		       "btrfs receive -f /containers/"
-		       "%%{name}/btrfs.img /containers/"
-		       "%%{name}/\n");
+		       "echo $TROOT\n"
+		       "btrfs receive -f /containers/%%{name}/btrfs.img "
+		       "/containers/%%{name}/\n");
 
 	/*
  	 * Spec %files section
