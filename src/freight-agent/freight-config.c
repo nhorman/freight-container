@@ -31,6 +31,9 @@
 
 void release_configuration(struct agent_config *config)
 {
+	if (!config)
+		return;
+	
 	free(config->db.hostaddr);
 	free(config->db.dbname);
 	free(config->db.user);

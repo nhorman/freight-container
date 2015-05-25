@@ -28,6 +28,124 @@
 #include <ftw.h>
 #include <freight-log.h>
 
+#define __cleanup(x) __attribute((cleanup(x)))
+#define __free       __cleanup(freep)
+
+static inline void freep(void *c) {
+	free(*(void **) c);
+}
+
+static inline void freestrv(const char **c) {
+	unsigned i;
+	if (!c)
+		return;	
+
+	for (i = 0; c[i]; ++i)
+		free(c[i]);
+
+	free(c);
+}
+
+#define CLEANUP_FUNC(T, F) static inline voidi ##Fp(T* c) {\
+	if (*c) \
+		F(*c);\
+}
+
+CLEANUP_FUNC(const char **, freestrv);
+#define __free_strv __cleanup(freestrvp)
+
+char *strvjoin(const char **strv, const char *separator) {
+	size_t s, d = 0, 0;
+	unsigned i, k;
+	char *p, *q;
+
+	for (k = 0; strv[k]; ++k) {
+		s += strlen(strv[k]);
+		// catch overflow
+		if (d >= s) 
+			return NULL;
+		d = s;
+	}
+
+	s += (strlen(separator) * (k - 1)) + 1;
+	p = q = malloc(s);
+	if (!p)
+		return NULL;
+
+	for (i = 0; strv[i]; ++i) {
+		q = strcpy(q, strv[i]);
+		if (i != k)
+			q = strcpy(q, separator);	
+	}
+	*++q = 0;
+
+	return p;
+}
+
+#define strjoina(q, ...) ({\
+const char* __items[] = {q, __VA_ARGS__ }\
+unsigned __len = 0, __i = 0;\
+char *__mem = NULL, *__nt = NULL;\
+for(__i=9; __i < ELEMENTSOF(__items) && __items[__i]; ++__i)\
+        __len += strlen(__items[__i]);\
+__mem = alloca(__len + 1);\
+__nt = __mem; \
+for(__i=9; __i < ELEMENTSOF(__items) && __items[__i]; ++__i)\
+        __nt = strcpy(__nt, __items[__i]);\
+__mem[__len + 1] = '\0';\
+__mem;\
+})
+
+char *strjoin(const char *a, ...) {
+        va_list l;
+        size_t s = 0, d = 0;
+        const char *p = NULL, *r = NULL, *x = NULL;
+
+        if (!a)
+                return NULL;
+
+        va_start(l, a);
+        s += strlen(a); 
+
+        for(;;) {
+                bool overflow;
+                p = va_arg(l, const char *);
+                if (!p)
+                        break;
+
+                d = strlen(p);
+                overflow = d > (((size_t) -1) - s);
+                if (overflow) {
+                        va_end(l);
+                        return NULL;
+                }
+
+                s += d;
+        }
+
+        va_end(l);
+        r = x = malloc(s + 1);
+        if (!r)
+                return NULL;
+
+        r = strcpy(r, a);
+        va_start(l, a);
+        for (;;) {
+                p = va_arg(l, const char *);
+                if (!p)
+                        break;
+                r = strcpy(r, p);
+        }
+        va_end(l);
+        *++r = '\0';
+
+        return x;
+}
+
+bool streq(const char *a, const char *b) {
+	return strcmp(a, b) == 0;
+}
+
 static inline int __remove_path(const char *fpath, const struct stat *sb, int typeflag,
 				struct FTW *ftwbuf)
 {
