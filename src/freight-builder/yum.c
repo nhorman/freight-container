@@ -259,9 +259,10 @@ static int build_spec_file(const struct manifest *manifest)
 		fprintf(repof, "chmod 755 ${RPM_BUILD_ROOT}"
 			       "/containers/%s/containerfs/post_script\n",
 			       manifest->package.name);
-		fprintf(repof, "chroot ${RPM_BUILD_ROOT}"
-			       "/containers/%s/containerfs "
-			       "/post_script\n", manifest->package.name);
+		fprintf(repof, "cd containers/%s/containerfs\n"
+			       "chroot . /post_script\n"
+			       "cd ../../..\n",
+			        manifest->package.name);
 		fprintf(repof, "rm -f ${RPM_BUILD_ROOT}/containers/%s/"
 			       "containerfs/post_script\n",
 			       manifest->package.name);
@@ -333,7 +334,7 @@ static int build_spec_file(const struct manifest *manifest)
 		       "if [ -n \"$AGENT_MAKE_SVOL_RW\" ]\n"
 		       "then\n"
 		       "btrfs property set -ts "
-		       "containers/%%{name}/snapshot ro false\n"i
+		       "containers/%%{name}/snapshot ro false\n"
 		       "fi\n");
 
 	fprintf(repof, "\n\n");
