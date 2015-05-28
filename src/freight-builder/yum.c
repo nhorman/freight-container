@@ -278,14 +278,17 @@ static int build_spec_file(const struct manifest *manifest)
 	/*
  	 * Now that the install is done, lets take a snapshot of the image
  	 */
+	fprintf(repof, "mkdir containers/%s/snapshot\n",
+		       manifest->package.name);
 	fprintf(repof, "btrfs subvolume snapshot -r containers/%s/containerfs "
-		       "containers/%s/snapshot\n", manifest->package.name,
+		       "containers/%s/snapshot/containerfs\n", manifest->package.name,
 		       manifest->package.name);
 
 	/*
  	 * once we have the snapshot, we export it to a file
  	 */
-	fprintf(repof, "btrfs send -f containers/%s/btrfs.img containers/%s/snapshot\n",
+	fprintf(repof, "btrfs send -f containers/%s/btrfs.img "
+		       "containers/%s/snapshot/containerfs\n",
 		       manifest->package.name, manifest->package.name);
 
 	/*
@@ -293,7 +296,9 @@ static int build_spec_file(const struct manifest *manifest)
  	 */
 	fprintf(repof, "btrfs subvolume delete containers/%s/containerfs\n",
 		       manifest->package.name);
-	fprintf(repof, "btrfs subvolume delete containers/%s/snapshot\n",
+	fprintf(repof, "btrfs subvolume delete containers/%s/snapshot/containerfs\n",
+		       manifest->package.name);
+	fprintf(repof, "rm -rf containers/%s/snapshot\n",
 		       manifest->package.name);
 
 	/*
@@ -341,7 +346,7 @@ static int build_spec_file(const struct manifest *manifest)
 
 	fprintf(repof, "%%preun\n"
 		       "btrfs subvolume delete "
-		       "containers/%%{name}/snapshot\n");
+		       "containers/%%{name}/containerfs\n");
 
 	/*
  	 * Spec %files section
