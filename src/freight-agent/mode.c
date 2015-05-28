@@ -199,21 +199,21 @@ static int init_tennant_root(const struct db_api *api,
 	/*
  	 * Now hard link the new directory trees
  	 */
-	sprintf(repo, "cp --link -a %s/common/bin/ %s/", croot, troot);
+	repo = strjoina("cp --link -a ", croot, "/common/bin/ ", troot, "/");
 	rc = run_command(repo, acfg->cmdline.verbose);
-	sprintf(repo, "cp --link -a %s/common/lib/ %s/", croot, troot);
+	repo = strjoina("cp --link -a ", croot, "/common/lib/ ", troot, "/");
 	rc |= run_command(repo, acfg->cmdline.verbose);
-	sprintf(repo, "cp --link -a %s/common/lib64/ %s/", croot, troot);
+	repo = strjoina("cp --link -a ", croot, "/common/lib64/ ", troot, "/");
 	rc |= run_command(repo, acfg->cmdline.verbose);
-	sprintf(repo, "cp --link -a %s/common/usr/ %s/", croot, troot);
+	repo = strjoina("cp --link -a ", croot, "/common/usr/ ", troot, "/");
 	rc |= run_command(repo, acfg->cmdline.verbose);
 	/* Except for var, as we want a private rpdb copy */
-	sprintf(repo, "cp -r -a %s/common/var/lib/rpm/ %s/var/lib/", croot, troot);
+	repo = strjoina("cp -r -a ", croot, "/common/var/lib/rpm/", troot, "/var/lib/");
 	rc |= run_command(repo, acfg->cmdline.verbose);
 	
 	if (rc) {
 		LOG(ERROR, "Unable to link support utilities for tennant %s\n",
-		    tennant);
+		    tenant);
 		goto out_cleanup;
 	} 
 

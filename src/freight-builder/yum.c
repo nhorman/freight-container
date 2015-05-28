@@ -97,13 +97,18 @@ static int yum_build_rpm(const struct manifest *manifest)
  	 */
 	setenv("QA_RPATHS", "0x0001", 1);
 
+	/*
+ 	 * This will convert the previously built srpm into a binary rpm that
+ 	 * can serve as a containerized directory for systemd-nspawn
+ 	 */
 	cmd = strjoina("rpmbuild ", quiet, " -D\"_build_name_fmt ",
 			manifest->package.name, "-", manifest->package.version, "-",
 			manifest->package.release, ".%%{ARCH}.rpm\" -D\"__arch_install_post "
 			"/usr/lib/rpm/check-rpaths /usr/lib/rpm/check-buildroot\" -D\"_rpmdir ",
-			output_path, "\" -D \"_topdir ", workdir, "\" --rebuild ", output_path, "/",
-			manifest->package.name, "-", manifest->package.version, "-",
+			output_path, "\" -D \"_topdir ", workdir, "\" --rebuild --noclean --nocheck ",
+			output_path, "/", manifest->package.name, "-", manifest->package.version, "-",
 			manifest->package.release, ".src.rpm\n", NULL);
+
 	LOG(INFO, "Building container binary rpm\n");
 	rc = run_command(cmd, manifest->opts.verbose);
 	if (!rc)
