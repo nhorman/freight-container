@@ -39,10 +39,13 @@ updates within the container
 .TP
 .B -v | --verbose
 Make freight-builder output lots of diagnostic information
-.TP.
-.B -w | --workdir
+.TP
+.B -w | --workdir <path/to/workdir>
 Specify the base directory in which freight-builder uses as working space to
 build rpms
+.TP
+.B -r | --relver
+The release version to specify when inspecting or deriving child containers
 
 .SH MANIFEST FILE FORMAT 
 The Manifest file codifies the contents of a container image and generally has
