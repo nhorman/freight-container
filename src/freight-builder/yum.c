@@ -159,67 +159,16 @@ static int yum_init(const struct manifest *manifest)
 	return 0;
 }
 
-static int build_spec_file(const struct manifest *manifest)
+static int spec_install_primary_container(FILE * repof, const struct manifest *manifest)
 {
-	FILE *repof;
 	char *rpmlist;
-	char *tmpdir;
 	int rc = -EINVAL;
+
 
 	rpmlist = build_rpm_list(manifest);
 	if (!rpmlist)
 		goto out;
 
-	tmpdir = strjoina(workdir, "/", manifest->package.name, ".spec", NULL);
-	repof = fopen(tmpdir, "w");
-	if (!repof) {
-		LOG(ERROR, "Unable to create a spec file: %s\n",
-			strerror(errno));
-		goto out;
-	}
-
-	/*
- 	 * This builds out our spec file for the source RPM
- 	 * We start with the usual tags
- 	 */
-	fprintf(repof, "Name: %s\n",
-		manifest->package.name);
-	fprintf(repof, "Version: %s\n", manifest->package.version);
-	fprintf(repof, "Release: %s\n", manifest->package.release);
-	fprintf(repof, "License: %s\n", manifest->package.license);
-	fprintf(repof, "Group: Containers/Freight\n");
-	/*
- 	 * We don't want these rpms to provide anything that the host system
- 	 * might want
- 	 */
-	fprintf(repof, "AutoReqProv: no\n");
-	fprintf(repof, "Summary: %s\n", manifest->package.summary);
-	fprintf(repof, "Source0: %s-freight.tbz2\n", manifest->package.name);
-	if (manifest->package.post_script)
-		fprintf(repof, "Source1: post_script\n");
-	fprintf(repof, "\n\n");
-
-	/*
- 	 * buildrequires include yum as we're going to install a tree with it 
- 	 */
-	fprintf(repof, "BuildRequires: yum\n");
-	fprintf(repof, "BuildRequires: btrfs-progs\n");
-
-	fprintf(repof, "\n\n");
-
-	/*
- 	 * Description section
- 	 */
-	fprintf(repof, "%%description\n");
-	fprintf(repof, "A container rpm for freight\n");
-	fprintf(repof, "\n\n");
-
-
-	/*
- 	 * The install section actually has yum do the install to
- 	 * the srpms buildroot, that way we can package the containerized
- 	 * fs into its own rpm
- 	 */
 	fprintf(repof, "%%install\n");
 	fprintf(repof, "cd ${RPM_BUILD_ROOT}\n");
 	fprintf(repof, "mkdir -p containers/%s\n", manifest->package.name);
@@ -329,6 +278,84 @@ static int build_spec_file(const struct manifest *manifest)
 	fprintf(repof, "done\n");
 	fprintf(repof, "cd -\n\n");
 
+	rc = 0;
+out:
+	return rc;
+}
+
+static int spec_install_derivative_container(FILE * repof, const struct manifest *manifest)
+{
+	return 0;
+}
+
+static int build_spec_file(const struct manifest *manifest)
+{
+	FILE *repof;
+	int rc = -EINVAL;
+	char *tmpdir;
+
+	tmpdir = strjoina(workdir, "/", manifest->package.name, ".spec");
+	repof = fopen(tmpdir, "w");
+	if (!repof) {
+		LOG(ERROR, "Unable to create a spec file: %s\n",
+			strerror(errno));
+		goto out_noclose;
+	}
+
+	/*
+ 	 * This builds out our spec file for the source RPM
+ 	 * We start with the usual tags
+ 	 */
+	fprintf(repof, "Name: %s\n",
+		manifest->package.name);
+	fprintf(repof, "Version: %s\n", manifest->package.version);
+	fprintf(repof, "Release: %s\n", manifest->package.release);
+	fprintf(repof, "License: %s\n", manifest->package.license);
+	fprintf(repof, "Group: Containers/Freight\n");
+	/*
+ 	 * We don't want these rpms to provide anything that the host system
+ 	 * might want
+ 	 */
+	fprintf(repof, "AutoReqProv: no\n");
+	fprintf(repof, "Summary: %s\n", manifest->package.summary);
+	fprintf(repof, "Source0: %s-freight.tbz2\n", manifest->package.name);
+	if (manifest->package.post_script)
+		fprintf(repof, "Source1: post_script\n");
+	fprintf(repof, "\n\n");
+
+	if (manifest->package.parent_container) {
+		fprintf(repof, "Requires: %s\n",
+			manifest->package.parent_container);
+	}
+
+	/*
+ 	 * buildrequires include yum as we're going to install a tree with it 
+ 	 */
+	fprintf(repof, "BuildRequires: yum\n");
+	fprintf(repof, "BuildRequires: btrfs-progs\n");
+
+	fprintf(repof, "\n\n");
+
+	/*
+ 	 * Description section
+ 	 */
+	fprintf(repof, "%%description\n");
+	fprintf(repof, "A container rpm for freight\n");
+	fprintf(repof, "\n\n");
+
+
+	/*
+ 	 * The install section actually has yum do the install to
+ 	 * the srpms buildroot, that way we can package the containerized
+ 	 * fs into its own rpm
+ 	 */
+	if (!manifest->package.parent_container)
+		rc = spec_install_primary_container(repof, manifest);
+	else
+		rc = spec_install_derivative_container(repof, manifest);
+	if (rc)
+		goto out;
+
 	/*
  	 * Spec %post section
  	 * Note: %post scripts here need to be run with --nochroot specified
@@ -363,9 +390,10 @@ static int build_spec_file(const struct manifest *manifest)
  	 */
 	fprintf(repof, "\n\n");
 	fprintf(repof, "%%changelog\n");
-	fclose(repof);
 	rc = 0;
 out:
+	fclose(repof);
+out_noclose:
 	return rc;
 }
 

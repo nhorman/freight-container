@@ -80,6 +80,7 @@ packaging = {
 	license = "GPLv2|BSD|Proprietary";	
 	author = "Name <email>";
 	post_script ="/path/to/script";
+	parent_container = "parent-container-nvr";
 };
 
 yum_opts = {
@@ -121,6 +122,13 @@ A list of details to include when the container is packaged up as an rpm
 Path to a file to be executed in the container root after the install is
 complete.  Note the ENVIRONMENT VARIABLES section below for information about
 the script environment
+
+.B parent_container
+.PP
+This optional setting allows for the creation of derivative containers.  That is
+to say, the resultant container will only contain the changes made via the
+post_script option (or interactively if no post_script is specified) from the
+container specified via parent_container.
 
 .B yum_opts
 .PP

@@ -50,6 +50,7 @@ struct packaging {
 	char *license;
 	char *author;
 	char *post_script;
+	char *parent_container;
 };
 
 struct yum_opts {
