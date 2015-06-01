@@ -285,7 +285,41 @@ out:
 
 static int spec_install_derivative_container(FILE * repof, const struct manifest *manifest)
 {
-	return 0;
+	char *rpmlist;
+	int rc = -EINVAL;
+
+
+	rpmlist = build_rpm_list(manifest);
+	if (!rpmlist)
+		goto out;
+
+	fprintf(repof, "%%install\n");
+	fprintf(repof, "cd ${RPM_BUILD_ROOT}\n");
+
+
+	/*
+ 	 * Make an area to install our parent container
+ 	 */
+	fprintf(repof, "mkdir -p parent\n");
+
+	/*
+ 	 * And install our repo to it
+ 	 */
+	fprintf(repof, "tar -C ${RPM_BUILD_ROOT}/parent/ -xvf %%{SOURCE0}\n");
+
+	/*
+ 	 * Then yum install our parent container
+ 	 */
+	fprintf(repof, "yum --installroot=${RPM_BUILD_ROOT}/parent -y "
+		       "install bash btrfs-progs %s\n",
+		       manifest->package.parent_container);
+
+
+
+
+	rc = 0;
+out:
+	return rc;
 }
 
 static int build_spec_file(const struct manifest *manifest)
@@ -548,9 +582,18 @@ static int yum_build_srpm(const struct manifest *manifest)
  	 * Tar up the etc directory we generated in our sandbox.  This gets 
  	 * Included in the srpm as Source0 of the spec file (written in
  	 * yum_init)
+ 	 * Note, if we are building a derivative container, we just pack up the
+ 	 * yum repo, without any leading directories
+ 	 * (contiainers/<name>/containerfs), because we will want to place it in
+ 	 * a special parent directory (see install_derivative_contianer)
  	 */
-	cmd = strjoina("tar -C ", workdir, " -jcf ", workdir, "/", 
-			manifest->package.name, "-freight.tbz2 ./containers/\n", NULL);
+	if (!manifest->package.parent_container)
+		cmd = strjoina("tar -C ", workdir, " -jcf ", workdir, "/",
+			       manifest->package.name, "-freight.tbz2 ./containers/\n", NULL);
+	else
+		cmd = strjoina("tar -C ", workdir, "/containers/", manifest->package.name,
+			       "/containerfs -jcf ", workdir, "/", manifest->package.name,
+			       "-freight.tbz2 .\n");
 	
 	LOG(INFO, "Creating yum configuration tarball for container\n");
 	rc = run_command(cmd, manifest->opts.verbose);
