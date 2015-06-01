@@ -119,8 +119,8 @@ A list of details to include when the container is packaged up as an rpm
 .B post_script
 .PP
 Path to a file to be executed in the container root after the install is
-complete.  Note that the script is run in a chroot so external files will not be
-accessible
+complete.  Note the ENVIRONMENT VARIABLES section below for information about
+the script environment
 
 .B yum_opts
 .PP
@@ -138,3 +138,14 @@ executed
 .PP
 .B user
 The container will run as the specified user
+
+.SH ENVIRONMENT VARIABLES
+Environment variables are used to convey information about the container being
+built to the post_script that may be optionally specified in the manifest file.
+The following Environment variables are set and accessible to the post_script
+.TP
+.B FREIGHT_CONTAINERFS
+This variable points to the root of the container file system.  It can be used
+as a chroot destination for modifying the container, or as a destination
+directory base for copying additional files into the container
+

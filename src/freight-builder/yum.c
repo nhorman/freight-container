@@ -252,19 +252,22 @@ static int build_spec_file(const struct manifest *manifest)
 	}
 
 	if (manifest->package.post_script) {
+		fprintf(repof, "export FREIGHT_CONTAINERFS=${RPM_BUILD_ROOT}/"
+			       "containers/%s/containerfs/\n",
+			       manifest->package.name);
 		fprintf(repof, "echo executing post script\n");
 		fprintf(repof, "cp %%{SOURCE1} ${RPM_BUILD_ROOT}"
-			       "/containers/%s/containerfs/\n",
+			       "/containers/%s/\n",
 			       manifest->package.name);
 		fprintf(repof, "chmod 755 ${RPM_BUILD_ROOT}"
-			       "/containers/%s/containerfs/post_script\n",
+			       "/containers/%s/post_script\n",
 			       manifest->package.name);
-		fprintf(repof, "cd containers/%s/containerfs\n"
-			       "chroot . /post_script\n"
-			       "cd ../../..\n",
+		fprintf(repof, "cd containers/%s/\n"
+			       "./post_script\n"
+			       "cd ../../\n",
 			        manifest->package.name);
 		fprintf(repof, "rm -f ${RPM_BUILD_ROOT}/containers/%s/"
-			       "containerfs/post_script\n",
+			       "post_script\n",
 			       manifest->package.name);
 	}
 
