@@ -10,8 +10,4 @@ packaging = {
 	post_script = "./examples/test-manifest/post_install_child";
 };
 
-yum_opts = {
-	releasever = "21";
-};
-
 

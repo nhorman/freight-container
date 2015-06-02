@@ -39,6 +39,13 @@
 static char *worktemplate;
 #define BTRFS_SUPER_MAGIC     0x9123683E
 
+struct rpm_nvr {
+	char *name;
+	char *version;
+	char *release;
+	char stringdata[0];
+};
+
 static char *workdir;
 
 static void yum_cleanup()
@@ -74,6 +81,34 @@ static char *build_rpm_list(const struct manifest *manifest)
 	}
 
 	return strvjoin(strings, " ");
+}
+
+static struct rpm_nvr *get_nvr_from_rpm(const char *rpm)
+{
+	struct rpm_nvr *nvr = calloc(sizeof(struct rpm_nvr) + strlen(rpm), 1);
+	char *bname = basename(rpm);
+	char *tmp;
+
+	if (!nvr)
+		return NULL;
+
+	nvr->name = nvr->stringdata;
+	strncpy(nvr->name, bname, strlen(bname));
+	tmp = index(nvr->name, '-');
+	*tmp = '\0';
+	tmp++;
+	nvr->version = tmp;
+	tmp = index(nvr->version, '-');
+	*tmp = '\0';
+	tmp++;
+	nvr->release = tmp;
+	/* Go back twice from the end to find the full release */
+	tmp = rindex(nvr->release, '.');
+	*tmp = '\0';
+	tmp = rindex(nvr->release, '.');
+	*tmp = '\0';
+
+	return nvr;
 }
 
 /*
@@ -159,6 +194,52 @@ static int yum_init(const struct manifest *manifest)
 	return 0;
 }
 
+static void run_post_script_in_spec(FILE *repof, const struct manifest *manifest)
+{
+
+	fprintf(repof, "export FREIGHT_CONTAINERFS=${RPM_BUILD_ROOT}/"
+		       "containers/%s/containerfs/\n",
+		       manifest->package.name);
+	fprintf(repof, "echo executing post script\n");
+	fprintf(repof, "cp %%{SOURCE1} ${RPM_BUILD_ROOT}"
+		       "/containers/%s/\n",
+		       manifest->package.name);
+	fprintf(repof, "chmod 755 ${RPM_BUILD_ROOT}"
+		       "/containers/%s/post_script\n",
+		       manifest->package.name);
+	fprintf(repof, "cd containers/%s/\n"
+		       "./post_script\n"
+		       "cd ../../\n",
+			manifest->package.name);
+	fprintf(repof, "rm -f ${RPM_BUILD_ROOT}/containers/%s/"
+		       "post_script\n",
+			       manifest->package.name);
+}
+
+static void gather_files_for_spec(FILE *repof, const struct manifest *manifest)
+{
+	fprintf(repof, "cd containers\n");
+	fprintf(repof, "rm -f /tmp/%s.manifest\n", manifest->package.name);
+	fprintf(repof, "for i in `find . -type d | grep -v ^.$`\n");
+	fprintf(repof, "do\n"); 
+	fprintf(repof, "	echo \"%%dir /containers/$i\" >> /tmp/%s.manifest\n",
+		manifest->package.name);
+	fprintf(repof, "done\n");
+
+	fprintf(repof, "for i in `find . -type f`\n");
+	fprintf(repof, "do\n"); 
+	fprintf(repof, "	echo \"/containers/$i\" >> /tmp/%s.manifest\n",
+		manifest->package.name);
+	fprintf(repof, "done\n");
+
+	fprintf(repof, "for i in `find . -type l`\n");
+	fprintf(repof, "do\n"); 
+	fprintf(repof, "	echo \"/containers/$i\" >> /tmp/%s.manifest\n",
+		manifest->package.name);
+	fprintf(repof, "done\n");
+	fprintf(repof, "cd -\n\n");
+}
+
 static int spec_install_primary_container(FILE * repof, const struct manifest *manifest)
 {
 	char *rpmlist;
@@ -175,11 +256,11 @@ static int spec_install_primary_container(FILE * repof, const struct manifest *m
 	/*
  	 * Create a subvolume to snapshot post install
  	 */
-	fprintf(repof, "btrfs subvolume create containers/%s/containerfs\n", manifest->package.name);
+	fprintf(repof, "btrfs subvolume create containers/%%{name}/containerfs\n");
 
-	fprintf(repof, "tar xvf %%{SOURCE0}\n");
+	fprintf(repof, "tar -C ./containers/ -x -v -f %%{SOURCE0}\n");
 	fprintf(repof, "yum -y --installroot=${RPM_BUILD_ROOT}/containers/%s/containerfs/ "
-		       " --releasever=%s install %s\n",
+		       " --nogpgcheck --releasever=%s install %s\n",
 		manifest->package.name, manifest->yum.releasever, rpmlist); 
 	free(rpmlist);
 
@@ -200,25 +281,8 @@ static int spec_install_primary_container(FILE * repof, const struct manifest *m
 			       manifest->package.name, manifest->copts.user);
 	}
 
-	if (manifest->package.post_script) {
-		fprintf(repof, "export FREIGHT_CONTAINERFS=${RPM_BUILD_ROOT}/"
-			       "containers/%s/containerfs/\n",
-			       manifest->package.name);
-		fprintf(repof, "echo executing post script\n");
-		fprintf(repof, "cp %%{SOURCE1} ${RPM_BUILD_ROOT}"
-			       "/containers/%s/\n",
-			       manifest->package.name);
-		fprintf(repof, "chmod 755 ${RPM_BUILD_ROOT}"
-			       "/containers/%s/post_script\n",
-			       manifest->package.name);
-		fprintf(repof, "cd containers/%s/\n"
-			       "./post_script\n"
-			       "cd ../../\n",
-			        manifest->package.name);
-		fprintf(repof, "rm -f ${RPM_BUILD_ROOT}/containers/%s/"
-			       "post_script\n",
-			       manifest->package.name);
-	}
+	if (manifest->package.post_script)
+		run_post_script_in_spec(repof, manifest);
 
 	/*
  	 * This needs to hapen last so we can clean out the yum cache
@@ -257,26 +321,7 @@ static int spec_install_primary_container(FILE * repof, const struct manifest *m
  	 * After we export the subvolume, we need to interrogate all the files
  	 * So that we can specify a file list in the %files section
  	 */
-	fprintf(repof, "cd containers\n");
-	fprintf(repof, "rm -f /tmp/%s.manifest\n", manifest->package.name);
-	fprintf(repof, "for i in `find . -type d | grep -v ^.$`\n");
-	fprintf(repof, "do\n"); 
-	fprintf(repof, "	echo \"%%dir /containers/$i\" >> /tmp/%s.manifest\n",
-		manifest->package.name);
-	fprintf(repof, "done\n");
-
-	fprintf(repof, "for i in `find . -type f`\n");
-	fprintf(repof, "do\n"); 
-	fprintf(repof, "	echo \"/containers/$i\" >> /tmp/%s.manifest\n",
-		manifest->package.name);
-	fprintf(repof, "done\n");
-
-	fprintf(repof, "for i in `find . -type l`\n");
-	fprintf(repof, "do\n"); 
-	fprintf(repof, "	echo \"/containers/$i\" >> /tmp/%s.manifest\n",
-		manifest->package.name);
-	fprintf(repof, "done\n");
-	fprintf(repof, "cd -\n\n");
+	gather_files_for_spec(repof, manifest);
 
 	rc = 0;
 out:
@@ -289,9 +334,16 @@ static int spec_install_derivative_container(FILE * repof, const struct manifest
 	int rc = -EINVAL;
 
 
+	/*
+ 	 * Note that its ok for rpmlist to be NULL here, as installing rpms is
+ 	 * optional for a derivative container
+ 	 */
 	rpmlist = build_rpm_list(manifest);
-	if (!rpmlist)
+
+	if (!manifest->package.post_script) {
+		LOG(ERROR, "Derivative containers must specify a post_script option\n");
 		goto out;
+	}
 
 	fprintf(repof, "%%install\n");
 	fprintf(repof, "cd ${RPM_BUILD_ROOT}\n");
@@ -303,20 +355,77 @@ static int spec_install_derivative_container(FILE * repof, const struct manifest
 	fprintf(repof, "mkdir -p parent\n");
 
 	/*
- 	 * And install our repo to it
+ 	 * Then extract our parent container
  	 */
-	fprintf(repof, "tar -C ${RPM_BUILD_ROOT}/parent/ -xvf %%{SOURCE0}\n");
-
-	/*
- 	 * Then yum install our parent container
- 	 */
-	fprintf(repof, "yum --installroot=${RPM_BUILD_ROOT}/parent -y "
-		       "install bash btrfs-progs %s\n",
+	fprintf(repof, "rpm2cpio %s | cpio -i --to-stdout *btrfs.img "
+		       " > ${RPM_BUILD_ROOT}/parent/btrfs.img\n",
 		       manifest->package.parent_container);
 
+	/*
+ 	 * Turn the parent back into a subvolume
+ 	 */
+	fprintf(repof, "btrfs receive -f ./parent/btrfs.img "
+		       "./parent/\n");
+
+	
+	/*
+ 	 * Then create a snapshot of it to edit
+ 	 */
+	fprintf(repof, "mkdir -p containers/%s/\n", manifest->package.name);
+
+	/*
+ 	 * Create our derivative snapshot
+ 	 */
+	fprintf(repof, "btrfs subvolume snapshot ./parent/containerfs "
+		       "containers/%%{name}/containerfs\n"); 
 
 
+	/*
+ 	 * If we added any new repos, they are in the SOURCE0 tarball.  Add them
+ 	 * now
+ 	 */
+	fprintf(repof, "tar -C containers/ -x -v -f  %%{SOURCE0}\n");
 
+	/*
+ 	 * If rpmlist is not empty, install those rpms now
+ 	 */
+	if (rpmlist)
+		fprintf(repof, "yum -y --installroot=${RPM_BUILD_ROOT}/"
+			       "containers/%s/containerfs/ --releasever=%s "
+			       "--nogpgcheck install %s\n",
+				manifest->package.name,
+				manifest->yum.releasever, rpmlist); 
+	free(rpmlist);
+
+	/*
+ 	 * Finally, we get to run out post script to modify the container
+ 	 * Note that we have to have a post_script here, and check for it 
+ 	 * at the start of this function
+ 	 */
+	run_post_script_in_spec(repof, manifest);
+
+	/*
+ 	 * Once we're done, set the new container read only
+ 	 */
+	fprintf(repof, "btrfs property set -ts containers/%%{name}/containerfs "
+		       "ro true\n");
+
+	/*
+ 	 * Now send the read-only snapshot to a file specifying the parent 
+ 	 * so that we get an incremental image 
+ 	 */
+	fprintf(repof, "btrfs send -p ./parent/containerfs "
+		       "-f containers/%%{name}/btrfs.img "
+		       "containers/%%{name}/containerfs\n");
+
+	/*
+ 	 * Now we have to destroy the mounted subvolumes
+ 	 */
+	fprintf(repof, "btrfs subvolume delete ./parent/containerfs\n");
+	fprintf(repof, "btrfs subvolume delete ./containers/%%{name}/containerfs\n");
+	fprintf(repof, "rm -rf ./parent\n");
+
+	gather_files_for_spec(repof, manifest);
 	rc = 0;
 out:
 	return rc;
@@ -327,6 +436,7 @@ static int build_spec_file(const struct manifest *manifest)
 	FILE *repof;
 	int rc = -EINVAL;
 	char *tmpdir;
+	struct rpm_nvr *nvr;
 
 	tmpdir = strjoina(workdir, "/", manifest->package.name, ".spec");
 	repof = fopen(tmpdir, "w");
@@ -358,8 +468,15 @@ static int build_spec_file(const struct manifest *manifest)
 	fprintf(repof, "\n\n");
 
 	if (manifest->package.parent_container) {
-		fprintf(repof, "Requires: %s\n",
-			manifest->package.parent_container);
+		nvr = get_nvr_from_rpm(manifest->package.parent_container);
+		if (!nvr) {
+			LOG(ERROR, "Cant parse parent_container info\n");
+			goto out;
+		}
+		fprintf(repof, "Requires: %s = %s-%s\n",
+			nvr->name, nvr->version, nvr->release);
+
+		free(nvr);
 	}
 
 	/*
@@ -489,8 +606,10 @@ static int stage_workdir(const struct manifest *manifest)
 			goto cleanup_tmpdir;
 		}
 	}
+
 	sprintf(pbuf, "%s/containers/%s/container_config",
 		workdir, manifest->package.name);
+
 	if (config_write_file(&config, pbuf) == CONFIG_FALSE) {
 		LOG(ERROR, "Failed to write %s: %s\n",
 			pbuf, config_error_text(&config));
@@ -535,21 +654,26 @@ static int stage_workdir(const struct manifest *manifest)
 
 	/*
  	 * create a base yum configuration
+ 	 * Note, we only do this for a parent container.  We only add
+ 	 * repositories for child containers above
  	 */
-	tmpdir = strjoina(workdir, "/containers/", manifest->package.name,
-			  "/containerfs/etc/yum.conf");
-	repof = fopen(tmpdir, "w");
-	if (!repof) {
-		LOG(ERROR, "Unable to create a repo configuration: %s\n",
-			strerror(errno));
-		goto cleanup_tmpdir;
+	if (!manifest->package.parent_container) {
+		tmpdir = strjoina(workdir, "/containers/", manifest->package.name,
+				  "/containerfs/etc/yum.conf");
+		repof = fopen(tmpdir, "w");
+		if (!repof) {
+			LOG(ERROR, "Unable to create a repo configuration: %s\n",
+				strerror(errno));
+			goto cleanup_tmpdir;
+		}
+
+		fprintf(repof, "[main]\n");
+		fprintf(repof, "cachedir=/var/cache/yum\n");
+		fprintf(repof, "keepcache=1\n");
+		fprintf(repof, "logfile=/var/log/yum.log\n");
+		fprintf(repof, "reposdir=/etc/yum.repos.d/\n");
+		fclose(repof);
 	}
-	fprintf(repof, "[main]\n");
-	fprintf(repof, "cachedir=/var/cache/yum\n");
-	fprintf(repof, "keepcache=1\n");
-	fprintf(repof, "logfile=/var/log/yum.log\n");
-	fprintf(repof, "reposdir=/etc/yum.repos.d/\n");
-	fclose(repof);
 
 	/*
  	 * Build the spec file
@@ -582,18 +706,10 @@ static int yum_build_srpm(const struct manifest *manifest)
  	 * Tar up the etc directory we generated in our sandbox.  This gets 
  	 * Included in the srpm as Source0 of the spec file (written in
  	 * yum_init)
- 	 * Note, if we are building a derivative container, we just pack up the
- 	 * yum repo, without any leading directories
- 	 * (contiainers/<name>/containerfs), because we will want to place it in
- 	 * a special parent directory (see install_derivative_contianer)
  	 */
-	if (!manifest->package.parent_container)
-		cmd = strjoina("tar -C ", workdir, " -jcf ", workdir, "/",
-			       manifest->package.name, "-freight.tbz2 ./containers/\n", NULL);
-	else
-		cmd = strjoina("tar -C ", workdir, "/containers/", manifest->package.name,
-			       "/containerfs -jcf ", workdir, "/", manifest->package.name,
-			       "-freight.tbz2 .\n");
+	cmd = strjoina("tar -C ", workdir, "/containers/", manifest->package.name,
+		       "/containerfs -jcf ", workdir, "/", manifest->package.name,
+		       "-freight.tbz2 .\n");
 	
 	LOG(INFO, "Creating yum configuration tarball for container\n");
 	rc = run_command(cmd, manifest->opts.verbose);
