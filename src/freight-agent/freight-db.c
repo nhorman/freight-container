@@ -89,7 +89,7 @@ int add_repo(const struct db_api *api,
 		return -EOPNOTSUPP;
 
 	sql = strjoina("INSERT INTO yum_config VALUES ('", name, "', '",
-			url, "', '", acfg->db.user, "')");
+			url, "', '", acfg->db.user, "')", NULL);
 
 	return api->send_raw_sql(sql, acfg);
 }
@@ -104,7 +104,7 @@ extern int del_repo(const struct db_api *api,
 		return -EOPNOTSUPP;
 
 	sql = strjoina("DELETE FROM yum_config WHERE name = '", name, 
-		"' AND tennant='", acfg->db.user, "'");
+		"' AND tennant='", acfg->db.user, "'", NULL);
 
 	return api->send_raw_sql(sql, acfg);
 }
@@ -119,7 +119,7 @@ int add_host(const struct db_api *api,
 	if (!api->send_raw_sql)
 		return -EOPNOTSUPP;
 
-	sql = strjoina("INSERT INTO nodes VALUES ('", hostname, "', 'offline')");
+	sql = strjoina("INSERT INTO nodes VALUES ('", hostname, "', 'offline')", NULL);
 
 	return api->send_raw_sql(sql, acfg);
 }
@@ -133,7 +133,7 @@ int del_host(const struct db_api *api,
 	if (!api->send_raw_sql)
 		return -EOPNOTSUPP;
 
-	sql = strjoina("DELETE FROM nodes WHERE hostname = '", hostname ,"'");
+	sql = strjoina("DELETE FROM nodes WHERE hostname = '", hostname, "'", NULL);
 
 	return api->send_raw_sql(sql, acfg);
 }
@@ -148,7 +148,7 @@ int subscribe_host(const struct db_api *api,
 	if (!api->send_raw_sql)
 		return -EOPNOTSUPP;
 
-	sql = strjoina("INSERT INTO tennant_hosts VALUES('", tenant, "', '", host, "')");
+	sql = strjoina("INSERT INTO tennant_hosts VALUES('", tenant, "', '", host, "')", NULL);
 
 	return api->send_raw_sql(sql, acfg);
 }
@@ -164,7 +164,7 @@ int unsubscribe_host(const struct db_api *api,
 		return -EOPNOTSUPP;
 
 	sql = strjoina("DELETE FROM tennant_hosts WHERE hostname = '", 
-			host,"' AND tennant = '", tenant,"'");
+			host,"' AND tennant = '", tenant, "'", NULL);
 
 	return api->send_raw_sql(sql, acfg);
 }
@@ -182,7 +182,7 @@ int list_subscriptions(const struct db_api *api,
 	if (!api->get_table)
 		return -EOPNOTSUPP;
 
-	filter = strjoina("tennant = '", real_tenant, "'");
+	filter = strjoina("tennant = '", real_tenant, "'", NULL);
 
 	table = api->get_table("tennant_hosts", "*", filter, acfg);
 	if (!table)
@@ -207,7 +207,7 @@ struct tbl* get_tennants_for_host(const struct db_api *api,
 	if (!api->get_table)
 		return NULL;
 
-	filter = strjoina("hostname = '", host, "'");
+	filter = strjoina("hostname = '", host, "'", NULL);
 
 	return api->get_table("tennant_hosts", "*", filter, acfg);
 }
@@ -221,7 +221,7 @@ struct tbl* get_repos_for_tennant(const struct db_api *api,
 	if (!api->get_table)
 		return NULL;
 
-	filter = strjoina("tennant='", tenant, "'");
+	filter = strjoina("tennant='", tenant, "'", NULL);
 
 	return api->get_table("yum_config", "name, url", filter, acfg);
 }

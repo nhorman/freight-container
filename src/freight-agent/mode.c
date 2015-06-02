@@ -77,10 +77,7 @@ out:
 
 static int build_dir(const char *base, const char *path)
 {
-	char *p = strjoina(base, "/", path);
-	if (!p)
-		return -ENOMEM;
-
+	char *p = strjoina(base, "/", path, NULL);
 	return mkdir(p, 0700);
 }
 
@@ -102,7 +99,7 @@ void list_containers(char *scope, const char *tenant,
 	else {
 		char *status = streq(scope, "local") ? "installed" : "all";
 		char *cmd = strjoina("yum --installroot=", acfg->node.container_root, 
-				"/", tenant, " ", status);
+				"/", tenant, " ", status, NULL);
 
 		run_command(cmd, 1); 
 	}
@@ -116,14 +113,14 @@ int install_container(const char *rpm, const char *tenant,
 	char *yumcmd;
 	char *troot;
 
-	troot = strjoina(acfg->node.container_root, "/", tenant);
+	troot = strjoina(acfg->node.container_root, "/", tenant, NULL);
 
 	if (stat(troot, &buf) == -ENOENT) {
 		LOG(ERROR, "Container root isn't initalized\n");
 		goto out;
 	}
 
-	yumcmd = strjoina("yum --installroot=", troot, " -y --nogpgcheck install ", rpm);
+	yumcmd = strjoina("yum --installroot=", troot, " -y --nogpgcheck install ", rpm, NULL);
 	rc = run_command(yumcmd, acfg->cmdline.verbose);
 
 out:
@@ -137,12 +134,12 @@ int uninstall_container(const char *rpm, const char *tenant,
 	struct stat buf;
 	int rc = -ENOENT;
 
-	croot = strjoina(acfg->node.container_root, "/", tenant, "/containers/", rpm);
+	croot = strjoina(acfg->node.container_root, "/", tenant, "/containers/", rpm, NULL);
 
 	if (stat(croot, &buf) == -ENOENT)
 		goto out;
 
-	yumcmd = strjoina("yum --installroot=", acfg->node.container_root, "/", tenant, " -y erase ", rpm);
+	yumcmd = strjoina("yum --installroot=", acfg->node.container_root, "/", tenant, " -y erase ", rpm, NULL);
 
 	rc = run_command(yumcmd, acfg->cmdline.verbose);
 out:
@@ -174,7 +171,7 @@ static int init_tennant_root(const struct db_api *api,
 	FILE *fptr;
 	struct tbl *yum_config = NULL;
 
-	troot = strjoina(croot, "/", tenant, "/");
+	troot = strjoina(croot, "/", tenant, "/", NULL);
 
 	/*
  	 * Sanity check the container root, it can't be the 
@@ -182,7 +179,7 @@ static int init_tennant_root(const struct db_api *api,
  	 */
 	rc = -EINVAL;
 	LOG(INFO, "Building freight-agent environment\n");
-	for (i=0; dirs[i] != NULL; i++) {
+	for (i=0; dirs[i]; i++) {
 
 		rc = build_dir(troot, dirs[i]);
 		if (rc) {
@@ -225,7 +222,7 @@ static int init_tennant_root(const struct db_api *api,
 			     "to fetch containers!\n");
 	else {
 		for (i=0; i < yum_config->rows; i++) {
-			repo = strjoina(troot, "/etc/yum.repos.d/", yum_config->value[i][0], ".repo");
+			repo = strjoina(troot, "/etc/yum.repos.d/", yum_config->value[i][0], ".repo", NULL);
 			fptr = fopen(repo, "w");
 			if (!fptr) {
 				LOG(ERROR, "Unable to write /etc/yum.repos.d/%s.repo\n",
@@ -303,9 +300,8 @@ int init_container_root(const struct db_api *api,
 	/*
  	 * Now init the root space for each tennant
  	 */
-	for(r = 0; r < table->rows; r++) {
+	for(r = 0; r < table->rows; r++)
 		rc = init_tennant_root(api, croot, table->value[r][1], acfg);
-	}
 
 	free_tbl(table);
 out:
@@ -347,7 +343,7 @@ int exec_container(const char *rpm, const char *name, const char *tenant,
 	struct container_options copts;
 	char *config_path;
 
-	config_path = strjoina(acfg->node.container_root, "/", tenant, "/containers/", rpm, "/container_config");
+	config_path = strjoina(acfg->node.container_root, "/", tenant, "/containers/", rpm, "/container_config", NULL);
 
 	/*
  	 * Lets parse the container configuration
@@ -397,7 +393,7 @@ int exec_container(const char *rpm, const char *name, const char *tenant,
 	if (!execarray)
 		exit(1);
 
-	config_path = strjoina(acfg->node.container_root, "/", tenant, "/containers/", rpm, "/containerfs");
+	config_path = strjoina(acfg->node.container_root, "/", tenant, "/containers/", rpm, "/containerfs", NULL);
 
 	eoc = 0;
 	execarray[eoc++] = "systemd-nspawn"; /* argv[0] */

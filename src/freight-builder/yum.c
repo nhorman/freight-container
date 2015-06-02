@@ -54,7 +54,7 @@ static char *build_rpm_list(const struct manifest *manifest)
 	unsigned i;
 	size_t a = 0;
 	struct rpm *rpm;
-	__free_strv const char **strings = NULL;
+	__free const char **strings = NULL;
 
 	if (!manifest)
 		return NULL;
