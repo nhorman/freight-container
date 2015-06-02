@@ -1,1 +1,1 @@
-SUBDIRS = . freight-builder freight-agent
+SUBDIRS = . freight-builder freight-agent tests

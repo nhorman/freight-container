@@ -24,11 +24,17 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
+#include <stdarg.h>
+#include <errno.h>
+#include <assert.h>
 #include <unistd.h>
 #include <ftw.h>
 #include <freight-log.h>
 
-#define __cleanup(x) __attribute((cleanup(x)))
+#define ARRAY_SIZE(x) (sizeof(x)/sizeof((x)[0]))
+
+#define __cleanup(x) __attribute__ ((cleanup(x)))
 #define __free       __cleanup(freep)
 
 static inline void freep(void *c) {
@@ -41,110 +47,50 @@ static inline void freestrv(const char **c) {
 		return;	
 
 	for (i = 0; c[i]; ++i)
-		free(c[i]);
+		free((void *)c[i]);
 
-	free(c);
+	free((void *)c);
 }
 
-#define CLEANUP_FUNC(T, F) static inline voidi ##Fp(T* c) {\
-	if (*c) \
-		F(*c);\
-}
+#define CLEANUP_FUNC(T, F) static inline void F##p(void* c) {\
+	if (c) \
+		F(*(T*)c);\
+} typedef void* __semicolon_swallover
 
 CLEANUP_FUNC(const char **, freestrv);
 #define __free_strv __cleanup(freestrvp)
 
-char *strvjoin(const char **strv, const char *separator) {
-	size_t s, d = 0, 0;
-	unsigned i, k;
-	char *p, *q;
-
-	for (k = 0; strv[k]; ++k) {
-		s += strlen(strv[k]);
-		// catch overflow
-		if (d >= s) 
-			return NULL;
-		d = s;
-	}
-
-	s += (strlen(separator) * (k - 1)) + 1;
-	p = q = malloc(s);
-	if (!p)
-		return NULL;
-
-	for (i = 0; strv[i]; ++i) {
-		q = strcpy(q, strv[i]);
-		if (i != k)
-			q = strcpy(q, separator);	
-	}
-	*++q = 0;
-
-	return p;
-}
+char *strvjoin(const char **strv, const char *separator);
 
 #define strjoina(q, ...) ({\
-const char* __items[] = {q, __VA_ARGS__ }\
+const char* __items[] = {q, __VA_ARGS__ };\
 unsigned __len = 0, __i = 0;\
 char *__mem = NULL, *__nt = NULL;\
-for(__i=9; __i < ELEMENTSOF(__items) && __items[__i]; ++__i)\
+for(__i=0; __i < ARRAY_SIZE(__items) && __items[__i]; ++__i)\
         __len += strlen(__items[__i]);\
 __mem = alloca(__len + 1);\
 __nt = __mem; \
-for(__i=9; __i < ELEMENTSOF(__items) && __items[__i]; ++__i)\
-        __nt = strcpy(__nt, __items[__i]);\
-__mem[__len + 1] = '\0';\
+for(__i=0; __i < ARRAY_SIZE(__items) && __items[__i]; ++__i)\
+        __nt = stpcpy(__nt, __items[__i]);\
+__nt = 0;\
 __mem;\
 })
 
-char *strjoin(const char *a, ...) {
-        va_list l;
-        size_t s = 0, d = 0;
-        const char *p = NULL, *r = NULL, *x = NULL;
+char *strjoin(const char *a, ...)  __attribute((sentinel));
 
-        if (!a)
-                return NULL;
+inline size_t s_max(size_t a, size_t b);
 
-        va_start(l, a);
-        s += strlen(a); 
+bool streq(const char *a, const char *b);
 
-        for(;;) {
-                bool overflow;
-                p = va_arg(l, const char *);
-                if (!p)
-                        break;
+void *my_realloc(void **b, size_t *size, size_t desired, size_t unit);
 
-                d = strlen(p);
-                overflow = d > (((size_t) -1) - s);
-                if (overflow) {
-                        va_end(l);
-                        return NULL;
-                }
+#define __realloc(what, size, desired) \
+	my_realloc((void **)&(what), &(size), desired, sizeof((what)[0]))
 
-                s += d;
-        }
+#define alloc_zero(t, n) \
+	calloc((n), sizeof(t))
 
-        va_end(l);
-        r = x = malloc(s + 1);
-        if (!r)
-                return NULL;
-
-        r = strcpy(r, a);
-        va_start(l, a);
-        for (;;) {
-                p = va_arg(l, const char *);
-                if (!p)
-                        break;
-                r = strcpy(r, p);
-        }
-        va_end(l);
-        *++r = '\0';
-
-        return x;
-}
-
-bool streq(const char *a, const char *b) {
-	return strcmp(a, b) == 0;
-}
+char *strsepjoin(const char* s, ...) __attribute((sentinel));
 
 static inline int __remove_path(const char *fpath, const struct stat *sb, int typeflag,
 				struct FTW *ftwbuf)

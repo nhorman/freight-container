@@ -8,8 +8,8 @@ bin_PROGRAMS = freight-agent freightctl
 
 freight_agent_SOURCES = main.c freight-config.c\
 			postgres-db.c mode.c nodb.c\
-			freight-db.c
+			freight-db.c ../freight-common.c
 
 freightctl_SOURCES = freightctl_main.c \
 		freight-config.c postgres-db.c\
-		nodb.c freight-db.c
+		nodb.c freight-db.c ../freight-common.c
