@@ -195,7 +195,7 @@ int main(int argc, char **argv)
 	case OP_MODE_CLEAN:
 		LOG(INFO, "Removing container root %s\n",
 			  config.node.container_root);
-		clean_container_root(config.node.container_root);
+		clean_container_root(api, &config);
 		break;
 	case OP_MODE_INSTALL:
 		if (!rpm) {
