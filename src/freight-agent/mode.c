@@ -99,7 +99,7 @@ void list_containers(char *scope, const char *tenant,
 	else {
 		char *status = streq(scope, "local") ? "installed" : "all";
 		char *cmd = strjoina("yum --installroot=", acfg->node.container_root, 
-				"/", tenant, " ", status, NULL);
+				"/", tenant, " local ", status, NULL);
 
 		run_command(cmd, 1); 
 	}
@@ -180,7 +180,6 @@ static int init_tennant_root(const struct db_api *api,
 	rc = -EINVAL;
 	LOG(INFO, "Building freight-agent environment\n");
 	for (i=0; dirs[i]; i++) {
-
 		rc = build_dir(troot, dirs[i]);
 		if (rc) {
 			LOG(ERROR, "Could not create %s: %s\n",
