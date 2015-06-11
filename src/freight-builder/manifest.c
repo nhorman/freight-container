@@ -28,27 +28,62 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <libconfig.h>
-#include <freight-log.h>
+#include <freight-common.h>
 #include <manifest.h>
+
+void release_repos(struct repository *repos) {
+	struct repository *r = repos, *k = NULL;
+	while (r) {
+		k = r;
+		free(r->name);
+		free(k->url);
+		r = r->next;
+		free(k);
+	}
+}
+
+void release_rpms(struct rpm *rpms) {
+	struct rpm *r = rpms, *k = NULL;
+	while (r) {
+		k = r;
+		free(r->name);
+		r = r->next;
+		free(k);
+	}
+}
+
+CLEANUP_FUNC(struct repository*, release_repos);
+CLEANUP_FUNC(struct rpm*, release_rpms);
+#define __free_repos __cleanup(release_reposp)
+#define __free_rpms __cleanup(release_rpmsp)
 
 void release_manifest(struct manifest *manifest)
 {
+	if (!manifest)
+		return;
+
 	struct repository *repos = manifest->repos;
 	struct rpm *rpms = manifest->rpms;
 	void *killer;
 
+	release_rpms(rpms);
+/*
 	while (rpms) {
 		killer = rpms;
 		rpms = rpms->next;
 		free(killer);
 	}
-
+*/
+	release_repos(repos);
+/*
 	while (repos) {
 		killer = repos;
+		free(repos->name);
+		free(repos->url);
 		repos = repos->next;
 		free(killer);
 	}
-
+*/
 	if (manifest->options)
 		free(manifest->options);
 
@@ -65,6 +100,9 @@ void release_manifest(struct manifest *manifest)
 
 static int parse_yum_opts(struct config_t *config, struct manifest *manifest)
 {
+	if (!config || !manifest)
+		return -EINVAL;
+
 	config_setting_t *yum_opts = config_lookup(config, "yum_opts");
 	config_setting_t *releasever;
 
@@ -75,20 +113,26 @@ static int parse_yum_opts(struct config_t *config, struct manifest *manifest)
 		return 0;
 
 	releasever = config_setting_get_member(yum_opts, "releasever");
-	if (releasever)
+	if (releasever) {
 		manifest->yum.releasever = strdup(
 				config_setting_get_string(releasever));
+		if (!manifest->yum.releasever) 
+			return -ENOMEM;		
+	}
 
 	return 0;
 }
 
 static int parse_repositories(struct config_t *config, struct manifest *manifest)
 {
+	if (!config || !manifest)
+		return -EINVAL;
+
 	config_setting_t *repos = config_lookup(config, "repositories");
 	config_setting_t *repo, *tmp;
-	struct repository *repop;
+	/*__free_repos */struct repository *repop = NULL;
+	struct repository *last = manifest->repos;
 	int i = 0;
-	size_t alloc_size;
 	const char *name, *url;
 
 	if (!repos)
@@ -112,32 +156,31 @@ static int parse_repositories(struct config_t *config, struct manifest *manifest
 		if (!url)
 			return -EINVAL;
 
-		/*
- 		 * Add two for the null terminators
- 		 */
-		alloc_size = strlen(name) + strlen(url) + 2;
-
-		repop = calloc(1, sizeof(struct repository) + alloc_size);
+		repop = calloc(1, sizeof(struct repository));
 		if (!repop)
 			return -ENOMEM;
 
-		/*
- 		 * Allocate memory for strings at the end of the repository
- 		 * structure so that we can free it as a unit
- 		 */
-		repop->name = (char *)((void *)repop + sizeof(struct repository));
-		/*
- 		 * Add one for the null terminator
- 		 */
-		repop->url = (char *)((void *)repop + sizeof(struct repository) + strlen(name))+1;
-		strcpy(repop->name, name);
-		strcpy(repop->url, url); 
+		repop->name = strdup(name);
+		if (!repop->name)
+			return -ENOMEM;
 
-		repop->next = manifest->repos;
-		manifest->repos = repop;	
+		repop->url = strdup(url);
+		if (!repop->url) {
+			free(repop->name);
+			return -ENOMEM;
+		}
+
+		repop->next = NULL;
+		if (last)
+			last->next = repop;
+		else
+			manifest->repos = repop;
+		last = repop;
 		
 		i++;
 	}
+	
+	repop = NULL;
 
 	return 0;
 }
@@ -146,14 +189,15 @@ static int parse_rpms(struct config_t *config, struct manifest *manifest)
 {
 	config_setting_t *rpms = config_lookup(config, "manifest");
 	config_setting_t *rpm_config;
-	struct rpm *rpmp;
+	/*__free_rpms*/ struct rpm *rpmp = NULL;
+	struct rpm *last = manifest->rpms;
 	int i = 0;
-	size_t alloc_size;
 	const char *name;
 
 	if (!rpms)
 		return 0;
 
+	//printf("*-* *-*\n");
 	/*
  	 * Load up all the individual repository urls
  	 */
@@ -163,24 +207,28 @@ static int parse_rpms(struct config_t *config, struct manifest *manifest)
 		if (!name)
 			return -EINVAL;
 
-		alloc_size = strlen(name);
-
-		rpmp = calloc(1, sizeof(struct rpm) + alloc_size);
+		rpmp = calloc(1, sizeof(struct rpm));
 		if (!rpmp)
 			return -ENOMEM;
 
-		/*
- 		 * Allocate memory for strings at the end of the repository
- 		 * structure so that we can free it as a unit
- 		 */
-		rpmp->name = (char *)(rpmp + 1);
-		strcpy(rpmp->name, name);
+		rpmp->name = strdup(name);
+		if (!rpmp->name)
+			return -ENOMEM;
 
-		rpmp->next = manifest->rpms;
-		manifest->rpms = rpmp;	
+		//printf(" ** %s [%p %p %p]\n", rpmp->name, rpmp, last, rpmp->name);
+
+		rpmp->next = NULL;
+		if (last)
+			last->next = rpmp;
+		else
+			manifest->rpms = rpmp;
+		last = rpmp;
 		
 		i++;
 	}
+
+	//printf("*=* *=*\n");
+	rpmp = NULL;
 
 	return 0;
 }
@@ -196,12 +244,15 @@ static int parse_packaging(struct config_t *config, struct manifest *manifest)
 		goto out;
 	}
 
+	rc = -ENOMEM;
 	tmp = config_setting_get_member(pkg, "name");
 	if (!tmp) {
 		LOG(ERROR, "You must specify a package name\n");
 		goto out;
 	}
 	manifest->package.name = strdup(config_setting_get_string(tmp));
+	if (!manifest->package.name)
+		goto out;
 
 	tmp = config_setting_get_member(pkg, "version");
 	if (!tmp) {
@@ -209,6 +260,8 @@ static int parse_packaging(struct config_t *config, struct manifest *manifest)
 		goto out_name;
 	}
 	manifest->package.version = strdup(config_setting_get_string(tmp));
+	if (!manifest->package.version)
+		goto out_name;
 
 	tmp = config_setting_get_member(pkg, "release");
 	if (!tmp) {
@@ -216,6 +269,8 @@ static int parse_packaging(struct config_t *config, struct manifest *manifest)
 		goto out_version;
 	}
 	manifest->package.release = strdup(config_setting_get_string(tmp));
+	if (!manifest->package.release)
+		goto out_version;
 
 	tmp = config_setting_get_member(pkg, "summary");
 	if (!tmp) {
@@ -223,6 +278,8 @@ static int parse_packaging(struct config_t *config, struct manifest *manifest)
 		goto out_release;
 	}
 	manifest->package.summary = strdup(config_setting_get_string(tmp));
+	if (!manifest->package.summary)
+		goto out_release;
 
 	tmp = config_setting_get_member(pkg, "license");
 	if (!tmp) {
@@ -230,6 +287,8 @@ static int parse_packaging(struct config_t *config, struct manifest *manifest)
 		goto out_summary;
 	}
 	manifest->package.license = strdup(config_setting_get_string(tmp));
+	if (!manifest->package.license)
+		goto out_summary;
 
 	tmp = config_setting_get_member(pkg, "author");
 	if (!tmp) {
@@ -237,16 +296,22 @@ static int parse_packaging(struct config_t *config, struct manifest *manifest)
 		goto out_license;
 	}
 	manifest->package.author = strdup(config_setting_get_string(tmp));
-
+	if (!manifest->package.author)
+		goto out_license;
 	
 	tmp = config_setting_get_member(pkg, "post_script");
-	if (tmp)
+	if (tmp) {
 		manifest->package.post_script = 
 			strdup(config_setting_get_string(tmp));
+		if (!manifest->package.post_script)
+			goto out_author;
+	}
 
 	rc = 0;
 	goto out;
 
+out_author:
+	free(manifest->package.author);
 out_license:
 	free(manifest->package.license);
 out_summary:
@@ -271,9 +336,12 @@ static int parse_container_opts(config_t *config, struct manifest *manifest)
 
 	tmp = config_setting_get_member(copts, "user");
 
-	if (tmp)
+	if (tmp) {
 		manifest->copts.user = strdup(
 			config_setting_get_string(tmp));
+		if (!manifest->copts.user)
+			return -ENOMEM;
+	}
 
 	return 0;	
 }

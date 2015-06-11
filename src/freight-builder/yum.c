@@ -34,9 +34,8 @@
 #include <freight-log.h>
 #include <freight-common.h>
 
-static char worktemplate[256];
+static char *worktemplate;
 static char *workdir;
-static char tmpdir[1024];
 
 static void yum_cleanup()
 {
@@ -46,38 +45,31 @@ static void yum_cleanup()
 
 static int build_path(const char *path)
 {
-	sprintf(tmpdir, "%s/%s",
-		workdir, path);
+	char *tmpdir = strjoina(workdir, "/", path, NULL);
 	return mkdir(tmpdir, 0700);
 }
 
 static char *build_rpm_list(const struct manifest *manifest)
 {
-	size_t alloc_size = 0;
-	int count;
-	char *result;
-	struct rpm *rpm = manifest->rpms;
+	unsigned i;
+	size_t a = 0;
+	struct rpm *rpm;
+	__free const char **strings = NULL;
 
-	while (rpm) {
-		/* Add an extra character for the space */
-		alloc_size += strlen(rpm->name) + 2;
-		rpm = rpm->next;
-	}
-
-
-	result =  calloc(1, alloc_size);
-	if (!result)
+	if (!manifest)
 		return NULL;
 
 	rpm = manifest->rpms;
-	count = 0;
-	while (rpm) {
-		/* Add 2 to include the trailing space */
-		count += snprintf(&result[count], strlen(rpm->name)+2 , "%s ", rpm->name);
+	for (i = 0; rpm; i++) {
+		if(!__realloc(strings, a, i+1))
+			return NULL;
+
+		strings[i] = rpm->name;
+		strings[i+1] = NULL;
 		rpm = rpm->next;
 	}
 
-	return result;
+	return strvjoin(strings, " ");
 }
 
 /*
@@ -85,14 +77,12 @@ static char *build_rpm_list(const struct manifest *manifest)
  */
 static int yum_build_rpm(const struct manifest *manifest)
 {
-	char cmd[1024];
+	char *cmd;
 	char *output_path;
 	struct utsname utsdata;
 	int rc;
 	char *quiet = manifest->opts.verbose ? "" : "--quiet";
-
-	output_path = manifest->opts.output_path ? manifest->opts.output_path :
-			workdir;
+	output_path = manifest->opts.output_path ?: workdir;
 
 	uname(&utsdata);
 
@@ -103,23 +93,13 @@ static int yum_build_rpm(const struct manifest *manifest)
  	 */
 	setenv("QA_RPATHS", "0x0001", 1);
 
-	/*
- 	 * This will convert the previously built srpm into a binary rpm that
- 	 * can serve as a containerized directory for systemd-nspawn
- 	 */
-	snprintf(cmd, 1024, "rpmbuild %s "
-		 "-D\"_build_name_fmt "
-		 "%s-%s-%s.%%%%{ARCH}.rpm\" "
-		 "-D\"__arch_install_post "
-		 "/usr/lib/rpm/check-rpaths /usr/lib/rpm/check-buildroot\" "
-		 "-D\"_rpmdir %s\" "
-		 "--rebuild %s/%s-%s-%s.src.rpm\n",
-		 quiet, 
-		 manifest->package.name, manifest->package.version,
-		 manifest->package.release,
-		 output_path, output_path,
-		 manifest->package.name, manifest->package.version,
-		 manifest->package.release);
+	cmd = strjoina("rpmbuild ", quiet, " -D\"_build_name_fmt ",
+			manifest->package.name, "-", manifest->package.version, "-",
+			manifest->package.release, ".%%{ARCH}.rpm\" -D\"__arch_install_post "
+			"/usr/lib/rpm/check-rpaths /usr/lib/rpm/check-buildroot\" -D\"_rpmdir ",
+			output_path, "\" --rebuild ", output_path, "/",
+			manifest->package.name, "-", manifest->package.version, "-",
+			manifest->package.release, ".src.rpm\n", NULL);
 	LOG(INFO, "Building container binary rpm\n");
 	rc = run_command(cmd, manifest->opts.verbose);
 	if (!rc)
@@ -133,8 +113,11 @@ static int yum_build_rpm(const struct manifest *manifest)
 
 static int yum_init(const struct manifest *manifest)
 {
-	getcwd(worktemplate, 256);
-	strcat(worktemplate, "/freight-builder.XXXXXX"); 
+	char path[1024];
+	getcwd(path, 1024);
+	worktemplate = strjoin(path, "/freight-builder.XXXXXX", NULL);
+	if (!worktemplate)
+		return -ENOMEM;
 
 	workdir = mkdtemp(worktemplate);
 	if (workdir == NULL) {
@@ -150,7 +133,8 @@ static int stage_workdir(const struct manifest *manifest)
 	struct repository *repo;
 	FILE *repof;
 	char *rpmlist;
-	char pbuf[1024];
+	char *tmpdir;
+	char *pbuf;
 	config_t config;
 	config_setting_t *tmp;
 	char *dirlist[] = {
@@ -174,7 +158,7 @@ static int stage_workdir(const struct manifest *manifest)
 		goto cleanup_tmpdir;
 	}
 
-	sprintf(pbuf, "containers/%s", manifest->package.name); 
+	pbuf = strjoina("containers/", manifest->package.name, NULL); 
 	if (build_path(pbuf)) {
 		LOG(ERROR, "Cannot create container name directory: %s\n",
 			strerror(errno));
@@ -203,8 +187,7 @@ static int stage_workdir(const struct manifest *manifest)
 			goto cleanup_tmpdir;
 		}
 	}
-	sprintf(pbuf, "%s/containers/%s/container_config",
-		workdir, manifest->package.name);
+	pbuf = strjoina(workdir, "/containers/", manifest->package.name, "/container_config", NULL);
 	if (config_write_file(&config, pbuf) == CONFIG_FALSE) {
 		LOG(ERROR, "Failed to write %s: %s\n",
 			pbuf, config_error_text(&config));
@@ -213,14 +196,18 @@ static int stage_workdir(const struct manifest *manifest)
 	config_destroy(&config);
 
 	while(dirlist[i] != NULL) {
-		sprintf(pbuf, "containers/%s/%s",
-			manifest->package.name, dirlist[i]);
+		pbuf = strjoin("containers/", manifest->package.name, "/", dirlist[i], NULL);
+		if (!pbuf)
+			goto cleanup_nomem;
+
 		if (build_path(pbuf)) {
 			LOG(ERROR, "Cannot create %s directory: %s\n",
 				dirlist[i], strerror(errno));
+			free(pbuf);
 			goto cleanup_tmpdir;
 		}
 		i++;
+		free(pbuf);
 	}
 
 	/*
@@ -229,12 +216,16 @@ static int stage_workdir(const struct manifest *manifest)
  	 */
 	repo = manifest->repos;
 	while (repo) {
-		sprintf(tmpdir, "%s/containers/%s/containerfs/etc/yum.repos.d/%s-fb.repo",
-			workdir, manifest->package.name, repo->name);
+		tmpdir = strjoin(workdir, "/containers/", manifest->package.name, "/containerfs/etc/yum.repos.d/",
+				 repo->name, "-fb.repo", NULL);
+		if (!tmpdir)
+			goto cleanup_nomem;
+
 		repof = fopen(tmpdir, "w");
 		if (!repof) {
 			LOG(ERROR, "Error opening %s: %s\n",
 				tmpdir, strerror(errno));
+			free(tmpdir);
 			goto cleanup_tmpdir;
 		}
 
@@ -244,14 +235,15 @@ static int stage_workdir(const struct manifest *manifest)
 		fprintf(repof, "gpgcheck=0\n"); /* for now */
 		fprintf(repof, "enabled=1\n");
 		fclose(repof);
+		free(tmpdir);
 		repo = repo->next;
 	}
 
 	/*
  	 * create a base yum configuration
  	 */
-	sprintf(tmpdir, "%s/containers/%s/containerfs/etc/yum.conf",
-		workdir,manifest->package.name);
+	tmpdir = strjoina(workdir, "/containers/", manifest->package.name,
+			  "/containerfs/etc/yum.conf", NULL);
 	repof = fopen(tmpdir, "w");
 	if (!repof) {
 		LOG(ERROR, "Unable to create a repo configuration: %s\n",
@@ -272,9 +264,7 @@ static int stage_workdir(const struct manifest *manifest)
 	if (!rpmlist)
 		goto cleanup_tmpdir;
 
-	sprintf(tmpdir, "%s/%s.spec", workdir,
-		manifest->package.name);
-
+	tmpdir = strjoina(workdir, "/", manifest->package.name, ".spec", NULL);
 	repof = fopen(tmpdir, "w");
 	if (!repof) {
 		LOG(ERROR, "Unable to create a spec file: %s\n",
@@ -408,6 +398,10 @@ static int stage_workdir(const struct manifest *manifest)
 	fclose(repof);
 
 	return 0;
+cleanup_nomem:
+	yum_cleanup();
+	return -ENOMEM;
+
 cleanup_tmpdir:
 	yum_cleanup();
 	return -EINVAL;
@@ -420,7 +414,7 @@ cleanup_tmpdir:
 static int yum_build_srpm(const struct manifest *manifest)
 {
 	int rc = -EINVAL;
-	char cmd[1024];
+	char *cmd;
 
 	LOG(INFO, "SRPM manifest name is %s\n", manifest->package.name);
 	rc = stage_workdir(manifest);
@@ -432,8 +426,8 @@ static int yum_build_srpm(const struct manifest *manifest)
  	 * Included in the srpm as Source0 of the spec file (written in
  	 * yum_init)
  	 */
-	snprintf(cmd, 1024, "tar -C %s -jcf %s/%s-freight.tbz2 ./containers/\n",
-		workdir, workdir, manifest->package.name);
+	cmd = strjoina("tar -C ", workdir, " -jcf ", workdir, "/", 
+			manifest->package.name, "-freight.tbz2 ./containers/\n", NULL);
 	
 	LOG(INFO, "Creating yum configuration tarball for container\n");
 	rc = run_command(cmd, manifest->opts.verbose);
@@ -441,8 +435,8 @@ static int yum_build_srpm(const struct manifest *manifest)
 		goto out;
 
 	if (manifest->package.post_script) {
-		sprintf(cmd, "cp %s %s/post_script",
-			manifest->package.post_script, workdir);
+		cmd = strjoina("cp ", manifest->package.post_script, " ", 
+				workdir, "/post_script");
 		if (run_command(cmd, manifest->opts.verbose))
 			goto out;
 	}
@@ -453,11 +447,9 @@ static int yum_build_srpm(const struct manifest *manifest)
  	 * optionally direct the srpm dir to the output directory if it was
  	 * specified
  	 */
-	snprintf(cmd, 512, "rpmbuild -D \"_sourcedir %s\" -D \"_srcrpmdir %s\" "
-		"-bs %s/%s.spec\n",
-		workdir,
-		manifest->opts.output_path ? manifest->opts.output_path : workdir,
-		workdir, manifest->package.name);
+	cmd = strjoina("rpmbuild -D \"_sourcedir ", workdir, "\" -D \"_srcrpmdir ",
+			manifest->opts.output_path ? manifest->opts.output_path : workdir, "\" "
+			"-bs ", workdir, "/", manifest->package.name, ".spec\n", NULL);
 	LOG(INFO, "Building container source rpm\n");
 	rc = run_command(cmd, manifest->opts.verbose);
 	if (rc)
@@ -473,9 +465,8 @@ out:
 int yum_inspect(const struct manifest *mfst, const char *rpm)
 {
 	int rc = -EINVAL;
-	char rpmcmd[1024];
+	char *rpmcmd;
 	char *container_name = basename(rpm);
-	char *tmp = strstr(container_name, "");
 
 	if (!container_name) {
 		LOG(ERROR, "Unable to grab file name from path\n");
@@ -486,20 +477,19 @@ int yum_inspect(const struct manifest *mfst, const char *rpm)
 		LOG(ERROR, "unable to create introspect directory\n");
 		goto out;
 	}
-	sprintf(rpmcmd, "yum --installroot=%s/introspect -y --nogpgcheck "
-		"--releasever=%s install %s\n",
-		workdir, mfst->yum.releasever, rpm);
 
+	rpmcmd = strjoina("yum --installroot=", workdir, "/instrospect -y --nogpgcheck ",
+			  "--releasever=", mfst->yum.releasever, " install", rpm, "\n", NULL);
 	LOG(INFO, "Unpacking container\n");
 	rc = run_command(rpmcmd, mfst->opts.verbose);
 	if (rc) {
 		LOG(ERROR, "Unable to install container rpm\n");
 		goto out;
 	}
-	*tmp = '\0'; /* Null Terminate the container name */
+
 	LOG(INFO, "Container name is %s\n", container_name);
-	sprintf(rpmcmd, "yum --installroot %s/introspect/containers/%s/containerfs/ --nogpgcheck check-update",
-		 workdir, container_name);
+	rpmcmd = strjoina("yum --installroot ", workdir, "/introspect/containers/", container_name, 
+			  "/containerfs/ --nogpgcheck check-update", NULL);
 	LOG(INFO, "Looking for packages Requiring update:\n");
 	rc = run_command(rpmcmd, 1);
 

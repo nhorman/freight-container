@@ -22,7 +22,7 @@
 #include <stdio.h>
 #include <libpq-fe.h>
 #include <string.h>
-#include <freight-log.h>
+#include <freight-common.h>
 #include <freight-db.h>
 
 struct postgres_info {
@@ -127,10 +127,10 @@ static struct tbl* pg_get_table(const char *table,
 	PGresult *result;
 	ExecStatusType rc;
 	int row, col, r, c;
-	char sql[1024];
+	char *sql;
 	struct tbl *rtable = NULL;
 
-	sprintf(sql, "SELECT %s from %s WHERE %s", cols, table, filter);
+	sql = strjoina("SELECT ", cols, " FROM ", table, " WHERE ", filter);
 	result = PQexec(info->conn, sql);
 
 	rc = PQresultStatus(result);
@@ -152,9 +152,16 @@ static struct tbl* pg_get_table(const char *table,
  	 * Column 0 is the repo name
  	 * Column 1 is the repo url
  	 */
-	for (r = 0; r < row; r++) 
-		for (c = 0; c < col; c++)
+	for (r = 0; r < row; r++) { 
+		for (c = 0; c < col; c++) {
 			rtable->value[r][c] = strdup(PQgetvalue(result, r, c));
+			if (!rtable->value[r][c]) {
+				free_tbl(rtable);
+				rtable = NULL;
+				goto out_clear;
+			}
+		}
+	}
 
 
 out_clear:

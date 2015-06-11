@@ -24,9 +24,73 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
+#include <stdarg.h>
+#include <errno.h>
+#include <assert.h>
 #include <unistd.h>
 #include <ftw.h>
 #include <freight-log.h>
+
+#define ARRAY_SIZE(x) (sizeof(x)/sizeof((x)[0]))
+
+#define __cleanup(x) __attribute__ ((cleanup(x)))
+#define __free       __cleanup(freep)
+
+static inline void freep(void *c) {
+	free(*(void **) c);
+}
+
+static inline void freestrv(const char **c) {
+	unsigned i;
+	if (!c)
+		return;	
+
+	for (i = 0; c[i]; ++i)
+		free((void *)c[i]);
+
+	free((void *)c);
+}
+
+#define CLEANUP_FUNC(T, F) static inline void F##p(void* c) {\
+	if (c) \
+		F(*(T*)c);\
+} typedef void* __semicolon_swallover
+
+CLEANUP_FUNC(const char **, freestrv);
+#define __free_strv __cleanup(freestrvp)
+
+char *strvjoin(const char **strv, const char *separator);
+
+#define strjoina(q, ...) ({\
+const char* __items[] = {q, __VA_ARGS__ };\
+unsigned __len = 0, __i = 0;\
+char *__mem = NULL, *__nt = NULL;\
+for(__i=0; __i < ARRAY_SIZE(__items) && __items[__i]; ++__i)\
+        __len += strlen(__items[__i]);\
+__mem = alloca(__len + 1);\
+__nt = __mem; \
+for(__i=0; __i < ARRAY_SIZE(__items) && __items[__i]; ++__i)\
+        __nt = stpcpy(__nt, __items[__i]);\
+__nt = 0;\
+__mem;\
+})
+
+char *strjoin(const char *a, ...)  __attribute((sentinel));
+
+inline size_t s_max(size_t a, size_t b);
+
+bool streq(const char *a, const char *b);
+
+void *my_realloc(void **b, size_t *size, size_t desired, size_t unit);
+
+#define __realloc(what, size, desired) \
+	my_realloc((void **)&(what), &(size), desired, sizeof((what)[0]))
+
+#define alloc_zero(t, n) \
+	calloc((n), sizeof(t))
+
+char *strsepjoin(const char* s, ...) __attribute((sentinel));
 
 static inline int __remove_path(const char *fpath, const struct stat *sb, int typeflag,
 				struct FTW *ftwbuf)

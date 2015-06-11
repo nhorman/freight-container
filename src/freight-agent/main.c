@@ -25,7 +25,7 @@
 #include <getopt.h>
 #include <string.h>
 #include <config.h>
-#include <freight-log.h>
+#include <freight-common.h>
 #include <freight-config.h>
 #include <freight-db.h>
 #include <mode.h>
@@ -136,19 +136,19 @@ int main(int argc, char **argv)
 		goto out_release;
 	}
 
-	if (!strcmp(mode, "node"))
+	if (streq(mode, "node"))
 		config.cmdline.mode = OP_MODE_NODE;
-	else if (!strcmp(mode, "init"))
+	else if (streq(mode, "init"))
 		config.cmdline.mode = OP_MODE_INIT; 
-	else if (!strcmp(mode, "clean"))
+	else if (streq(mode, "clean"))
 		config.cmdline.mode = OP_MODE_CLEAN;
-	else if (!strcmp(mode, "install"))
+	else if (streq(mode, "install"))
 		config.cmdline.mode = OP_MODE_INSTALL;
-	else if (!strcmp(mode, "uninstall"))
+	else if (streq(mode, "uninstall"))
 		config.cmdline.mode = OP_MODE_UNINSTALL;
-	else if (!strcmp(mode, "list"))
+	else if (streq(mode, "list"))
 		config.cmdline.mode = OP_MODE_LIST;
-	else if (!strcmp(mode, "exec"))
+	else if (streq(mode, "exec"))
 		config.cmdline.mode = OP_MODE_EXEC;
 	else {
 		LOG(ERROR, "Invalid mode spcified\n");

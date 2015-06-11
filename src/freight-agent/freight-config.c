@@ -26,16 +26,36 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <libconfig.h>
-#include <freight-log.h>
 #include <freight-config.h>
+#include <freight-common.h>
 
 void release_configuration(struct agent_config *config)
 {
+	if (!config)
+		return;
+	
 	free(config->db.hostaddr);
 	free(config->db.dbname);
 	free(config->db.user);
 	free(config->db.password);
 	free(config->node.container_root);
+}
+
+static int parse_entry(config_setting_t *config, char **b, const char *name) {
+	config_setting_t *t;
+	char *p;
+
+	t = config_setting_get_member(config, name);
+	if (!t)
+		return -ENOENT;
+
+	p = strdup(config_setting_get_string(t));
+	if (!p)
+		return -ENOMEM;
+
+	*b = p;
+
+	return 0;
 }
 
 static int parse_db_config(config_t *cfg, struct db_config *db)
@@ -56,7 +76,7 @@ static int parse_db_config(config_t *cfg, struct db_config *db)
 		goto out;
 	}
 
-	if (!strcmp(config_setting_get_string(tmp), "postgres"))
+	if (streq(config_setting_get_string(tmp), "postgres"))
 		db->dbtype = DB_TYPE_POSTGRES;
 	else {
 		LOG(ERROR, "Unknown DB type\n");
@@ -68,22 +88,22 @@ static int parse_db_config(config_t *cfg, struct db_config *db)
 	/*
  	 * hostaddr, dbname, user and pass are all optional based on type
  	 */
-	tmp = config_setting_get_member(db_cfg, "hostaddr");
-	if (tmp)
-		db->hostaddr = strdup(config_setting_get_string(tmp));
+	rc = parse_entry(db_cfg, &db->hostaddr, "hostaddr");
+	if (rc < 0)
+		return rc;
 
-	tmp = config_setting_get_member(db_cfg, "dbname");
-	if (tmp)
-		db->dbname = strdup(config_setting_get_string(tmp));
+	rc = parse_entry(db_cfg, &db->dbname, "dbname");
+	if (rc < 0)
+		return rc;
 
-	tmp = config_setting_get_member(db_cfg, "user");
-	if (tmp)
-		db->user = strdup(config_setting_get_string(tmp));
+	rc = parse_entry(db_cfg, &db->user, "user");
+	if (rc < 0)
+		return rc;
 
-	tmp = config_setting_get_member(db_cfg, "password");
-	if (tmp)
-		db->password = strdup(config_setting_get_string(tmp));
-	
+	rc = parse_entry(db_cfg, &db->password, "password");
+	if (rc < 0)
+		return rc;
+
 out:
 	return rc;
 }
@@ -100,14 +120,10 @@ static int parse_node_config(config_t *cfg, struct node_config *node)
 	if (!node_cfg)
 		goto out;
 	
-	tmp = config_setting_get_member(node_cfg, "container_root");
-	if (!tmp) {
-		rc = -EINVAL;
-		LOG(ERROR, "node config must contain a container_root");
-		goto out;
-	}
-
-	node->container_root = strdup(config_setting_get_string(tmp));
+	rc = parse_entry(node_cfg, &node->container_root, "container_root");
+	if (rc == -ENOENT) 
+		LOG(ERROR, "node config must contain a valid container_root");
+	
 out:
 	return rc;
 }

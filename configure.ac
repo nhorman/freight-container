@@ -27,4 +27,4 @@ PKG_CHECK_MODULES([libconfig], [libconfig], [], [AC_MSG_ERROR([libconfig is requ
 AC_CHECK_FUNC([getopt_long], [AC_DEFINE([HAVE_GETOPT_LONG],[1],[getopt_long support])])
 AC_CHECK_FUNC([nftw], [AC_DEFINE([HAVE_NFTW],[1],[nftw support])], [
 			AC_MSG_ERROR([unable to find the nftw() function])])
-AC_OUTPUT(src/Makefile src/freight-builder/Makefile src/freight-agent/Makefile)
+AC_OUTPUT(src/Makefile src/freight-builder/Makefile src/freight-agent/Makefile src/tests/Makefile)

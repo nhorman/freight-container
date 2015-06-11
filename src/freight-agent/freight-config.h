@@ -23,7 +23,6 @@
 #ifndef _FREIGHT_CONFIG_H_
 #define _FREIGHT_CONFIG_H_
 
-
 enum db_type {
 	DB_TYPE_NONE = 0,
 	DB_TYPE_POSTGRES,
