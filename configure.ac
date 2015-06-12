@@ -3,7 +3,7 @@
 
 AC_PREREQ([2.69])
 AC_INIT([freight-tools], [0.1], [nhorman@tuxdriver.com])
-AM_INIT_AUTOMAKE
+AM_INIT_AUTOMAKE([subdir-objects])
 AC_CONFIG_FILES([Makefile])
 AC_CONFIG_SRCDIR([src/freight-builder/manifest.c])
 AC_CONFIG_HEADERS([config.h])
