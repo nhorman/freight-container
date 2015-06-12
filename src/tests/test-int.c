@@ -170,7 +170,7 @@ int scope_check_freed(TestStruct *ts) {
 
 int main(int argc, char **argv)
 {
-	TestStruct* ts; 
+	TestStruct* ts = NULL; 
 	int r;
 
 	(void) test_strjoin();

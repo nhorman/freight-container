@@ -64,26 +64,10 @@ void release_manifest(struct manifest *manifest)
 
 	struct repository *repos = manifest->repos;
 	struct rpm *rpms = manifest->rpms;
-	void *killer;
 
 	release_rpms(rpms);
-/*
-	while (rpms) {
-		killer = rpms;
-		rpms = rpms->next;
-		free(killer);
-	}
-*/
 	release_repos(repos);
-/*
-	while (repos) {
-		killer = repos;
-		free(repos->name);
-		free(repos->url);
-		repos = repos->next;
-		free(killer);
-	}
-*/
+
 	if (manifest->options)
 		free(manifest->options);
 

@@ -112,7 +112,6 @@ static int parse_node_config(config_t *cfg, struct node_config *node)
 {
 	int rc = 0;
 	config_setting_t *node_cfg = config_lookup(cfg, "node");
-	config_setting_t *tmp = NULL;
 
 	/*
  	 * Not having a node config isn't fatal

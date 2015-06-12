@@ -63,7 +63,6 @@ char *strjoin(const char *a, ...) {
 	d = s;
 
         for(;;) {
-                bool overflow;
                 p = va_arg(l, const char *);
                 if (!p)
                         break;

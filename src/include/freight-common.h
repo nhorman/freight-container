@@ -127,7 +127,7 @@ static inline int __remove_path(const char *fpath, const struct stat *sb, int ty
 	
 }
 
-static void recursive_dir_cleanup(const char *path)
+static inline void recursive_dir_cleanup(const char *path)
 {
 	nftw(path, __remove_path, 10, FTW_DEPTH|FTW_PHYS);
 	return;
