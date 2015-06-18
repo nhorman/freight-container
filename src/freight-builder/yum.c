@@ -80,7 +80,7 @@ static char *build_rpm_list(const struct manifest *manifest)
 		rpm = rpm->next;
 	}
 
-	return strvjoin(strings, " ");
+	return (strings) ? strvjoin(strings, " ") : NULL;
 }
 
 static struct rpm_nvr *get_nvr_from_rpm(const char *rpm)
@@ -386,7 +386,8 @@ static int spec_install_derivative_container(FILE * repof, const struct manifest
  	 * If we added any new repos, they are in the SOURCE0 tarball.  Add them
  	 * now
  	 */
-	fprintf(repof, "tar -C containers/ -x -v -f  %%{SOURCE0}\n");
+	fprintf(repof, "tar -C containers/%s/containerfs/ -x -v -f  %%{SOURCE0}\n",
+		manifest->package.name);
 
 	/*
  	 * If rpmlist is not empty, install those rpms now
