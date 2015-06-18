@@ -284,6 +284,8 @@ static int spec_install_primary_container(FILE * repof, const struct manifest *m
 	if (manifest->package.post_script)
 		run_post_script_in_spec(repof, manifest);
 
+	fprintf(repof, "cp %%{SOURCE2} ${RPM_BUILD_ROOT}/containers/%s/\n",
+		manifest->package.name);
 	/*
  	 * This needs to hapen last so we can clean out the yum cache
  	 */
@@ -465,6 +467,8 @@ static int build_spec_file(const struct manifest *manifest)
 	fprintf(repof, "Source0: %s-freight.tbz2\n", manifest->package.name);
 	if (manifest->package.post_script)
 		fprintf(repof, "Source1: post_script\n");
+	fprintf(repof, "Source2: container_config\n");
+
 	fprintf(repof, "\n\n");
 
 	if (manifest->package.parent_container) {
@@ -607,8 +611,8 @@ static int stage_workdir(const struct manifest *manifest)
 		}
 	}
 
-	sprintf(pbuf, "%s/containers/%s/container_config",
-		workdir, manifest->package.name);
+	sprintf(pbuf, "%s/container_config",
+		workdir);
 
 	if (config_write_file(&config, pbuf) == CONFIG_FALSE) {
 		LOG(ERROR, "Failed to write %s: %s\n",
