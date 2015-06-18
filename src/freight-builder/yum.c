@@ -258,7 +258,7 @@ static int spec_install_primary_container(FILE * repof, const struct manifest *m
  	 */
 	fprintf(repof, "btrfs subvolume create containers/%%{name}/containerfs\n");
 
-	fprintf(repof, "tar -C ./containers/ -x -v -f %%{SOURCE0}\n");
+	fprintf(repof, "tar -C ./containers/%s/containerfs/ -x -v -f %%{SOURCE0}\n", manifest->package.name);
 	fprintf(repof, "yum -y --installroot=${RPM_BUILD_ROOT}/containers/%s/containerfs/ "
 		       " --nogpgcheck --releasever=%s install %s\n",
 		manifest->package.name, manifest->yum.releasever, rpmlist); 
