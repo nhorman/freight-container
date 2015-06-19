@@ -84,6 +84,16 @@ versioning, even inherited/layered lists of packages can be resolved to a single
 set of packages at their latest versions, ensuing that you know what will be
 executed in a container.</p>
 
+<h2>
+<a id="binary-level-inheritance" class="anchor" href="#binary-level-inheritance" aria-hidden="true"><span class="octicon octicon-link"></span></a>Binary level inheritance</h2>
+
+<p>In addition to Manifest level inheritance, we can create safe binary level
+inheritance.  By using btrfs (a requirement for Freight), we can use subvolume
+snapshots to encode container images that are very small, and based off a parent
+container image.  By using btrfs, filesystem metadata is kept properly in sync,
+so selinux security contexts continue to work properly, and by packaging these
+images in rpms, dependency resolution for parent containers is automatic.</p>
+
       <footer class="site-footer">
         <span class="site-footer-owner"><a href="https://github.com/FreightAgent/freight-tools">Freight-tools</a> is maintained by <a href="https://github.com/FreightAgent">FreightAgent</a>.</span>
 
