@@ -77,6 +77,7 @@ void release_manifest(struct manifest *manifest)
 	free(manifest->package.version);
 	free(manifest->package.name);
 	free(manifest->package.post_script);
+	free(manifest->package.parent_container);
 	free(manifest->yum.releasever);
 
 	memset(manifest, 0, sizeof(struct manifest));
@@ -241,71 +242,72 @@ static int parse_packaging(struct config_t *config, struct manifest *manifest)
 	tmp = config_setting_get_member(pkg, "version");
 	if (!tmp) {
 		LOG(ERROR, "You must specify a package version\n");
-		goto out_name;
+		goto out_free;
 	}
 	manifest->package.version = strdup(config_setting_get_string(tmp));
 	if (!manifest->package.version)
-		goto out_name;
+		goto out_free;
 
 	tmp = config_setting_get_member(pkg, "release");
 	if (!tmp) {
 		LOG(ERROR, "You must specify a package release\n");
-		goto out_version;
+		goto out_free;
 	}
 	manifest->package.release = strdup(config_setting_get_string(tmp));
 	if (!manifest->package.release)
-		goto out_version;
+		goto out_free;
 
 	tmp = config_setting_get_member(pkg, "summary");
 	if (!tmp) {
 		LOG(ERROR, "You must specify a package summary\n");
-		goto out_release;
+		goto out_free;
 	}
 	manifest->package.summary = strdup(config_setting_get_string(tmp));
 	if (!manifest->package.summary)
-		goto out_release;
+		goto out_free;
 
 	tmp = config_setting_get_member(pkg, "license");
 	if (!tmp) {
 		LOG(ERROR, "You must specify a package license\n");
-		goto out_summary;
+		goto out_free;
 	}
 	manifest->package.license = strdup(config_setting_get_string(tmp));
 	if (!manifest->package.license)
-		goto out_summary;
+		goto out_free;
 
 	tmp = config_setting_get_member(pkg, "author");
 	if (!tmp) {
 		LOG(ERROR, "You must specify a package author\n");
-		goto out_license;
+		goto out_free;
 	}
 	manifest->package.author = strdup(config_setting_get_string(tmp));
 	if (!manifest->package.author)
-		goto out_license;
+		goto out_free;
 	
 	tmp = config_setting_get_member(pkg, "post_script");
 	if (tmp) {
 		manifest->package.post_script = 
 			strdup(config_setting_get_string(tmp));
 		if (!manifest->package.post_script)
-			goto out_author;
+			goto out_free;
 	}
 
+	tmp = config_setting_get_member(pkg, "parent_container");
+	if (tmp)
+		manifest->package.parent_container = 
+			strdup(config_setting_get_string(tmp));
 	rc = 0;
 	goto out;
 
-out_author:
-	free(manifest->package.author);
-out_license:
+out_free:
 	free(manifest->package.license);
-out_summary:
 	free(manifest->package.summary);
-out_release:
 	free(manifest->package.release);
-out_version:
 	free(manifest->package.version);
-out_name:
+	free(manifest->package.author);
 	free(manifest->package.name);
+	free(manifest->package.post_script);
+	free(manifest->package.parent_container);
 out:
 	return rc;
 }

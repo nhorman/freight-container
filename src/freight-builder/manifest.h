@@ -50,6 +50,7 @@ struct packaging {
 	char *license;
 	char *author;
 	char *post_script;
+	char *parent_container;
 };
 
 struct yum_opts {
@@ -65,6 +66,7 @@ struct container_opts {
  */
 struct cmdline_options {
 	char *output_path;
+	char *workdir;
 	int verbose;
 };
 

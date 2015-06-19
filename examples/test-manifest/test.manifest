@@ -7,6 +7,7 @@ inherit = "./examples/test-manifest/base.manifest";
 manifest = (
 	"passwd",
 	"policycoreutils",
+	"selinux-policy-targeted",
 	"httpd"
 );
 

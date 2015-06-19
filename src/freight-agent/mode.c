@@ -25,12 +25,15 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/vfs.h>
+#include <sys/mount.h>
 #include <fcntl.h>
 #include <libconfig.h>
 #include <mode.h>
 #include <freight-log.h>
 #include <freight-common.h>
 
+#define BTRFS_SUPER_MAGIC     0x9123683E
 
 static char** execarray = NULL;
 
@@ -86,9 +89,51 @@ static char *build_path(const char *base, const char *path, char *name)
 	return strjoin(base, path, name, NULL);
 }
 
-void clean_container_root(const char *croot)
+static void clean_tennant_root(const char *croot, 
+			       const char *tennant,
+			       const struct agent_config *acfg)
 {
-	recursive_dir_cleanup(croot);
+	char cmd[1024];
+
+	sprintf(cmd, "btrfs subvolume delete %s/%s", croot, tennant);
+
+	run_command(cmd, acfg->cmdline.verbose);
+}
+
+void clean_container_root(const struct db_api *api, const struct agent_config *acfg)
+{
+	char hostname[512];
+	char *cmd;
+	struct tbl *table;
+	int r;
+
+	if (gethostname(hostname, 512)) {
+		LOG(WARNING, "Could not get hostname: %s\n",
+		    strerror(errno));
+                goto clean_common;
+        }
+
+	table = get_tennants_for_host(api, hostname, acfg);
+	if (!table) {
+                LOG(WARNING, "Unable to obtain list of tennants\n");
+                goto clean_common;
+        }
+
+	for(r=0; r < table->rows; r++)
+                clean_tennant_root(acfg->node.container_root,
+				   table->value[r][1], acfg);
+
+	free_tbl(table);
+
+clean_common:
+	cmd = strjoina("btrfs subvolume delete ", acfg->node.container_root,
+		       "/common");
+	run_command(cmd, acfg->cmdline.verbose);
+
+	cmd = strjoina("btrfs subvolume delete ", acfg->node.container_root);	
+
+	run_command(cmd, acfg->cmdline.verbose);
+	return;
 }
 
 void list_containers(char *scope, const char *tenant,
@@ -152,16 +197,7 @@ static int init_tennant_root(const struct db_api *api,
 			       const struct agent_config *acfg)
 {
 	char *dirs[]= {
-		"",
 		"containers",
-		"var",
-		"var/lib",
-		"var/lib/rpm",
-		"var/lib/yum",
-		"var/cache",
-		"var/cache/yum",
-		"etc",
-		"etc/yum.repos.d",
 		NULL,
 	};
 	char *troot;
@@ -179,12 +215,24 @@ static int init_tennant_root(const struct db_api *api,
  	 */
 	rc = -EINVAL;
 	LOG(INFO, "Building freight-agent environment\n");
-	for (i=0; dirs[i]; i++) {
+
+	/*
+	 * Start by creating a subvolume for the tennant
+	 */
+	repo = strjoina("btrfs subvolume snapshot ", croot,
+			"/common ", troot);
+	if (run_command(repo, acfg->cmdline.verbose)) {
+		LOG(ERROR, "Unable to create a tennant subvolume\n");
+		goto out;
+	}
+
+	LOG(INFO, "Building freight-agent environment\n");
+	for (i=0; dirs[i] != NULL; i++) {
 		rc = build_dir(troot, dirs[i]);
 		if (rc) {
 			LOG(ERROR, "Could not create %s: %s\n",
-				dirs[i], strerror(rc));
-			goto out_cleanup;
+			   dirs[i], strerror(rc));
+			goto out;
 		}
 	}
 
@@ -202,7 +250,7 @@ static int init_tennant_root(const struct db_api *api,
 		rc = errno;
 		LOG(ERROR, "Unable to write /etc/yum.conf: %s\n",
 			strerror(errno));
-		goto out_cleanup;
+		goto out;
 	}
 
 	fprintf(fptr, "[main]\n");
@@ -210,6 +258,12 @@ static int init_tennant_root(const struct db_api *api,
 	fprintf(fptr, "logfile=/var/log/yum.log\n");
 	fprintf(fptr, "gpgcheck=0\n"); /* ONLY FOR NOW! */
 	fclose(fptr);
+
+	sprintf(repo, "rm -f %s/etc/yum.repos.d/*", troot);
+	if (run_command(repo, acfg->cmdline.verbose)) {
+		LOG(ERROR, "Unable to remove cloned yum repos\n");
+		goto out;
+	}
 
 	/*
  	 * Now we need to check the database for our repository configuration
@@ -226,7 +280,7 @@ static int init_tennant_root(const struct db_api *api,
 			if (!fptr) {
 				LOG(ERROR, "Unable to write /etc/yum.repos.d/%s.repo\n",
 					yum_config->value[i][0]);
-				goto out_cleanup;
+				goto out;
 			}
 
 			fprintf(fptr, "[%s]\n", yum_config->value[i][0]);
@@ -239,11 +293,6 @@ static int init_tennant_root(const struct db_api *api,
 
 		free_tbl(yum_config);
 	}
-
-	goto out;
-
-out_cleanup:
-	clean_container_root(troot);
 out:
 	return rc;
 }
@@ -255,6 +304,7 @@ int init_container_root(const struct db_api *api,
 	int rc = -EINVAL;
 	struct tbl *table;
 	char hostname[512];
+	char cbuf[1024];
 	int r;
 	/*
 	 * Sanity check the container root, it can't be the 
@@ -270,16 +320,41 @@ int init_container_root(const struct db_api *api,
 	 * Start by emptying the container root
 	 */
         LOG(INFO, "Cleaning container root\n");
-        clean_container_root(croot);
+        clean_container_root(api, acfg);
+
+	sprintf(cbuf, "btrfs subvolume create %s", croot);
 
 	/*
- 	 * Create the overall root
+ 	 * Start by creating our support binanies for use with container
+ 	 * installs
  	 */
-	if ((rc = build_dir(croot, ""))) {
-		LOG(ERROR, "Could not create %s %s\n",
-			croot, strerror(rc));
+	rc = run_command(cbuf, acfg->cmdline.verbose);
+	if (rc) {
+		LOG(ERROR, "Failed to create container root subvolume\n");
 		goto out;
 	}
+
+	sprintf(cbuf, "btrfs subvolume create %s/common", croot);
+
+	rc = run_command(cbuf, acfg->cmdline.verbose);
+	if (rc) {
+		LOG(ERROR, "Failed to create container root common subvolume\n");
+		goto out;
+	}
+
+	LOG(INFO, "Install support utilities.  This could take a minute..");
+	sprintf(cbuf, "yum --installroot=%s/common "
+		      "--nogpgcheck --releasever=21 -y "
+		      "install sh btrfs-progs\n", croot); 
+	rc = run_command(cbuf, acfg->cmdline.verbose);
+	if (rc) {
+		LOG(ERROR, "Failed to install support utilities\n");
+		goto out;
+	}
+
+	sprintf(cbuf, "yum --installroot=%s/common "
+		      "clean all\n", croot);
+	run_command(cbuf, acfg->cmdline.verbose);
 
 	/*
  	 * Now get a list of tennants
@@ -299,12 +374,22 @@ int init_container_root(const struct db_api *api,
 	/*
  	 * Now init the root space for each tennant
  	 */
-	for(r = 0; r < table->rows; r++)
+	for(r = 0; r < table->rows; r++) {
 		rc = init_tennant_root(api, croot, table->value[r][1], acfg);
-
+		if (rc) {
+			LOG(ERROR, "Unable to establish all tennants, cleaning...\n");
+			goto out_clean;
+		}
+	}
+out_free:
 	free_tbl(table);
 out:
 	return rc;
+out_clean:
+	for(r=0; r < table->rows; r++)
+		clean_tennant_root(croot, table->value[r][1], acfg);
+	goto out_free;
+
 }
 
 static void daemonize(const struct agent_config *acfg)

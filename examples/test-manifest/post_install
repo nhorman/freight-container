@@ -1,9 +1,21 @@
 #!/bin/sh
 
+cat >> $FREIGHT_CONTAINERFS/post_install << EOF
+
+setfiles /etc/selinux/targeted/contexts/files/file_contexts /
+
 #We need to setup the root password
-chcon system_u:object_r:shadow_t:s0 /etc/shadow
 echo redhat | passwd -f --stdin root
 
 #Then we need to enable the web server
 systemctl enable httpd
 
+EOF
+
+chmod 755 $FREIGHT_CONTAINERFS/post_install
+
+cd $FREIGHT_CONTAINERFS
+
+chroot . /post_install
+
+rm -f $FREIGHT_CONTAINERFS/post_install

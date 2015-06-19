@@ -37,6 +37,7 @@ struct option lopts[] = {
 	{"source", 0, NULL, 's'},
 	{"check", 1, NULL, 'c'},
 	{"verbose", 0, NULL, 'v'},
+	{"workdir", 1, NULL, 'w'},
 	{ 0, 0, 0, 0}
 };
 #endif
@@ -49,6 +50,7 @@ static void usage(char **argv)
 			"[-k | --keep] "
 			"<[-m | --manifest]  config> "
 			"<-c | --check=<container rpm>> "
+			"[-w | --workdir <dir>] "
 			"[-v] | [--verbose]\n", argv[0]);
 #else
 	LOG(INFO,  "%s [-h] [-k] [-s] [-v] "
@@ -56,7 +58,7 @@ static void usage(char **argv)
 #endif
 }
 
-#define OPTSTRING "h,m:ko:sc:v"
+#define OPTSTRING "h,m:ko:sc:vw:"
 
 int main(int argc, char **argv)
 {
@@ -70,6 +72,8 @@ int main(int argc, char **argv)
 	int source_only=0;
 	char *container_rpm = NULL;
 	int verbose = 0;
+	char *workdir = NULL;
+
 	/*
  	 * Parse command line options
  	 */
@@ -105,6 +109,10 @@ int main(int argc, char **argv)
 			break;
 		case 'v':
 			verbose = 1;
+			break;
+		case 'w':
+			workdir = optarg;
+			break;
 		}
 	}
 
@@ -128,6 +136,7 @@ int main(int argc, char **argv)
  	 */
 	manifest.opts.output_path = output;
 	manifest.opts.verbose = verbose;
+	manifest.opts.workdir = workdir;
 
 	/*
  	 * Setup the builder working env
@@ -135,7 +144,7 @@ int main(int argc, char **argv)
 	build_env = init_pkg_mgmt(PKG_YUM, &manifest);
 	if (build_env == NULL) {
 		LOG(ERROR, "Failed to init build temp directory\n");
-		goto out_release;
+		goto out_cleanup;
 	}
 
 	if (container_rpm) {
