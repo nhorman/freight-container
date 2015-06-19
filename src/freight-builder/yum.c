@@ -407,6 +407,10 @@ static int spec_install_derivative_container(FILE * repof, const struct manifest
  	 */
 	run_post_script_in_spec(repof, manifest);
 
+
+	fprintf(repof, "cp %%{SOURCE2} ${RPM_BUILD_ROOT}/containers/%s/\n",
+		manifest->package.name);
+
 	/*
  	 * Once we're done, set the new container read only
  	 */
