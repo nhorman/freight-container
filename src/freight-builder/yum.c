@@ -526,11 +526,8 @@ static int build_spec_file(const struct manifest *manifest)
 		       "btrfs receive -m / "
 		       "-f containers/%%{name}/btrfs.img "
 		       "containers/%%{name}/\n"
-		       "if [ -n \"$AGENT_MAKE_SVOL_RW\" ]\n"
-		       "then\n"
 		       "btrfs property set -ts "
-		       "containers/%%{name}/snapshot ro false\n"
-		       "fi\n");
+		       "containers/%%{name}/containerfs ro false\n");
 
 	fprintf(repof, "\n\n");
 
