@@ -50,9 +50,7 @@ executed in a container.
 In addition to Manifest level inheritance, we can create safe binary level
 inheritance.  By using btrfs (a requirement for Freight), we can use subvolume
 snapshots to encode container images that are very small, and based off a parent
-container image.  By using btrfs, filesystem metadata is kept properly in sync,
-so selinux security contexts continue to work properly, and by packaging these
-images in rpms, dependency resolution for parent containers is automatic.
+container image.
 
 # How it works
 Freight uses robust existing technology to provide containerization of
