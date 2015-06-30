@@ -33,6 +33,10 @@ struct tbl {
 	char *** value;
 };
 
+enum listen_channel {
+	CHAN_CONTAINERS = 0,
+};
+
 struct db_api {
 
 	/* setup and teardown functions */
@@ -92,6 +96,14 @@ static inline int db_disconnect(struct db_api *api, struct agent_config *acfg)
 		return -EOPNOTSUPP;
 	return api->disconnect(acfg);	
 }
+
+extern int channel_subscribe(const struct db_api *api,
+			     const struct agent_config *acfg,
+			     const enum listen_channel chn);
+
+extern void channel_unsubscribe(const struct db_api *api,
+				const struct agent_config *acfg,
+				const enum listen_channel chn);
 
 extern struct tbl *alloc_tbl(int rows, int cols);
 

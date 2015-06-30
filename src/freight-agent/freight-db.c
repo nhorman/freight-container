@@ -28,6 +28,40 @@
 #include <freight-log.h>
 #include <freight-db.h>
 
+static const char* channel_map[] = {
+	[CHAN_CONTAINERS] = "CONTAINERS"
+};
+
+static int __chn_subscribe(const struct db_api *api,
+		    const struct agent_config *acfg,
+		    const char *lcmd,
+		    const char *chnl)
+
+{
+	char *sql = strjoina(lcmd, " ", chnl);
+
+	if (!api->send_raw_sql)
+		return -EOPNOTSUPP;
+
+	return api->send_raw_sql(sql, acfg);
+}
+
+int channel_subscribe(const struct db_api *api,
+		      const struct agent_config *acfg,
+		      const enum listen_channel chn)
+{
+	return __chn_subscribe(api, acfg, "LISTEN", channel_map[chn]);
+}
+
+
+void channel_unsubscribe(const struct db_api *api,
+			 const struct agent_config *acfg,
+			 const enum listen_channel chn)
+{
+	__chn_subscribe(api, acfg, "UNLISTEN", channel_map[chn]);
+}
+
+
 struct tbl *alloc_tbl(int rows, int cols)
 {
 	int r;
