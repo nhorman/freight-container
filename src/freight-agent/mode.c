@@ -520,13 +520,11 @@ int enter_mode_loop(struct db_api *api, struct agent_config *config)
 	}
 
 	if (rc == ENOENT) {
-		LOG(INFO, "Creating a container root dir\n");
-		rc = init_container_root(api, config);
-		if (rc) {
-			LOG(ERROR, "container root could not be initalized\n");
-			goto out;
-		}
+		LOG(ERROR, "please run freight-agent -m init first\n");
+		goto out;
 	}
+
+
 	rc = 0;
 out:
 	return rc;
