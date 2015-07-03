@@ -524,7 +524,18 @@ int enter_mode_loop(struct db_api *api, struct agent_config *config)
 		goto out;
 	}
 
+	/*
+	 * Join the container update channel
+	 */
+	if (channel_subscribe(api, config, CHAN_CONTAINERS)) {
+		LOG(ERROR, "Cannot subscribe to database container updates\n");
+		rc = EINVAL;
+		goto out;
+	}
 
+
+
+	channel_unsubscribe(api, config, CHAN_CONTAINERS);
 	rc = 0;
 out:
 	return rc;
