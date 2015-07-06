@@ -37,6 +37,10 @@ enum listen_channel {
 	CHAN_CONTAINERS = 0,
 };
 
+enum event_rc {
+	EVENT_CONSUMED = 0,
+};
+
 struct db_api {
 
 	/* setup and teardown functions */
@@ -99,7 +103,8 @@ static inline int db_disconnect(struct db_api *api, struct agent_config *acfg)
 
 extern int channel_subscribe(const struct db_api *api,
 			     const struct agent_config *acfg,
-			     const enum listen_channel chn);
+			     const enum listen_channel chn,
+			     enum event_rc (*hndl)(const enum listen_channel chnl, const char *data));
 
 extern void channel_unsubscribe(const struct db_api *api,
 				const struct agent_config *acfg,

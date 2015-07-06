@@ -32,6 +32,14 @@ static const char* channel_map[] = {
 	[CHAN_CONTAINERS] = "CONTAINERS"
 };
 
+struct channel_callback {
+	enum event_rc (*hndl)(const enum listen_channel chnl, const char *extra);
+	enum listen_channel chnl;
+	struct channel_callback *next;
+};
+
+static struct channel_callback *callbacks = NULL;
+
 static int __chn_subscribe(const struct db_api *api,
 		    const struct agent_config *acfg,
 		    const char *lcmd,
@@ -48,8 +56,33 @@ static int __chn_subscribe(const struct db_api *api,
 
 int channel_subscribe(const struct db_api *api,
 		      const struct agent_config *acfg,
-		      const enum listen_channel chn)
+		      const enum listen_channel chn,
+		      enum event_rc (*hndl)(const enum listen_channel chnl, const char *extra))
 {
+	struct channel_callback *tmp;
+
+	tmp = callbacks;
+	/*
+	 * Look for callbacks already subscribed to this channel
+	 */
+	while (tmp) {
+		if (tmp->chnl == chn)
+			break;
+		tmp = tmp->next;
+	}
+
+	if (tmp)
+		return -EBUSY;
+
+	tmp = calloc(1, sizeof(struct channel_callback));
+	if (!tmp)
+		return -ENOMEM;
+
+	tmp->hndl = hndl;
+	tmp->chnl = chn;
+	tmp->next = callbacks;
+	callbacks = tmp;
+
 	return __chn_subscribe(api, acfg, "LISTEN", channel_map[chn]);
 }
 
@@ -58,7 +91,24 @@ void channel_unsubscribe(const struct db_api *api,
 			 const struct agent_config *acfg,
 			 const enum listen_channel chn)
 {
+	struct channel_callback *tmp, *prev;
+
+	tmp = prev = callbacks;
+
+	while (tmp) {
+		if (tmp->chnl == chn)
+			break;
+		prev = tmp;
+		tmp = tmp->next;
+	}
+
+	if (!tmp)
+		return;
+
+	prev->next = tmp->next;
+
 	__chn_subscribe(api, acfg, "UNLISTEN", channel_map[chn]);
+
 }
 
 

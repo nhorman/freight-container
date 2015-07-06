@@ -496,6 +496,12 @@ int exec_container(const char *rpm, const char *name, const char *tenant,
 }
 
 
+static enum event_rc handle_container_update(const enum listen_channel chnl, const char *extra)
+{
+	return EVENT_CONSUMED;
+}
+
+
 /*
  * This is our mode entry function, we setup freight-agent to act as a container
  * node here and listen for db events from this point
@@ -527,7 +533,7 @@ int enter_mode_loop(struct db_api *api, struct agent_config *config)
 	/*
 	 * Join the container update channel
 	 */
-	if (channel_subscribe(api, config, CHAN_CONTAINERS)) {
+	if (channel_subscribe(api, config, CHAN_CONTAINERS, handle_container_update)) {
 		LOG(ERROR, "Cannot subscribe to database container updates\n");
 		rc = EINVAL;
 		goto out;
