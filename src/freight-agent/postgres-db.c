@@ -170,6 +170,44 @@ out:
 	return rtable;
 }
 
+static enum event_rc pg_poll_notify(const struct agent_config *acfg)
+{
+	int         sock;
+        fd_set      input_mask;
+	PGnotify    *notify;
+	enum event_rc ev_rc;
+	int rc = 0;
+	struct postgres_info *info = acfg->db.db_priv;
+
+	sock = PQsocket(info->conn);
+
+	for(;;) {
+		FD_ZERO(&input_mask);
+		FD_SET(sock, &input_mask);
+
+		if (select(sock + 1, &input_mask, NULL, NULL, NULL) < 0)
+		{
+			LOG(ERROR, "select() failed: %s\n", strerror(errno));
+			rc = errno;
+			break;
+		}
+
+		/* Now check for input */
+		PQconsumeInput(info->conn);
+		while ((notify = PQnotifies(info->conn)) != NULL)
+		{
+			/* Dispatch the notification here */
+			ev_rc = event_dispatch(notify->relname, notify->extra);
+			if (ev_rc != EVENT_CONSUMED)
+				LOG(ERROR, "EVENT was not properly consumed\n");
+
+			PQfreemem(notify);
+		}
+	}
+
+	return rc;
+}
+
 struct db_api postgres_db_api = {
 	.init = pg_init,
 	.cleanup = pg_cleanup,
@@ -177,4 +215,5 @@ struct db_api postgres_db_api = {
 	.disconnect = pg_disconnect,
 	.send_raw_sql = pg_send_raw_sql,
 	.get_table = pg_get_table,
+	.poll_notify = pg_poll_notify,
 };

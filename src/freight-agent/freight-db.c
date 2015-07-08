@@ -111,6 +111,19 @@ void channel_unsubscribe(const struct db_api *api,
 
 }
 
+enum event_rc event_dispatch(const char *chn, const char *extra)
+{
+	struct channel_callback *tmp;
+
+	tmp = callbacks;
+	while (tmp) {
+		if (!strcmp(channel_map[tmp->chnl], chn))
+			return tmp->hndl(tmp->chnl, extra);
+	}
+
+	return EVENT_NOCHAN;
+}
+
 
 struct tbl *alloc_tbl(int rows, int cols)
 {

@@ -39,6 +39,7 @@ enum listen_channel {
 
 enum event_rc {
 	EVENT_CONSUMED = 0,
+	EVENT_NOCHAN,
 };
 
 struct db_api {
@@ -54,6 +55,8 @@ struct db_api {
 
 	struct tbl* (*get_table)(const char *tbl, const char *cols, const char *filter,
 				 const struct agent_config *acfg);
+
+	enum event_rc (*poll_notify)(const struct agent_config *acfg);
 };
 
 extern struct db_api postgres_db_api;
@@ -101,6 +104,13 @@ static inline int db_disconnect(struct db_api *api, struct agent_config *acfg)
 	return api->disconnect(acfg);	
 }
 
+static inline int wait_for_channel_notification(struct db_api *api, struct agent_config *acfg)
+{
+	if (api->poll_notify)
+		return -EOPNOTSUPP;
+	return api->poll_notify(acfg);
+}
+
 extern int channel_subscribe(const struct db_api *api,
 			     const struct agent_config *acfg,
 			     const enum listen_channel chn,
@@ -109,6 +119,8 @@ extern int channel_subscribe(const struct db_api *api,
 extern void channel_unsubscribe(const struct db_api *api,
 				const struct agent_config *acfg,
 				const enum listen_channel chn);
+
+extern enum event_rc event_dispatch(const char *chn, const char *extra);
 
 extern struct tbl *alloc_tbl(int rows, int cols);
 
