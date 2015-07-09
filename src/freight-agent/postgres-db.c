@@ -187,7 +187,11 @@ static enum event_rc pg_poll_notify(const struct agent_config *acfg)
 
 		if (select(sock + 1, &input_mask, NULL, NULL, NULL) < 0)
 		{
-			LOG(ERROR, "select() failed: %s\n", strerror(errno));
+			/*
+			 * getting EINTR is how we end this loop properly
+			 */
+			if (errno != EINTR)
+				LOG(ERROR, "select() failed: %s\n", strerror(errno));
 			rc = errno;
 			break;
 		}
