@@ -106,7 +106,7 @@ static inline int db_disconnect(struct db_api *api, struct agent_config *acfg)
 
 static inline int wait_for_channel_notification(struct db_api *api, struct agent_config *acfg)
 {
-	if (api->poll_notify)
+	if (!api->poll_notify)
 		return -EOPNOTSUPP;
 	return api->poll_notify(acfg);
 }

@@ -498,6 +498,7 @@ int exec_container(const char *rpm, const char *name, const char *tenant,
 
 static enum event_rc handle_container_update(const enum listen_channel chnl, const char *extra)
 {
+	LOG(INFO, "GOT A CONTAINER EVENT!\n");
 	return EVENT_CONSUMED;
 }
 
@@ -539,6 +540,7 @@ int enter_mode_loop(struct db_api *api, struct agent_config *config)
 		goto out;
 	}
 
+	wait_for_channel_notification(api, config);
 
 
 	channel_unsubscribe(api, config, CHAN_CONTAINERS);

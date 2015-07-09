@@ -29,7 +29,7 @@
 #include <freight-db.h>
 
 static const char* channel_map[] = {
-	[CHAN_CONTAINERS] = "CONTAINERS"
+	[CHAN_CONTAINERS] = "containers"
 };
 
 struct channel_callback {
@@ -119,6 +119,7 @@ enum event_rc event_dispatch(const char *chn, const char *extra)
 	while (tmp) {
 		if (!strcmp(channel_map[tmp->chnl], chn))
 			return tmp->hndl(tmp->chnl, extra);
+		tmp = tmp->next;
 	}
 
 	return EVENT_NOCHAN;

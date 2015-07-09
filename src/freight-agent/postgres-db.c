@@ -194,15 +194,13 @@ static enum event_rc pg_poll_notify(const struct agent_config *acfg)
 
 		/* Now check for input */
 		PQconsumeInput(info->conn);
-		while ((notify = PQnotifies(info->conn)) != NULL)
-		{
-			/* Dispatch the notification here */
-			ev_rc = event_dispatch(notify->relname, notify->extra);
-			if (ev_rc != EVENT_CONSUMED)
-				LOG(ERROR, "EVENT was not properly consumed\n");
+		notify = PQnotifies(info->conn);
+		/* Dispatch the notification here */
+		ev_rc = event_dispatch(notify->relname, notify->extra);
+		if (ev_rc != EVENT_CONSUMED)
+			LOG(ERROR, "EVENT was not properly consumed\n");
 
-			PQfreemem(notify);
-		}
+		PQfreemem(notify);
 	}
 
 	return rc;
