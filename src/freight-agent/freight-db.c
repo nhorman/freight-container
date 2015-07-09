@@ -60,6 +60,8 @@ int channel_subscribe(const struct db_api *api,
 		      enum event_rc (*hndl)(const enum listen_channel chnl, const char *extra))
 {
 	struct channel_callback *tmp;
+	char *chname;
+	int rc;
 
 	tmp = callbacks;
 	/*
@@ -83,7 +85,19 @@ int channel_subscribe(const struct db_api *api,
 	tmp->next = callbacks;
 	callbacks = tmp;
 
-	return __chn_subscribe(api, acfg, "LISTEN", channel_map[chn]);
+	/*
+	 * We actually want to subscribe to 2 channels here, the <name>-<hostname> channel
+	 * and the <name>-<tennant> channel.  Notifications will only be checked against
+	 * <name> under the covers, but this allows the database some granularity in the
+	 * sending scope (it can send a notification to a specific node, or to all nodes 
+	 * of a tennant
+	 */
+	chname = strjoina(channel_map[chn],"-", acfg->cmdline.hostname);
+	rc = __chn_subscribe(api, acfg, "LISTEN", chname);
+	chname = strjoina(channel_map[chn], "-", acfg->db.user);
+	rc |= __chn_subscribe(api, acfg, "LISTEN", chname);
+
+	return rc;
 }
 
 
@@ -92,6 +106,7 @@ void channel_unsubscribe(const struct db_api *api,
 			 const enum listen_channel chn)
 {
 	struct channel_callback *tmp, *prev;
+	char *chname;
 
 	tmp = prev = callbacks;
 
@@ -107,8 +122,10 @@ void channel_unsubscribe(const struct db_api *api,
 
 	prev->next = tmp->next;
 
-	__chn_subscribe(api, acfg, "UNLISTEN", channel_map[chn]);
-
+	chname = strjoina(channel_map[chn],"-", acfg->cmdline.hostname);
+	__chn_subscribe(api, acfg, "UNLISTEN", chname);
+	chname = strjoina(channel_map[chn], "-", acfg->db.user);
+	__chn_subscribe(api, acfg, "UNLISTEN", chname);
 }
 
 enum event_rc event_dispatch(const char *chn, const char *extra)
@@ -117,7 +134,7 @@ enum event_rc event_dispatch(const char *chn, const char *extra)
 
 	tmp = callbacks;
 	while (tmp) {
-		if (!strcmp(channel_map[tmp->chnl], chn))
+		if (!strncmp(channel_map[tmp->chnl], chn, strlen(channel_map[tmp->chnl])))
 			return tmp->hndl(tmp->chnl, extra);
 		tmp = tmp->next;
 	}

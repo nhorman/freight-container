@@ -155,6 +155,10 @@ int main(int argc, char **argv)
 		goto out_release;
 	}
 
+	if (gethostname(config.cmdline.hostname, 128)) {
+		LOG(WARNING, "Unable to get hostname, some operations may not work");
+	}
+
 	if (!config.node.container_root) {
 		LOG(ERROR, "Mode requires a container_root specification\n");
 		goto out_release;
