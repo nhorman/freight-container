@@ -195,7 +195,6 @@ static enum event_rc pg_poll_notify(const struct agent_config *acfg)
 			rc = errno;
 			break;
 		}
-
 		/* Now check for input */
 		PQconsumeInput(info->conn);
 		notify = PQnotifies(info->conn);

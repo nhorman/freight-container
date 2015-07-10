@@ -92,9 +92,9 @@ int channel_subscribe(const struct db_api *api,
 	 * sending scope (it can send a notification to a specific node, or to all nodes 
 	 * of a tennant
 	 */
-	chname = strjoina(channel_map[chn],"-", acfg->cmdline.hostname);
+	chname = strjoina("\"", channel_map[chn],"-", acfg->cmdline.hostname, "\"");
 	rc = __chn_subscribe(api, acfg, "LISTEN", chname);
-	chname = strjoina(channel_map[chn], "-", acfg->db.user);
+	chname = strjoina("\"", channel_map[chn], "-", acfg->db.user, "\"");
 	rc |= __chn_subscribe(api, acfg, "LISTEN", chname);
 
 	return rc;
@@ -122,9 +122,9 @@ void channel_unsubscribe(const struct db_api *api,
 
 	prev->next = tmp->next;
 
-	chname = strjoina(channel_map[chn],"-", acfg->cmdline.hostname);
+	chname = strjoina("\"", channel_map[chn],"-", acfg->cmdline.hostname, "\"");
 	__chn_subscribe(api, acfg, "UNLISTEN", chname);
-	chname = strjoina(channel_map[chn], "-", acfg->db.user);
+	chname = strjoina("\"", channel_map[chn], "-", acfg->db.user, "\"");
 	__chn_subscribe(api, acfg, "UNLISTEN", chname);
 }
 
