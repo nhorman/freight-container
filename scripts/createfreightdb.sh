@@ -67,6 +67,8 @@ CREATE ROLE $ADMINUSER PASSWORD '$ADMINPASS' NOSUPERUSER NOCREATEDB NOCREATEROLE
 
 GRANT ALL ON DATABASE $DBNAME to $ADMINUSER;
 
+GRANT ALL ON DATABASE $DBNAME to $NODEUSER;
+
 EOF
 
 if [ $? -ne 0 ]
@@ -90,6 +92,7 @@ psql -h 127.0.0.1 -w $DBNAME $ADMINUSER << EOF
 \x
 
 CREATE TYPE status as ENUM ('offline', 'operating', 'unreachable');
+CREATE TYPE cstate as ENUM ('new', 'failed', 'installing', 'running', 'exiting');
 
 CREATE TABLE tennants (
 	tennant	varchar(512) NOT NULL PRIMARY KEY
@@ -112,6 +115,25 @@ CREATE TABLE yum_config (
 	tennant varchar(512) NOT NULL references tennants(tennant)
 );
 
+CREATE TABLE containers (
+	tennant         varchar(512) NOT NULL references tennants(tennant),
+	iname           varchar(512) NOT NULL,
+	cname           varchar(512) NOT NULL,
+	hostname        varchar(512) NOT NULL references nodes(hostname),
+	PRIMARY KEY (tennant, iname)
+);
+
+GRANT ALL on tennants to $ADMINUSER;
+GRANT ALL on nodes to $ADMINUSER;
+GRANT ALL on tennant_hosts to $ADMINUSER;
+GRANT ALL on yum_config to $ADMINUSER;
+GRANT ALL on containers to $ADMINUSER;
+
+GRANT ALL on tennants to $NODEUSER;
+GRANT ALL on nodes to $NODEUSER;
+GRANT ALL on tennant_hosts to $NODEUSER;
+GRANT ALL on yum_config to $NODEUSER;
+GRANT ALL on containers to $NODEUSER;
 EOF
 
 
