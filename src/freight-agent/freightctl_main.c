@@ -95,6 +95,25 @@ static int host_op(char **argv, int argc,
 out:
 	return rc;	
 }
+
+static int container_op(char **argv, int argc,
+		const struct agent_config *acfg,
+		const struct db_api *api)
+{
+	int rc = -EINVAL;
+
+	if (argc < 4)
+		goto out;
+
+	if (!strcmp(argv[0], "create")) {
+		LOG(INFO, "Creating container %s on %s\n", argv[2], argv[3]);
+		rc = request_create_container(api, argv[1], argv[2], argv[3], acfg);
+	} else
+		rc = -EINVAL;
+out:
+	return rc;
+}
+
 #ifdef HAVE_GETOPT_LONG
 struct option lopts[] = {
 	{"help", 0, NULL, 'h'},
@@ -192,6 +211,11 @@ int main(int argc, char **argv)
 		rc = host_op(&argv[optind+1], argc-optind, &config, api);
 		if (rc)
 			LOG(ERROR, "Could not preform host op: %s\n",
+				strerror(rc));
+	} else if (!strcmp(op, "container")) {
+		rc = container_op(&argv[optind+1], argc-optind, &config, api);
+		if (rc)
+			LOG(ERROR, "Could not preform container op: %s\n",
 				strerror(rc));
 	} else {
 		LOG(ERROR, "Unknown operation\n");

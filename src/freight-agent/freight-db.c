@@ -46,7 +46,7 @@ static int __chn_subscribe(const struct db_api *api,
 		    const char *chnl)
 
 {
-	char *sql = strjoina(lcmd, " ", chnl);
+	char *sql = strjoina(lcmd, " ", chnl, NULL);
 
 	if (!api->send_raw_sql)
 		return -EOPNOTSUPP;
@@ -92,9 +92,9 @@ int channel_subscribe(const struct db_api *api,
 	 * sending scope (it can send a notification to a specific node, or to all nodes 
 	 * of a tennant
 	 */
-	chname = strjoina("\"", channel_map[chn],"-", acfg->cmdline.hostname, "\"");
+	chname = strjoina("\"", channel_map[chn],"-", acfg->cmdline.hostname, "\"", NULL);
 	rc = __chn_subscribe(api, acfg, "LISTEN", chname);
-	chname = strjoina("\"", channel_map[chn], "-", acfg->db.user, "\"");
+	chname = strjoina("\"", channel_map[chn], "-", acfg->db.user, "\"", NULL);
 	rc |= __chn_subscribe(api, acfg, "LISTEN", chname);
 
 	return rc;
@@ -122,9 +122,9 @@ void channel_unsubscribe(const struct db_api *api,
 
 	prev->next = tmp->next;
 
-	chname = strjoina("\"", channel_map[chn],"-", acfg->cmdline.hostname, "\"");
+	chname = strjoina("\"", channel_map[chn],"-", acfg->cmdline.hostname, "\"", NULL);
 	__chn_subscribe(api, acfg, "UNLISTEN", chname);
-	chname = strjoina("\"", channel_map[chn], "-", acfg->db.user, "\"");
+	chname = strjoina("\"", channel_map[chn], "-", acfg->db.user, "\"", NULL);
 	__chn_subscribe(api, acfg, "UNLISTEN", chname);
 }
 
@@ -340,3 +340,25 @@ struct tbl* get_repos_for_tennant(const struct db_api *api,
 
 	return api->get_table("yum_config", "name, url", filter, acfg);
 }
+
+int request_create_container(const struct db_api *api,
+                             const char *cname,
+                             const char *iname,
+                             const char *chost,
+			     const struct agent_config *acfg)
+{
+	char *sql;
+
+	if (!api->send_raw_sql)
+		return -EOPNOTSUPP;
+
+	sql = strjoina("INSERT INTO containers VALUES(",
+		       "'", acfg->db.user, "',",
+		       "'", iname, "',",
+		       "'", cname, "',",
+		       "'", chost, "')",
+		       NULL);
+
+	return api->send_raw_sql(sql, acfg);
+}
+

@@ -55,7 +55,6 @@ struct db_api {
 
 	struct tbl* (*get_table)(const char *tbl, const char *cols, const char *filter,
 				 const struct agent_config *acfg);
-
 	enum event_rc (*poll_notify)(const struct agent_config *acfg);
 };
 
@@ -163,4 +162,11 @@ extern struct tbl* get_tennants_for_host(const struct db_api *api,
 extern struct tbl* get_repos_for_tennant(const struct db_api *api,
 					 const char *tennant,
 					 const struct agent_config *acfg);
+
+extern int request_create_container(const struct db_api *api,
+				    const char *cname,
+				    const char *iname,
+				    const char *chost,
+				    const struct agent_config *acfg);
+
 #endif
