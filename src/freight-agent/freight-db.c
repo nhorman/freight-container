@@ -311,6 +311,20 @@ int list_subscriptions(const char *tenant,
 	
 }
 
+extern int change_host_state(const char *host, const char *newstate,
+			     const struct agent_config *acfg)
+{
+	char *sql;
+
+	if (!api->send_raw_sql)
+		return -EOPNOTSUPP;
+
+	sql = strjoina("UPDATE nodes SET state = '", newstate,
+		       "' WHERE hostname = '", host, "'");
+
+	return api->send_raw_sql(sql, acfg);
+}
+
 struct tbl* get_tennants_for_host(const char *host,
 			  	  const struct agent_config *acfg)
 {

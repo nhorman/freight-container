@@ -149,6 +149,9 @@ extern int unsubscribe_host(const char *tennant,
 			  const char *host,
 			  const struct agent_config *acfg);
 
+extern int change_host_state(const char *host, const char *newstate,
+			     const struct agent_config *acfg);
+
 extern int list_subscriptions(const char *tennant,
 			     const struct agent_config *acfg);
 
