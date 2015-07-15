@@ -100,7 +100,7 @@ static void clean_tennant_root(const char *croot,
 	run_command(cmd, acfg->cmdline.verbose);
 }
 
-void clean_container_root(const struct db_api *api, const struct agent_config *acfg)
+void clean_container_root(const struct agent_config *acfg)
 {
 	char hostname[512];
 	char *cmd;
@@ -296,8 +296,7 @@ out:
 	return rc;
 }
 
-int init_container_root(const struct db_api *api,
-			const struct agent_config *acfg)
+int init_container_root(const struct agent_config *acfg)
 {
 	const char *croot = acfg->node.container_root;
 	int rc = -EINVAL;
@@ -319,7 +318,7 @@ int init_container_root(const struct db_api *api,
 	 * Start by emptying the container root
 	 */
         LOG(INFO, "Cleaning container root\n");
-        clean_container_root(api, acfg);
+        clean_container_root(acfg);
 
 	sprintf(cbuf, "btrfs subvolume create %s", croot);
 
@@ -506,7 +505,7 @@ static enum event_rc handle_table_update(const enum listen_channel chnl, const c
  * This is our mode entry function, we setup freight-agent to act as a container
  * node here and listen for db events from this point
  */
-int enter_mode_loop(struct db_api *api, struct agent_config *config)
+int enter_mode_loop(struct agent_config *config)
 {
 	int rc = -EINVAL;
 	struct stat buf;

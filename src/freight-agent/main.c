@@ -187,7 +187,7 @@ int main(int argc, char **argv)
 	switch (config.cmdline.mode) {
 
 	case OP_MODE_INIT:
-		rc = init_container_root(api, &config);
+		rc = init_container_root(&config);
 		if (rc) {
 			LOG(ERROR, "Init of container root failed: %s\n",
 				strerror(rc));
@@ -197,7 +197,7 @@ int main(int argc, char **argv)
 	case OP_MODE_CLEAN:
 		LOG(INFO, "Removing container root %s\n",
 			  config.node.container_root);
-		clean_container_root(api, &config);
+		clean_container_root(&config);
 		break;
 	case OP_MODE_INSTALL:
 		if (!rpm) {
@@ -243,7 +243,7 @@ int main(int argc, char **argv)
 			goto out_disconnect;
 		}
 	case OP_MODE_NODE:
-		rc = enter_mode_loop(api, &config);
+		rc = enter_mode_loop(&config);
 		if (rc) {
 			LOG(ERROR, "Mode operation terminated abnormally: %s\n",
 				strerror(rc));
