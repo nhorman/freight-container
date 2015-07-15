@@ -50,10 +50,10 @@ static int repo_op(char **argv, int argc,
 
 	if (!strcmp(argv[0], "add")) {
 		LOG(INFO, "Adding repository %s\n", argv[1]);
-		rc = add_repo(api, argv[1], argv[2], acfg);
+		rc = add_repo(argv[1], argv[2], acfg);
 	} else if (!strcmp(argv[0], "del")) {
 		LOG(INFO, "Deleteing repository %s\n", argv[1]);
-		rc = del_repo(api, argv[1], acfg);
+		rc = del_repo(argv[1], acfg);
 	} else
 		rc = -EINVAL;
 out:
@@ -76,20 +76,20 @@ static int host_op(char **argv, int argc,
 
 	if (!strcmp(argv[0], "add")) {
 		LOG(INFO, "Adding host %s\n", argv[1]);
-		rc = add_host(api, argv[1], acfg);
+		rc = add_host(argv[1], acfg);
 	} else if (!strcmp(argv[0], "del")) {
 		LOG(INFO, "Deleteing host %s\n", argv[1]);
-		rc = del_host(api, argv[1], acfg);
+		rc = del_host(argv[1], acfg);
 	} else if (!strcmp(argv[0], "subscribe")) {
 		LOG(INFO, "Subscribing host %s to tennant %s\n",
 			argv[1], argv[2]);
-		rc = subscribe_host(api, argv[1], argv[2], acfg);
+		rc = subscribe_host(argv[1], argv[2], acfg);
 	} else if (!strcmp(argv[0], "unsubscribe")) {
 		LOG(INFO, "Unsubscribing host %s from tennant %s\n",
 			argv[1], argv[2]);
-		rc = unsubscribe_host(api, argv[2], argv[1], acfg);
+		rc = unsubscribe_host(argv[2], argv[1], acfg);
 	} else if (!strcmp(argv[0], "list")) {
-		rc = list_subscriptions(api, argv[1], acfg);
+		rc = list_subscriptions(argv[1], acfg);
 	} else
 		rc = -EINVAL;
 out:
@@ -107,7 +107,7 @@ static int container_op(char **argv, int argc,
 
 	if (!strcmp(argv[0], "create")) {
 		LOG(INFO, "Creating container %s on %s\n", argv[2], argv[3]);
-		rc = request_create_container(api, argv[1], argv[2], argv[3], acfg);
+		rc = request_create_container(argv[1], argv[2], argv[3], acfg);
 	} else
 		rc = -EINVAL;
 out:
@@ -139,7 +139,6 @@ int main(int argc, char **argv)
 	int opt, longind;
 	char *config_file = "/etc/freight-agent/config";
 	char *op;
-	struct db_api *api;
 	int verbose = 0;
 
 	/*
@@ -187,18 +186,17 @@ int main(int argc, char **argv)
 		goto out_release;
 	}
 
-	api = get_db_api(&config);
-	if (!api) {
+	if (!get_db_api(&config)) {
 		LOG(ERROR, "No DB configuration selected\n");
 		goto out_release;
 	}
 
-	if (db_init(api, &config)) {
+	if (db_init(&config)) {
 		LOG(ERROR, "Unable to initalize DB subsystem\n");
 		goto out_release;
 	}
 
-	if (db_connect(api, &config))
+	if (db_connect(&config))
 		goto out_cleanup_db;
 	
 
@@ -225,9 +223,9 @@ int main(int argc, char **argv)
 	rc = 0;
 
 out_disconnect:
-	db_disconnect(api, &config);
+	db_disconnect(&config);
 out_cleanup_db:
-	db_cleanup(api, &config);
+	db_cleanup(&config);
 out_release:
 	release_configuration(&config);
 out:

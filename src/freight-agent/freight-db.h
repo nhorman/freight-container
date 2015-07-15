@@ -61,63 +61,65 @@ struct db_api {
 
 extern struct db_api postgres_db_api;
 extern struct db_api nodb_api;
+extern struct db_api *api;
 
 static inline struct db_api* get_db_api(struct agent_config *acfg)
 {
 
-	if (acfg->db.dbtype == DB_TYPE_NONE)
+	if (acfg->db.dbtype == DB_TYPE_NONE) {
+		api = &nodb_api;
 		return &nodb_api;
+	}
 
 	switch (acfg->db.dbtype) {
 	case DB_TYPE_POSTGRES:
+		api = &postgres_db_api;
 		return &postgres_db_api;
 	default:
 		return NULL;
 	}
 }
 
-static inline int db_init(struct db_api *api, struct agent_config *acfg)
+static inline int db_init(struct agent_config *acfg)
 {
 	if (!api->init)
 		return -EOPNOTSUPP;
 	return api->init(acfg);	
 }
 
-static inline void db_cleanup(struct db_api *api, struct agent_config *acfg)
+static inline void db_cleanup(struct agent_config *acfg)
 {
 	if (!api->cleanup)
 		return;
 	return api->cleanup(acfg);	
 }
 
-static inline int db_connect(struct db_api *api, struct agent_config *acfg)
+static inline int db_connect(struct agent_config *acfg)
 {
 	if (!api->connect)
 		return -EOPNOTSUPP;
 	return api->connect(acfg);	
 }
 
-static inline int db_disconnect(struct db_api *api, struct agent_config *acfg)
+static inline int db_disconnect(struct agent_config *acfg)
 {
 	if (!api->disconnect)
 		return -EOPNOTSUPP;
 	return api->disconnect(acfg);	
 }
 
-static inline int wait_for_channel_notification(struct db_api *api, struct agent_config *acfg)
+static inline int wait_for_channel_notification(struct agent_config *acfg)
 {
 	if (!api->poll_notify)
 		return -EOPNOTSUPP;
 	return api->poll_notify(acfg);
 }
 
-extern int channel_subscribe(const struct db_api *api,
-			     const struct agent_config *acfg,
+extern int channel_subscribe(const struct agent_config *acfg,
 			     const enum listen_channel chn,
 			     enum event_rc (*hndl)(const enum listen_channel chnl, const char *data));
 
-extern void channel_unsubscribe(const struct db_api *api,
-				const struct agent_config *acfg,
+extern void channel_unsubscribe(const struct agent_config *acfg,
 				const enum listen_channel chn);
 
 extern enum event_rc event_dispatch(const char *chn, const char *extra);
@@ -126,46 +128,37 @@ extern struct tbl *alloc_tbl(int rows, int cols);
 
 extern void free_tbl(struct tbl *table);
 
-extern int add_repo(const struct db_api *api,
-		    const char *name,
+extern int add_repo(const char *name,
 		    const char *url,
 		    const struct agent_config *acfg);
 
-extern int del_repo(const struct db_api *api,
-		    const char *name,
+extern int del_repo(const char *name,
 		    const struct agent_config *acfg);
 
-extern int add_host(const struct db_api *api,
-		    const char *hostname,
+extern int add_host(const char *hostname,
 		    const struct agent_config *acfg);
 
-extern int del_host(const struct db_api *api,
-		    const char *hostname,
+extern int del_host(const char *hostname,
 		    const struct agent_config *acfg);
 
-extern int subscribe_host(const struct db_api *api,
-			  const char *tennant,
+extern int subscribe_host(const char *tennant,
 			  const char *host,
 			  const struct agent_config *acfg);
 
-extern int unsubscribe_host(const struct db_api *api,
-			  const char *tennant,
+extern int unsubscribe_host(const char *tennant,
 			  const char *host,
 			  const struct agent_config *acfg);
-extern int list_subscriptions(const struct db_api *api,
-			     const char *tennant,
+
+extern int list_subscriptions(const char *tennant,
 			     const struct agent_config *acfg);
 
-extern struct tbl* get_tennants_for_host(const struct db_api *api,
-				         const char *host,
+extern struct tbl* get_tennants_for_host(const char *host,
 				         const struct agent_config *acfg);
 
-extern struct tbl* get_repos_for_tennant(const struct db_api *api,
-					 const char *tennant,
+extern struct tbl* get_repos_for_tennant(const char *tennant,
 					 const struct agent_config *acfg);
 
-extern int request_create_container(const struct db_api *api,
-				    const char *cname,
+extern int request_create_container(const char *cname,
 				    const char *iname,
 				    const char *chost,
 				    const struct agent_config *acfg);

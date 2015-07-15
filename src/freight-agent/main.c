@@ -68,7 +68,6 @@ int main(int argc, char **argv)
 	char *config_file = "/etc/freight-agent/config";
 	char *mode = NULL;
 	char *rpm = NULL;
-	struct db_api *api;
 	char *list = "all";
 	char *name = NULL;
 	int verbose = 0;	
@@ -164,18 +163,17 @@ int main(int argc, char **argv)
 		goto out_release;
 	}
 
-	api = get_db_api(&config);
-	if (!api) {
+	if (!get_db_api(&config)) {
 		LOG(ERROR, "No DB configuration selected\n");
 		goto out_release;
 	}
 
-	if (db_init(api, &config)) {
+	if (db_init(&config)) {
 		LOG(ERROR, "Unable to initalize DB subsystem\n");
 		goto out_release;
 	}
 
-	if (db_connect(api, &config))
+	if (db_connect(&config))
 		goto out_cleanup_db;
 	
 
@@ -257,9 +255,9 @@ int main(int argc, char **argv)
 	rc = 0;
 
 out_disconnect:
-	db_disconnect(api, &config);
+	db_disconnect(&config);
 out_cleanup_db:
-	db_cleanup(api, &config);
+	db_cleanup(&config);
 out_release:
 	release_configuration(&config);
 out:

@@ -28,6 +28,8 @@
 #include <freight-log.h>
 #include <freight-db.h>
 
+struct db_api *api = NULL;
+
 static const char* channel_map[] = {
 	[CHAN_CONTAINERS] = "containers"
 };
@@ -40,8 +42,7 @@ struct channel_callback {
 
 static struct channel_callback *callbacks = NULL;
 
-static int __chn_subscribe(const struct db_api *api,
-		    const struct agent_config *acfg,
+static int __chn_subscribe(const struct agent_config *acfg,
 		    const char *lcmd,
 		    const char *chnl)
 
@@ -54,8 +55,7 @@ static int __chn_subscribe(const struct db_api *api,
 	return api->send_raw_sql(sql, acfg);
 }
 
-int channel_subscribe(const struct db_api *api,
-		      const struct agent_config *acfg,
+int channel_subscribe(const struct agent_config *acfg,
 		      const enum listen_channel chn,
 		      enum event_rc (*hndl)(const enum listen_channel chnl, const char *extra))
 {
@@ -93,9 +93,9 @@ int channel_subscribe(const struct db_api *api,
 	 * of a tennant
 	 */
 	chname = strjoina("\"", channel_map[chn],"-", acfg->cmdline.hostname, "\"", NULL);
-	rc = __chn_subscribe(api, acfg, "LISTEN", chname);
+	rc = __chn_subscribe(acfg, "LISTEN", chname);
 	chname = strjoina("\"", channel_map[chn], "-", acfg->db.user, "\"", NULL);
-	rc |= __chn_subscribe(api, acfg, "LISTEN", chname);
+	rc |= __chn_subscribe(acfg, "LISTEN", chname);
 
 	/*
 	 * once we are subscribed, make a dummy call to the handler for an initial table scan
@@ -107,8 +107,7 @@ int channel_subscribe(const struct db_api *api,
 }
 
 
-void channel_unsubscribe(const struct db_api *api,
-			 const struct agent_config *acfg,
+void channel_unsubscribe(const struct agent_config *acfg,
 			 const enum listen_channel chn)
 {
 	struct channel_callback *tmp, *prev;
@@ -129,9 +128,9 @@ void channel_unsubscribe(const struct db_api *api,
 	prev->next = tmp->next;
 
 	chname = strjoina("\"", channel_map[chn],"-", acfg->cmdline.hostname, "\"", NULL);
-	__chn_subscribe(api, acfg, "UNLISTEN", chname);
+	__chn_subscribe(acfg, "UNLISTEN", chname);
 	chname = strjoina("\"", channel_map[chn], "-", acfg->db.user, "\"", NULL);
-	__chn_subscribe(api, acfg, "UNLISTEN", chname);
+	__chn_subscribe(acfg, "UNLISTEN", chname);
 }
 
 enum event_rc event_dispatch(const char *chn, const char *extra)
@@ -200,9 +199,8 @@ void free_tbl(struct tbl *table)
 	free(table);
 }
 
-int add_repo(const struct db_api *api,
-	     const char *name, const char *url,
-	    const struct agent_config *acfg)
+int add_repo(const char *name, const char *url,
+	     const struct agent_config *acfg)
 {
 	char *sql; 
 
@@ -215,8 +213,7 @@ int add_repo(const struct db_api *api,
 	return api->send_raw_sql(sql, acfg);
 }
 
-extern int del_repo(const struct db_api *api,
-		    const char *name,
+extern int del_repo(const char *name,
 		    const struct agent_config *acfg)
 {
 	char *sql;
@@ -231,8 +228,7 @@ extern int del_repo(const struct db_api *api,
 }
 
 
-int add_host(const struct db_api *api,
-	     const char *hostname,
+int add_host(const char *hostname,
 	     const struct agent_config *acfg)
 {
 	char *sql;
@@ -245,9 +241,8 @@ int add_host(const struct db_api *api,
 	return api->send_raw_sql(sql, acfg);
 }
 
-int del_host(const struct db_api *api,
-		    const char *hostname,
-		    const struct agent_config *acfg)
+int del_host(const char *hostname,
+	     const struct agent_config *acfg)
 {
 	char *sql;
 
@@ -259,10 +254,9 @@ int del_host(const struct db_api *api,
 	return api->send_raw_sql(sql, acfg);
 }
 
-int subscribe_host(const struct db_api *api,
-                          const char *tenant,
-                          const char *host,
-			  const struct agent_config *acfg)
+int subscribe_host(const char *tenant,
+		   const char *host,
+		   const struct agent_config *acfg)
 {
 	char *sql;
 
@@ -274,10 +268,9 @@ int subscribe_host(const struct db_api *api,
 	return api->send_raw_sql(sql, acfg);
 }
 
-int unsubscribe_host(const struct db_api *api,
-                          const char *tenant,
-                          const char *host,
-			  const struct agent_config *acfg)
+int unsubscribe_host(const char *tenant,
+		     const char *host,
+		     const struct agent_config *acfg)
 {
 	char *sql;
 
@@ -291,8 +284,7 @@ int unsubscribe_host(const struct db_api *api,
 }
 
 
-int list_subscriptions(const struct db_api *api,
-		       const char *tenant,
+int list_subscriptions(const char *tenant,
 		       const struct agent_config *acfg)
 {
 	char *filter;
@@ -319,9 +311,8 @@ int list_subscriptions(const struct db_api *api,
 	
 }
 
-struct tbl* get_tennants_for_host(const struct db_api *api,
-				   const char *host,
-			  	   const struct agent_config *acfg)
+struct tbl* get_tennants_for_host(const char *host,
+			  	  const struct agent_config *acfg)
 {
 	char *filter;
 
@@ -333,8 +324,7 @@ struct tbl* get_tennants_for_host(const struct db_api *api,
 	return api->get_table("tennant_hosts", "*", filter, acfg);
 }
 
-struct tbl* get_repos_for_tennant(const struct db_api *api,
-				  const char *tenant,
+struct tbl* get_repos_for_tennant(const char *tenant,
 				  const struct agent_config *acfg)
 {
 	char *filter;
@@ -347,8 +337,7 @@ struct tbl* get_repos_for_tennant(const struct db_api *api,
 	return api->get_table("yum_config", "name, url", filter, acfg);
 }
 
-int request_create_container(const struct db_api *api,
-                             const char *cname,
+int request_create_container(const char *cname,
                              const char *iname,
                              const char *chost,
 			     const struct agent_config *acfg)

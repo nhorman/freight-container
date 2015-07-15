@@ -113,7 +113,7 @@ void clean_container_root(const struct db_api *api, const struct agent_config *a
                 goto clean_common;
         }
 
-	table = get_tennants_for_host(api, hostname, acfg);
+	table = get_tennants_for_host(hostname, acfg);
 	if (!table) {
                 LOG(WARNING, "Unable to obtain list of tennants\n");
                 goto clean_common;
@@ -191,10 +191,9 @@ out:
 	return rc;
 }
 
-static int init_tennant_root(const struct db_api *api,
-			       const char *croot,
-			       const char *tenant,
-			       const struct agent_config *acfg)
+static int init_tennant_root(const char *croot,
+			     const char *tenant,
+			     const struct agent_config *acfg)
 {
 	char *dirs[]= {
 		"containers",
@@ -268,7 +267,7 @@ static int init_tennant_root(const struct db_api *api,
 	/*
  	 * Now we need to check the database for our repository configuration
  	 */
-	yum_config = get_repos_for_tennant(api, tenant, acfg);
+	yum_config = get_repos_for_tennant(tenant, acfg);
  
 	if (!yum_config)
 		LOG(WARNING, "No yum config in database, we won't be able "
@@ -365,7 +364,7 @@ int init_container_root(const struct db_api *api,
 		goto out;
 	}
 
-	table = get_tennants_for_host(api, hostname, acfg);
+	table = get_tennants_for_host(hostname, acfg);
 	if (!table) {
 		LOG(ERROR, "Unable to obtain list of tennants\n");
 		goto out;
@@ -375,7 +374,7 @@ int init_container_root(const struct db_api *api,
  	 * Now init the root space for each tennant
  	 */
 	for(r = 0; r < table->rows; r++) {
-		rc = init_tennant_root(api, croot, table->value[r][1], acfg);
+		rc = init_tennant_root(croot, table->value[r][1], acfg);
 		if (rc) {
 			LOG(ERROR, "Unable to establish all tennants, cleaning...\n");
 			goto out_clean;
@@ -534,7 +533,7 @@ int enter_mode_loop(struct db_api *api, struct agent_config *config)
 	/*
 	 * Join the node update channel
 	 */
-	if (channel_subscribe(api, config, CHAN_NODES, handle_table_update)) {
+	if (channel_subscribe(config, CHAN_NODES, handle_table_update)) {
 		LOG(ERROR, "Connot subscribe to database node updates\n");
 		rc = EINVAL;
 		goto out;
@@ -543,17 +542,17 @@ int enter_mode_loop(struct db_api *api, struct agent_config *config)
 	/*
 	 * Join the container update channel
 	 */
-	if (channel_subscribe(api, config, CHAN_CONTAINERS, handle_table_update)) {
+	if (channel_subscribe(config, CHAN_CONTAINERS, handle_table_update)) {
 		LOG(ERROR, "Cannot subscribe to database container updates\n");
 		rc = EINVAL;
 		goto out;
 	}
 
-	wait_for_channel_notification(api, config);
+	wait_for_channel_notification(config);
 
 
-	channel_unsubscribe(api, config, CHAN_CONTAINERS);
-	channel_unsubscribe(api, config, CHAN_NODES);
+	channel_unsubscribe(config, CHAN_CONTAINERS);
+	channel_unsubscribe(config, CHAN_NODES);
 	rc = 0;
 out:
 	return rc;
