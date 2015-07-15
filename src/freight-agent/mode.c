@@ -496,9 +496,9 @@ int exec_container(const char *rpm, const char *name, const char *tenant,
 }
 
 
-static enum event_rc handle_container_update(const enum listen_channel chnl, const char *extra)
+static enum event_rc handle_table_update(const enum listen_channel chnl, const char *extra)
 {
-	LOG(INFO, "GOT A CONTAINER EVENT!\n");
+	LOG(INFO, "GOT A TABLE EVENT!\n");
 	return EVENT_CONSUMED;
 }
 
@@ -532,9 +532,18 @@ int enter_mode_loop(struct db_api *api, struct agent_config *config)
 	}
 
 	/*
+	 * Join the node update channel
+	 */
+	if (channel_subscribe(api, config, CHAN_NODES, handle_table_update)) {
+		LOG(ERROR, "Connot subscribe to database node updates\n");
+		rc = EINVAL;
+		goto out;
+	}
+
+	/*
 	 * Join the container update channel
 	 */
-	if (channel_subscribe(api, config, CHAN_CONTAINERS, handle_container_update)) {
+	if (channel_subscribe(api, config, CHAN_CONTAINERS, handle_table_update)) {
 		LOG(ERROR, "Cannot subscribe to database container updates\n");
 		rc = EINVAL;
 		goto out;
@@ -544,6 +553,7 @@ int enter_mode_loop(struct db_api *api, struct agent_config *config)
 
 
 	channel_unsubscribe(api, config, CHAN_CONTAINERS);
+	channel_unsubscribe(api, config, CHAN_NODES);
 	rc = 0;
 out:
 	return rc;

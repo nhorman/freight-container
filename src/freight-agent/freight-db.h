@@ -35,6 +35,7 @@ struct tbl {
 
 enum listen_channel {
 	CHAN_CONTAINERS = 0,
+	CHAN_NODES,
 };
 
 enum event_rc {

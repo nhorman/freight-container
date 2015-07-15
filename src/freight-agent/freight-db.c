@@ -97,6 +97,12 @@ int channel_subscribe(const struct db_api *api,
 	chname = strjoina("\"", channel_map[chn], "-", acfg->db.user, "\"", NULL);
 	rc |= __chn_subscribe(api, acfg, "LISTEN", chname);
 
+	/*
+	 * once we are subscribed, make a dummy call to the handler for an initial table scan
+	 */
+	if (!rc)
+		hndl(chn, NULL);
+
 	return rc;
 }
 
