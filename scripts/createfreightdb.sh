@@ -120,7 +120,7 @@ CREATE TABLE containers (
 	iname           varchar(512) NOT NULL,
 	cname           varchar(512) NOT NULL,
 	hostname        varchar(512) NOT NULL references nodes(hostname),
-	cstate		status NOT NULL,
+	state		cstate NOT NULL,
 	PRIMARY KEY (tennant, iname)
 );
 

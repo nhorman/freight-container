@@ -356,8 +356,8 @@ int request_create_container(const struct db_api *api,
 		       "'", acfg->db.user, "',",
 		       "'", iname, "',",
 		       "'", cname, "',",
-		       "'", chost, "')",
-		       NULL);
+		       "'", chost, "',",
+		       "'new')", NULL);
 
 	return api->send_raw_sql(sql, acfg);
 }
