@@ -117,7 +117,7 @@ static inline int wait_for_channel_notification(struct agent_config *acfg)
 
 extern int channel_subscribe(const struct agent_config *acfg,
 			     const enum listen_channel chn,
-			     enum event_rc (*hndl)(const enum listen_channel chnl, const char *data));
+			     enum event_rc (*hndl)(const enum listen_channel chnl, const char *data, const struct agent_config *acfg));
 
 extern void channel_unsubscribe(const struct agent_config *acfg,
 				const enum listen_channel chn);

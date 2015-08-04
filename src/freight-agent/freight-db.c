@@ -35,8 +35,9 @@ static const char* channel_map[] = {
 };
 
 struct channel_callback {
-	enum event_rc (*hndl)(const enum listen_channel chnl, const char *extra);
+	enum event_rc (*hndl)(const enum listen_channel chnl, const char *extra, const struct agent_config *acfg);
 	enum listen_channel chnl;
+	const struct agent_config *acfg;
 	struct channel_callback *next;
 };
 
@@ -57,11 +58,14 @@ static int __chn_subscribe(const struct agent_config *acfg,
 
 int channel_subscribe(const struct agent_config *acfg,
 		      const enum listen_channel chn,
-		      enum event_rc (*hndl)(const enum listen_channel chnl, const char *extra))
+		      enum event_rc (*hndl)(const enum listen_channel chnl, const char *extra, const struct agent_config *acfg))
 {
+
 	struct channel_callback *tmp;
 	char *chname;
 	int rc;
+	struct tbl *table;
+	int i;
 
 	tmp = callbacks;
 	/*
@@ -82,26 +86,33 @@ int channel_subscribe(const struct agent_config *acfg,
 
 	tmp->hndl = hndl;
 	tmp->chnl = chn;
+	tmp->acfg = acfg;
 	tmp->next = callbacks;
 	callbacks = tmp;
 
+	table = get_tennants_for_host(acfg->cmdline.hostname, acfg);
+
 	/*
-	 * We actually want to subscribe to 2 channels here, the <name>-<hostname> channel
-	 * and the <name>-<tennant> channel.  Notifications will only be checked against
-	 * <name> under the covers, but this allows the database some granularity in the
-	 * sending scope (it can send a notification to a specific node, or to all nodes 
-	 * of a tennant
+	 * We actually want to subscribe to n channels here, <name>-<hostname>
+	 * channel, and the <name>-<tennant> channel, for each tennant that this
+	 * node is subscribed to.
 	 */
 	chname = strjoina("\"", channel_map[chn],"-", acfg->cmdline.hostname, "\"", NULL);
 	rc = __chn_subscribe(acfg, "LISTEN", chname);
-	chname = strjoina("\"", channel_map[chn], "-", acfg->db.user, "\"", NULL);
-	rc |= __chn_subscribe(acfg, "LISTEN", chname);
+
+	for (i=0; i < table->rows; i++) {
+		chname = strjoin("\"", channel_map[chn], "-", table->value[i][1], "\"", NULL);
+		rc |= __chn_subscribe(acfg, "LISTEN", chname);
+		free(chname);
+	}
+
+	free_tbl(table);
 
 	/*
 	 * once we are subscribed, make a dummy call to the handler for an initial table scan
 	 */
 	if (!rc)
-		hndl(chn, NULL);
+		hndl(chn, NULL, acfg);
 
 	return rc;
 }
@@ -112,6 +123,8 @@ void channel_unsubscribe(const struct agent_config *acfg,
 {
 	struct channel_callback *tmp, *prev;
 	char *chname;
+	struct tbl *table;
+	int i;
 
 	tmp = prev = callbacks;
 
@@ -129,8 +142,16 @@ void channel_unsubscribe(const struct agent_config *acfg,
 
 	chname = strjoina("\"", channel_map[chn],"-", acfg->cmdline.hostname, "\"", NULL);
 	__chn_subscribe(acfg, "UNLISTEN", chname);
-	chname = strjoina("\"", channel_map[chn], "-", acfg->db.user, "\"", NULL);
-	__chn_subscribe(acfg, "UNLISTEN", chname);
+
+	table = get_tennants_for_host(acfg->cmdline.hostname, acfg);
+
+	for (i=0; i < table->rows; i++) {
+		chname = strjoin("\"", channel_map[chn], "-", table->value[i][1], "\"", NULL);
+		__chn_subscribe(acfg, "UNLISTEN", chname);
+		free(chname);
+	}
+
+	free_tbl(table);
 }
 
 enum event_rc event_dispatch(const char *chn, const char *extra)
@@ -140,7 +161,7 @@ enum event_rc event_dispatch(const char *chn, const char *extra)
 	tmp = callbacks;
 	while (tmp) {
 		if (!strncmp(channel_map[tmp->chnl], chn, strlen(channel_map[tmp->chnl])))
-			return tmp->hndl(tmp->chnl, extra);
+			return tmp->hndl(tmp->chnl, extra, tmp->acfg);
 		tmp = tmp->next;
 	}
 

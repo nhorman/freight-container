@@ -494,9 +494,9 @@ int exec_container(const char *rpm, const char *name, const char *tenant,
 }
 
 
-static enum event_rc handle_table_update(const enum listen_channel chnl, const char *extra)
+static enum event_rc handle_table_update(const enum listen_channel chnl, const char *extra,
+					 const struct agent_config *acfg)
 {
-	LOG(INFO, "GOT A TABLE EVENT!\n");
 	return EVENT_CONSUMED;
 }
 
