@@ -378,6 +378,7 @@ int request_create_container(const char *cname,
 			     const struct agent_config *acfg)
 {
 	char *sql;
+	int rc;
 
 	if (!api->send_raw_sql)
 		return -EOPNOTSUPP;
@@ -389,6 +390,34 @@ int request_create_container(const char *cname,
 		       "'", chost, "',",
 		       "'new')", NULL);
 
-	return api->send_raw_sql(sql, acfg);
+	rc = api->send_raw_sql(sql, acfg);
+
+	if (rc)
+		return rc;
+
+	/*
+	 * If we add the sql safely, then we need to wake someone up to read the table
+	 * If a chost is specified, then notify that host only, otherwise, notify the 
+	 * master to pick a host for us
+	 */
+	if (chost)
+		rc = notify_host(CHAN_CONTAINERS, chost, acfg);
+	else
+		LOG(INFO, "NEED TO IMPLEMENT MASTER FUNCTIONALITY HERE\n");
+
+	return rc;
+
 }
 
+int notify_host(const enum listen_channel chn, const char *host,
+		const struct agent_config *acfg)
+{
+	char *sql;
+
+	if (!api->send_raw_sql)
+		return -EOPNOTSUPP;
+
+	sql = strjoina("NOTIFY \"", channel_map[chn], "-", host, "\"");
+
+	return api->send_raw_sql(sql, acfg);
+} 
