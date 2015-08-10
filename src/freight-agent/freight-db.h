@@ -169,4 +169,7 @@ extern int request_create_container(const char *cname,
 extern int notify_host(const enum listen_channel chn, const char *host,
 		       const struct agent_config *acfg);
 
+extern int notify_tennant(const enum listen_channel chn, const char *tennant, 
+			const struct agent_config *acfg);
+
 #endif

@@ -36,8 +36,12 @@ option is only required if the db admin is querying
 .B repo [add|del] <name> <url>
 Adds or removes a repository from the database for a given tennant
 
-.B container [create] <cname> <iname> <chost>
-Request the creation of a container <cname> with instance name <iname> on host <chost>
+.B container [create] <cname> <iname> [chost]
+Request the creation of a container <cname> with instance name <iname> on host <chost>.
+Note that chost is optional, if left blank the freight-master process will be
+notified to schedule a host on behalf of the tennant.  chost may also be the
+reserved keyword all, which will cause all hosts belonging to the tennant to be
+notified, and the first to respond will create the container
 
 Create a container instance 
 .SH CONFIG FILE FORMAT 

@@ -401,7 +401,10 @@ int request_create_container(const char *cname,
 	 * master to pick a host for us
 	 */
 	if (chost)
-		rc = notify_host(CHAN_CONTAINERS, chost, acfg);
+		if (!strcmp(chost, "all"))
+			rc = notify_tennant(CHAN_CONTAINERS, acfg->db.user, acfg);
+		else
+			rc = notify_host(CHAN_CONTAINERS, chost, acfg);
 	else
 		LOG(INFO, "NEED TO IMPLEMENT MASTER FUNCTIONALITY HERE\n");
 
@@ -421,3 +424,13 @@ int notify_host(const enum listen_channel chn, const char *host,
 
 	return api->send_raw_sql(sql, acfg);
 } 
+
+int notify_tennant(const enum listen_channel chn, const char *tennant,
+		const struct agent_config *acfg)
+{
+	/*
+	 * The string pattern for hosts and tennants is about the same
+	 * So we can we just reuse notify_host for now
+	 */
+	return notify_host(chn, tennant, acfg);
+}
