@@ -494,12 +494,31 @@ int exec_container(const char *rpm, const char *name, const char *tenant,
 }
 
 
-static enum event_rc handle_table_update(const enum listen_channel chnl, const char *extra,
+static enum event_rc handle_node_update(const enum listen_channel chnl, const char *extra,
 					 const struct agent_config *acfg)
 {
 	return EVENT_CONSUMED;
 }
 
+static enum event_rc handle_container_update(const enum listen_channel chnl, const char *extra,
+					 const struct agent_config *acfg)
+{
+	struct tbl *containers;
+	int i;
+
+	LOG(DEBUG, "GOT A CHANNEL EVENT\n");
+
+	containers = get_containers_for_host(acfg->cmdline.hostname, acfg);
+
+	for(i=0; i<containers->rows; i++) {
+		LOG(DEBUG, "CONTAINER %s IN STATE %s\n", containers->value[i][2],
+							 containers->value[i][4]);
+	}
+
+	free_tbl(containers);
+	
+	return EVENT_CONSUMED;
+}
 
 /*
  * This is our mode entry function, we setup freight-agent to act as a container
@@ -532,7 +551,7 @@ int enter_mode_loop(struct agent_config *config)
 	/*
 	 * Join the node update channel
 	 */
-	if (channel_subscribe(config, CHAN_NODES, handle_table_update)) {
+	if (channel_subscribe(config, CHAN_NODES, handle_node_update)) {
 		LOG(ERROR, "Connot subscribe to database node updates\n");
 		rc = EINVAL;
 		goto out;
@@ -541,7 +560,7 @@ int enter_mode_loop(struct agent_config *config)
 	/*
 	 * Join the container update channel
 	 */
-	if (channel_subscribe(config, CHAN_CONTAINERS, handle_table_update)) {
+	if (channel_subscribe(config, CHAN_CONTAINERS, handle_container_update)) {
 		LOG(ERROR, "Cannot subscribe to database container updates\n");
 		rc = EINVAL;
 		goto out;

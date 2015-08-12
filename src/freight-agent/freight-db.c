@@ -372,6 +372,19 @@ struct tbl* get_repos_for_tennant(const char *tenant,
 	return api->get_table("yum_config", "name, url", filter, acfg);
 }
 
+struct tbl* get_containers_for_host(const char *host,
+				   const struct agent_config *acfg)
+{
+	char *filter;
+
+	if (!api->get_table)
+		return NULL;
+
+	filter = strjoina("hostname='", host, "'", NULL);
+
+	return api->get_table("containers", "*", filter, acfg);
+}
+
 int request_create_container(const char *cname,
                              const char *iname,
                              const char *chost,

@@ -184,7 +184,6 @@ static enum event_rc pg_poll_notify(const struct agent_config *acfg)
 	for(;;) {
 		FD_ZERO(&input_mask);
 		FD_SET(sock, &input_mask);
-
 		if (select(sock + 1, &input_mask, NULL, NULL, NULL) < 0)
 		{
 			/*
