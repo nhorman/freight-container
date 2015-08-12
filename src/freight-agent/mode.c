@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#include <signal.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/vfs.h>
@@ -520,6 +521,13 @@ static enum event_rc handle_container_update(const enum listen_channel chnl, con
 	return EVENT_CONSUMED;
 }
 
+
+static bool request_shutdown = false;
+static void sigint_handler(int sig, siginfo_t *info, void *ptr)
+{
+	request_shutdown = true;
+}
+
 /*
  * This is our mode entry function, we setup freight-agent to act as a container
  * node here and listen for db events from this point
@@ -528,6 +536,7 @@ int enter_mode_loop(struct agent_config *config)
 {
 	int rc = -EINVAL;
 	struct stat buf;
+	struct sigaction intact;
 	
 	/*
  	 * Start by setting up a clean container root
@@ -563,15 +572,25 @@ int enter_mode_loop(struct agent_config *config)
 	if (channel_subscribe(config, CHAN_CONTAINERS, handle_container_update)) {
 		LOG(ERROR, "Cannot subscribe to database container updates\n");
 		rc = EINVAL;
-		goto out;
+		goto out_nodes;
 	}
 
-	wait_for_channel_notification(config);
+	memset(&intact, 0, sizeof(struct sigaction));
+
+	intact.sa_sigaction = sigint_handler;
+	intact.sa_flags = SA_SIGINFO;
+	sigaction(SIGINT, &intact, NULL);
+	
+	rc = 0;
+
+	while (request_shutdown == false) {
+		wait_for_channel_notification(config);
+	}
 
 
 	channel_unsubscribe(config, CHAN_CONTAINERS);
+out_nodes:
 	channel_unsubscribe(config, CHAN_NODES);
-	rc = 0;
 out:
 	return rc;
 }
