@@ -583,10 +583,17 @@ int enter_mode_loop(struct agent_config *config)
 	
 	rc = 0;
 
+	/*
+	 * Mark ourselves as being present and ready to accept requests
+	 */
+	change_host_state(config->cmdline.hostname, "operating", config);
+
 	while (request_shutdown == false) {
 		wait_for_channel_notification(config);
 	}
 
+	LOG(INFO, "Shutting down\n");
+	change_host_state(config->cmdline.hostname, "offline", config);
 
 	channel_unsubscribe(config, CHAN_CONTAINERS);
 out_nodes:
