@@ -373,6 +373,7 @@ struct tbl* get_repos_for_tennant(const char *tenant,
 }
 
 struct tbl* get_containers_for_host(const char *host,
+				   const char *state,
 				   const struct agent_config *acfg)
 {
 	char *filter;
@@ -380,7 +381,7 @@ struct tbl* get_containers_for_host(const char *host,
 	if (!api->get_table)
 		return NULL;
 
-	filter = strjoina("hostname='", host, "'", NULL);
+	filter = strjoina("(hostname='", host, "' AND state='", state, "')", NULL);
 
 	return api->get_table("containers", "*", filter, acfg);
 }
