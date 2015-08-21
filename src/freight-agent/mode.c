@@ -152,7 +152,7 @@ void list_containers(char *scope, const char *tenant,
 }
 
 int install_container(const char *rpm, const char *tenant,
-		      struct agent_config *acfg)
+		      const struct agent_config *acfg)
 {
 	struct stat buf;
 	int rc = -ENOENT;
@@ -509,7 +509,7 @@ static enum event_rc handle_container_update(const enum listen_channel chnl, con
 
 	LOG(DEBUG, "GOT A CHANNEL EVENT\n");
 
-	containers = get_containers_for_host(acfg->cmdline.hostname, acfg);
+	containers = get_containers_for_host(acfg->cmdline.hostname, "new", acfg);
 
 	for(i=0; i<containers->rows; i++) {
 		LOG(DEBUG, "CONTAINER %s IN STATE %s\n", containers->value[i][2],
