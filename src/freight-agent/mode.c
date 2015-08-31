@@ -512,8 +512,10 @@ static enum event_rc handle_container_update(const enum listen_channel chnl, con
 	containers = get_containers_for_host(acfg->cmdline.hostname, "new", acfg);
 
 	for(i=0; i<containers->rows; i++) {
-		LOG(DEBUG, "CONTAINER %s IN STATE %s\n", containers->value[i][2],
-							 containers->value[i][4]);
+		LOG(INFO, "Creatig container %s of type %s for tennant %s\n",
+			containers->value[i][1], containers->value[i][2], containers->value[i][0]);
+
+		install_container(containers->value[i][2], containers->value[i][0], acfg);
 	}
 
 	free_tbl(containers);
