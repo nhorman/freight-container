@@ -32,6 +32,9 @@ void clean_container_root(const struct agent_config *acfg);
 int install_container(const char *rpm, const char *tennant,
 		      const struct agent_config *acfg);
 
+int install_and_update_container(const char *rpm, const char *tennant,
+			      const struct agent_config *acfg);
+
 int uninstall_container(const char *rpm, const char *tennant,
 			struct agent_config *acfg);
 

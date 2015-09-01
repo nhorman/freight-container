@@ -170,6 +170,16 @@ extern int request_create_container(const char *cname,
 				    const char *chost,
 				    const struct agent_config *acfg);
 
+extern int change_container_state(const char *tennant,
+				  const char *iname,
+				  const char *newstate,
+				  const struct agent_config *acfg);
+
+extern int change_container_state_batch(const char *tennant,
+					const char *oldstate,
+					const char *newstate,
+					const struct agent_config *acfg);
+
 extern int notify_host(const enum listen_channel chn, const char *host,
 		       const struct agent_config *acfg);
 

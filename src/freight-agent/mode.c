@@ -173,6 +173,27 @@ out:
 	return rc;
 }
 
+int install_and_update_container(const char *rpm, const char *tenant,
+				 const struct agent_config *acfg)
+{
+	int rc;
+	char *yumcmd;
+	char *troot;
+
+	rc = install_container(rpm, tenant, acfg);
+
+	if (rc)
+		return rc;
+
+
+	troot = strjoina(acfg->node.container_root, "/", tenant, NULL);
+
+	yumcmd = strjoina("yum --installroot=", troot, " -y --nogpgcheck update ", rpm, NULL);
+	rc = run_command(yumcmd, acfg->cmdline.verbose);
+	return rc;
+
+}
+
 int uninstall_container(const char *rpm, const char *tenant,
 			struct agent_config *acfg)
 {
@@ -494,6 +515,40 @@ int exec_container(const char *rpm, const char *name, const char *tenant,
 	exit(execvp("systemd-nspawn", execarray));
 }
 
+static int create_table_worker(const struct tbl *table, const struct agent_config *acfg,
+			       void (*work)(const struct tbl *, const struct agent_config *))
+{
+	pid_t rc;
+
+	rc = fork();
+
+	if (rc < 0)
+		return rc;
+
+	if (rc) {
+		/*
+		 * We're the parent
+		 */
+		return 0;
+	}
+
+	/*
+	 * We're the child
+	 */
+
+	/*
+	 * Set our process group id to that of our parent
+	 * This allows the parent to signal us with kill 
+	 * as a group
+	 */
+	if (setpgid(getpid(), getpgid(getppid()))) {
+		LOG(WARNING, "Could not set install worker pgid\n");
+		exit(1);
+	}
+
+	work(table, acfg);
+	exit(0);
+}
 
 static enum event_rc handle_node_update(const enum listen_channel chnl, const char *extra,
 					 const struct agent_config *acfg)
@@ -501,26 +556,63 @@ static enum event_rc handle_node_update(const enum listen_channel chnl, const ch
 	return EVENT_CONSUMED;
 }
 
+static void install_containers_from_table(const struct tbl *containers, const struct agent_config *acfg)
+{
+	int i;
+	for(i=0; i<containers->rows; i++) {
+		LOG(INFO, "Creatig container %s of type %s for tennant %s\n",
+			containers->value[i][1], containers->value[i][2], containers->value[i][0]);
+
+		if (install_and_update_container(containers->value[i][2], containers->value[i][0], acfg)) {
+			LOG(WARNING, "Unable to install/update container %s\n", containers->value[i][1]);
+			change_container_state(containers->value[i][0], containers->value[i][1],
+					       "failed", acfg);
+			continue;
+		}
+        }
+}
+
 static enum event_rc handle_container_update(const enum listen_channel chnl, const char *extra,
 					 const struct agent_config *acfg)
 {
 	struct tbl *containers;
-	int i;
 
 	LOG(DEBUG, "GOT A CHANNEL EVENT\n");
 
 	containers = get_containers_for_host(acfg->cmdline.hostname, "new", acfg);
 
-	for(i=0; i<containers->rows; i++) {
-		LOG(INFO, "Creatig container %s of type %s for tennant %s\n",
-			containers->value[i][1], containers->value[i][2], containers->value[i][0]);
-
-		install_container(containers->value[i][2], containers->value[i][0], acfg);
+	if (!containers->rows) {
+		LOG(DEBUG, "No new containers\n");
+		goto out_free;
 	}
 
-	free_tbl(containers);
-	
+	/*
+	 * Do a batch update of the contanier states so we know they are all installing
+	 * This also services to block the next table update from considering
+	 * these as unserviced requests.
+	 */
+	if (change_container_state_batch(containers->value[0][0], "new",
+				         "installing", acfg)) {
+		LOG(WARNING, "Unable to update container state\n");
+		goto out_err;
+	}
+
+	/*
+	 * Note: Need to fork here so that each tennant can do installs in parallel
+	 */
+	if (create_table_worker(containers, acfg, install_containers_from_table)) {
+		LOG(WARNING, "Unable to fork container install process\n");
+		goto out_err;
+	}
+
+out:
 	return EVENT_CONSUMED;
+
+out_err:
+	change_container_state_batch(containers->value[0][0], "installing", "failed", acfg);
+out_free:
+	free_tbl(containers);
+	goto out;
 }
 
 

@@ -426,6 +426,43 @@ int request_create_container(const char *cname,
 
 }
 
+extern int change_container_state(const char *tennant,
+                                  const char *iname,
+                                  const char *newstate,
+                                  const struct agent_config *acfg)
+{
+	char *sql;
+
+	if (!api->send_raw_sql)
+		return -EOPNOTSUPP;
+
+	sql = strjoina("UPDATE containers set state ='", newstate,
+		       "' WHERE tennant = '", tennant,
+		       "' AND iname = '", iname, "'");
+
+	return api->send_raw_sql(sql, acfg);
+}
+
+extern int change_container_state_batch(const char *tennant,
+					const char *oldstate,
+					const char *newstate,
+					const struct agent_config *acfg)
+{
+	char *sql;
+
+	if (!api->send_raw_sql)
+		return -EOPNOTSUPP;
+
+	sql = strjoina("UPDATE containers set state ='", newstate,
+		       "' WHERE tennant = '", tennant,
+		       "' AND state = '", oldstate,
+		       "' AND hostname = '", acfg->cmdline.hostname,
+		       "'");
+
+	return api->send_raw_sql(sql, acfg);
+}
+
+
 int notify_host(const enum listen_channel chn, const char *host,
 		const struct agent_config *acfg)
 {
