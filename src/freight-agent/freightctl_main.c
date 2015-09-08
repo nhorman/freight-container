@@ -102,12 +102,19 @@ static int container_op(char **argv, int argc,
 {
 	int rc = -EINVAL;
 
-	if (argc < 4)
-		goto out;
-
 	if (!strcmp(argv[0], "create")) {
-		LOG(INFO, "Creating container %s on %s\n", argv[2], argv[3]);
+		if (argc < 4)
+			goto out;
+		LOG(INFO, "Issuing create container %s on %s\n", argv[2], argv[3]);
 		rc = request_create_container(argv[1], argv[2], argv[3], acfg);
+	} else if (!strcmp(argv[0], "delete")) {
+		int force = 0;
+		if (argc < 3)
+			goto out;
+		LOG(INFO, "Issuing delete container %s\n", argv[1]);
+		if (argv[2] && !strcmp(argv[2], "force"))
+			force = 1;
+		rc = request_delete_container(argv[1], force, acfg);
 	} else
 		rc = -EINVAL;
 out:

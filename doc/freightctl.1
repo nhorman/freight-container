@@ -43,7 +43,11 @@ notified to schedule a host on behalf of the tennant.  chost may also be the
 reserved keyword all, which will cause all hosts belonging to the tennant to be
 notified, and the first to respond will create the container
 
-Create a container instance 
+.B container [delete] <iname>
+Request that the container refernce by <iname> in owned by the acting tennant be
+shutdown.  Note that only containers in the running or failed state can be
+deleted.  Requests to delete installing containers are ignored.
+
 .SH CONFIG FILE FORMAT 
 
 See the freight-agent man page for a description of the config file.  freghtctl

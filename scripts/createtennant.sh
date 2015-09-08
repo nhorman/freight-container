@@ -70,6 +70,7 @@ GRANT SELECT ON yum_config to $TENNANT;
 GRANT SELECT ON tennant_hosts to $TENNANT;
 GRANT SELECT ON containers to $TENNANT;
 GRANT INSERT ON containers to $TENNANT;
+GRANT UPDATE ON containers to $TENNANT;
 
 EOF
 

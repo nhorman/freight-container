@@ -426,6 +426,13 @@ int request_create_container(const char *cname,
 
 }
 
+int request_delete_container(const char *iname,
+			     const int force,
+			     const struct agent_config *acfg)
+{
+	return change_container_state(acfg->db.user, iname, "exiting", acfg);
+}
+
 extern int change_container_state(const char *tennant,
                                   const char *iname,
                                   const char *newstate,
