@@ -45,7 +45,7 @@ void list_containers(char *scope, const char *tennant,
 
 int exec_container(const char *rpm, const char *name,
 		   const char *tennant,
-		   const struct agent_config *acfg);
+		   int should_fork, const struct agent_config *acfg);
 
 /*
  * These are convienience definitions that allow for local operation
@@ -54,6 +54,6 @@ int exec_container(const char *rpm, const char *name,
 #define local_install_container(r, c) install_container(r, "local", c)
 #define local_uninstall_container(r, c) uninstall_container(r, "local", c)
 #define local_list_containers(s, c) list_containers(s, "local", c)
-#define local_exec_container(r, n, c) exec_container(r, n, "local", c)
+#define local_exec_container(r, n, c) exec_container(r, n, "local", 0, c)
 
 #endif

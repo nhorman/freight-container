@@ -440,7 +440,7 @@ static void daemonize(const struct agent_config *acfg)
 }
 
 int exec_container(const char *rpm, const char *name, const char *tenant,
-                   const struct agent_config *acfg)
+                   int should_fork, const struct agent_config *acfg)
 {
 	pid_t pid;
 	int eoc;
@@ -456,29 +456,31 @@ int exec_container(const char *rpm, const char *name, const char *tenant,
 		return -ENOENT;
 
 	/*
- 	 * Now we need to do here is fork
+ 	 * Now we need to fork
  	 */
-	pid = fork();
+	if (should_fork) {
+		pid = fork();
 
-	/*
- 	 * Pid error
- 	 */
-	if (pid < 0)
-		return errno;	
+		/*
+		 * Pid error
+		 */
+		if (pid < 0)
+			return errno;	
 
-	/*
- 	 * Parent should return immediately
- 	 */
-	if (pid > 0)
-		return 0;
+		/*
+		 * Parent should return immediately
+		 */
+		if (pid > 0)
+			return 0;
 
-	/*
- 	 * child from here out
- 	 * we should daemonize
- 	 * NOTE: AFTER DAEMONIZING, LOG() doesn't work, 
- 	 * we will need to use machinectl to check on status
- 	 */
-	daemonize(acfg);
+		/*
+		 * child from here out
+		 * we should daemonize
+		 * NOTE: AFTER DAEMONIZING, LOG() doesn't work, 
+		 * we will need to use machinectl to check on status
+		 */
+		daemonize(acfg);
+	}
 
 	/*
  	 * Now lets start building our execv line
@@ -556,7 +558,7 @@ static enum event_rc handle_node_update(const enum listen_channel chnl, const ch
 	return EVENT_CONSUMED;
 }
 
-static void install_containers_from_table(const struct tbl *containers, const struct agent_config *acfg)
+static void create_containers_from_table(const struct tbl *containers, const struct agent_config *acfg)
 {
 	int i;
 	for(i=0; i<containers->rows; i++) {
@@ -569,6 +571,11 @@ static void install_containers_from_table(const struct tbl *containers, const st
 					       "failed", acfg);
 			continue;
 		}
+
+		/*
+		 * They're installed, now we just need to exec each container
+		 */
+		
         }
 }
 
@@ -600,7 +607,7 @@ static enum event_rc handle_container_update(const enum listen_channel chnl, con
 	/*
 	 * Note: Need to fork here so that each tennant can do installs in parallel
 	 */
-	if (create_table_worker(containers, acfg, install_containers_from_table)) {
+	if (create_table_worker(containers, acfg, create_containers_from_table)) {
 		LOG(WARNING, "Unable to fork container install process\n");
 		goto out_err;
 	}
