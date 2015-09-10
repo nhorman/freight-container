@@ -517,8 +517,8 @@ int exec_container(const char *rpm, const char *name, const char *tenant,
 	exit(execvp("systemd-nspawn", execarray));
 }
 
-static int create_table_worker(const struct tbl *table, const struct agent_config *acfg,
-			       void (*work)(const struct tbl *, const struct agent_config *))
+static int create_table_worker(struct tbl *table, const struct agent_config *acfg,
+			       void (*work)(struct tbl *, const struct agent_config *))
 {
 	pid_t rc;
 
@@ -558,7 +558,8 @@ static enum event_rc handle_node_update(const enum listen_channel chnl, const ch
 	return EVENT_CONSUMED;
 }
 
-static void create_containers_from_table(const struct tbl *containers, const struct agent_config *acfg)
+static void create_containers_from_table(struct tbl *containers, const struct agent_config *acfg)
+
 {
 	int i;
 	for(i=0; i<containers->rows; i++) {
@@ -577,20 +578,29 @@ static void create_containers_from_table(const struct tbl *containers, const str
 		 */
 		
         }
+	free_tbl(containers);
 }
 
-static enum event_rc handle_container_update(const enum listen_channel chnl, const char *extra,
-					 const struct agent_config *acfg)
+static void delete_containers_from_table(struct tbl *containers, const struct agent_config *acfg)
+{
+	int i;
+	for(i=0; i<containers->rows; i++) {
+		LOG(INFO, "Deleting container %s of type %s for tennant %s\n",
+			containers->value[i][1], containers->value[i][2], containers->value[i][0]);
+
+        }
+	free_tbl(containers);
+}
+
+static void handle_new_containers(const struct agent_config *acfg)
 {
 	struct tbl *containers;
-
-	LOG(DEBUG, "GOT A CHANNEL EVENT\n");
 
 	containers = get_containers_for_host(acfg->cmdline.hostname, "new", acfg);
 
 	if (!containers->rows) {
 		LOG(DEBUG, "No new containers\n");
-		goto out_free;
+		return;
 	}
 
 	/*
@@ -601,7 +611,7 @@ static enum event_rc handle_container_update(const enum listen_channel chnl, con
 	if (change_container_state_batch(containers->value[0][0], "new",
 				         "installing", acfg)) {
 		LOG(WARNING, "Unable to update container state\n");
-		goto out_err;
+		return;
 	}
 
 	/*
@@ -609,17 +619,46 @@ static enum event_rc handle_container_update(const enum listen_channel chnl, con
 	 */
 	if (create_table_worker(containers, acfg, create_containers_from_table)) {
 		LOG(WARNING, "Unable to fork container install process\n");
-		goto out_err;
+		change_container_state_batch(containers->value[0][0], "installing", "failed", acfg);
+		free_tbl(containers);
+		return;
 	}
 
-out:
-	return EVENT_CONSUMED;
+}
 
-out_err:
-	change_container_state_batch(containers->value[0][0], "installing", "failed", acfg);
-out_free:
-	free_tbl(containers);
-	goto out;
+static void handle_exiting_containers(const struct agent_config *acfg)
+{
+	struct tbl *containers;
+
+	containers = get_containers_for_host(acfg->cmdline.hostname, "exiting", acfg);
+
+	if (!containers->rows) {
+		LOG(DEBUG, "No exiting containers\n");
+		return;
+	}
+
+	/*
+	 * Note: Need to fork here so that each tennant can do installs in parallel
+	 */
+	if (create_table_worker(containers, acfg, delete_containers_from_table)) {
+		LOG(WARNING, "Unable to fork container install process\n");
+		change_container_state_batch(containers->value[0][0], "installing", "failed", acfg);
+		free_tbl(containers);
+		return;
+	}
+
+}
+static enum event_rc handle_container_update(const enum listen_channel chnl, const char *extra,
+					 const struct agent_config *acfg)
+{
+
+	LOG(DEBUG, "GOT A CHANNEL EVENT\n");
+
+	handle_new_containers(acfg);
+
+	handle_exiting_containers(acfg);
+
+	return EVENT_CONSUMED;
 }
 
 
