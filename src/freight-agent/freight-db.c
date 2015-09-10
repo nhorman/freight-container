@@ -386,6 +386,19 @@ struct tbl* get_containers_for_host(const char *host,
 	return api->get_table("containers", "*", filter, acfg);
 }
 
+static struct tbl *get_container_info(const char *iname,
+				      const struct agent_config *acfg)
+{
+	char *filter;
+
+	if (!api->get_table)
+		return NULL;
+
+	filter = strjoina("(iname='", iname, "' AND tennant='", acfg->db.user,"')", NULL);
+
+	return api->get_table("contaienrs", "*", filter, acfg);
+}
+
 int request_create_container(const char *cname,
                              const char *iname,
                              const char *chost,
@@ -430,7 +443,32 @@ int request_delete_container(const char *iname,
 			     const int force,
 			     const struct agent_config *acfg)
 {
-	return change_container_state(acfg->db.user, iname, "exiting", acfg);
+	int rc;
+	struct tbl *containers;
+
+	rc = change_container_state(acfg->db.user, iname, "exiting", acfg);
+	if (rc)
+		return rc;
+
+	containers = get_container_info(iname, acfg);
+
+	if (!containers)
+		return -ENOENT;
+
+	if (containers->rows != 1) {
+		LOG(WARNING, "FOUND %d containers with the same name %s\n",
+			containers->rows, iname);
+		rc = -EINVAL;
+		goto out_free;
+	}
+
+	/* Notify the host about the deleting container */
+	rc = notify_host(CHAN_CONTAINERS, containers->value[0][3], acfg);
+
+out_free:
+	free_tbl(containers);
+	
+	return rc;
 }
 
 extern int change_container_state(const char *tennant,
