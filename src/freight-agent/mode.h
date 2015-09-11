@@ -47,6 +47,9 @@ int exec_container(const char *rpm, const char *name,
 		   const char *tennant,
 		   int should_fork, const struct agent_config *acfg);
 
+int poweroff_container(const char *iname, const char *tennant,
+		   const struct agent_config *acfg);
+
 /*
  * These are convienience definitions that allow for local operation
  * where we imply the 'local' tennant for local use

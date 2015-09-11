@@ -36,8 +36,6 @@
 
 #define BTRFS_SUPER_MAGIC     0x9123683E
 
-static char** execarray = NULL;
-
 
 struct container_options {
 	char *user;
@@ -439,6 +437,41 @@ static void daemonize(const struct agent_config *acfg)
 	}
 }
 
+int poweroff_container(const char *iname, const char *tennant,
+		       const struct agent_config *acfg)
+{
+	pid_t pid;
+	int eoc = 3; /* machinectl poweroff <iname> */
+	char **execarray = NULL;
+	
+	eoc++; /* NULL terminator */
+
+	execarray = alloca(sizeof(const char *) * eoc);
+
+	pid = fork();
+	if (pid < 0)
+		return errno;
+
+	/*
+	 * parent
+	 */
+	if (pid > 0)
+		return 0;
+
+	daemonize(acfg);
+
+	eoc = 0;
+	execarray[eoc++] = "machinectl"; /*argv[0]*/
+	execarray[eoc++] = "poweroff";
+	execarray[eoc++] = (char *)iname;
+	execarray[eoc++] = NULL;
+
+	exit(execvp("machinectl", execarray)); 	
+
+	/* NOT REACHED */
+	return 0;
+}
+
 int exec_container(const char *rpm, const char *name, const char *tenant,
                    int should_fork, const struct agent_config *acfg)
 {
@@ -446,7 +479,7 @@ int exec_container(const char *rpm, const char *name, const char *tenant,
 	int eoc;
 	struct container_options copts;
 	char *config_path;
-
+	char** execarray = NULL;
 	config_path = strjoina(acfg->node.container_root, "/", tenant, "/containers/", rpm, "/container_config", NULL);
 
 	/*
@@ -495,7 +528,7 @@ int exec_container(const char *rpm, const char *name, const char *tenant,
 	/*
  	 * Allocate the argv array
  	 */
-	execarray = malloc(sizeof(const char *) * eoc);
+	execarray = alloca(sizeof(const char *) * eoc);
 	if (!execarray)
 		exit(1);
 
@@ -689,6 +722,8 @@ static enum event_rc handle_container_update(const enum listen_channel chnl, con
 
 	handle_exiting_containers(acfg);
 
+	/* We should handle failed containers assigned to us here */
+
 	return EVENT_CONSUMED;
 }
 
@@ -697,6 +732,31 @@ static bool request_shutdown = false;
 static void sigint_handler(int sig, siginfo_t *info, void *ptr)
 {
 	request_shutdown = true;
+}
+
+static void poweroff_all_containers(const struct agent_config *acfg)
+{
+	int i;
+	struct tbl *containers;
+
+	containers = get_containers_for_host(acfg->cmdline.hostname, "running", acfg);
+
+	for (i = 0; i < containers->rows; i++) {
+		poweroff_container(lookup_tbl(containers, i, COL_INAME),
+				   lookup_tbl(containers, i, COL_TENNANT),
+				   acfg);
+
+		/*
+		 * This function is called when the host is going down.
+		 * We move the containers to failed state here because
+		 * we want them rescheduled on another host
+		 */
+		change_container_state(lookup_tbl(containers, i, COL_TENNANT),
+				      lookup_tbl(containers, i, COL_INAME),
+				      "failed", acfg);
+	}	
+
+	free_tbl(containers);
 }
 
 /*
@@ -764,6 +824,8 @@ int enter_mode_loop(struct agent_config *config)
 	}
 
 	LOG(INFO, "Shutting down\n");
+	poweroff_all_containers(config);
+
 	change_host_state(config->cmdline.hostname, "offline", config);
 
 	channel_unsubscribe(config, CHAN_CONTAINERS);
