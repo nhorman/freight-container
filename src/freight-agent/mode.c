@@ -514,7 +514,13 @@ int exec_container(const char *rpm, const char *name, const char *tenant,
 	}
 	execarray[eoc++] = NULL;
 
-	exit(execvp("systemd-nspawn", execarray));
+	if (should_fork)
+		exit(execvp("systemd-nspawn", execarray));
+	else
+		execvp("system-nspawn", execarray);
+
+	/* NOTREACHED */
+	return 0;
 }
 
 static int create_table_worker(struct tbl *table, const struct agent_config *acfg,
@@ -562,6 +568,7 @@ static void create_containers_from_table(struct tbl *containers, const struct ag
 
 {
 	int i;
+	int rc;
 	for(i=0; i<containers->rows; i++) {
 		LOG(INFO, "Creatig container %s of type %s for tennant %s\n",
 			containers->value[i][1], containers->value[i][2], containers->value[i][0]);
@@ -576,7 +583,16 @@ static void create_containers_from_table(struct tbl *containers, const struct ag
 		/*
 		 * They're installed, now we just need to exec each container
 		 */
-		
+		rc = exec_container(containers->value[i][2], containers->value[i][1], containers->value[i][0],
+				    1, acfg);
+		if (rc) {
+			LOG(WARNING, "Failed to exec container %s: %s\n",
+				containers->value[i][1], strerror(rc));
+			change_container_state(containers->value[i][0], containers->value[i][1], "failed", acfg);
+		} else {
+			LOG(INFO, "Started container %s\n", containers->value[i][1]);
+			change_container_state(containers->value[i][0], containers->value[i][1], "running", acfg);
+		}
         }
 	free_tbl(containers);
 }
