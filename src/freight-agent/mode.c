@@ -523,10 +523,11 @@ int exec_container(const char *rpm, const char *name, const char *tenant,
 	return 0;
 }
 
-static int create_table_worker(struct tbl *table, const struct agent_config *acfg,
+static int create_table_worker(struct tbl *table, const struct agent_config *config,
 			       void (*work)(struct tbl *, const struct agent_config *))
 {
 	pid_t rc;
+	struct agent_config *acfg = (struct agent_config *)config;
 
 	rc = fork();
 
@@ -554,7 +555,20 @@ static int create_table_worker(struct tbl *table, const struct agent_config *acf
 		exit(1);
 	}
 
+	if (db_init(acfg)) {
+		LOG(WARNING, "Could not re-init database connection\n");
+		goto out_free;
+	}
+
+	if (db_connect(acfg)) {
+		LOG(WARNING, "Could not establish new database connection\n");
+		goto out_free;
+	}
+
 	work(table, acfg);
+	db_disconnect(acfg);
+out_free:
+	free_tbl(table);
 	exit(0);
 }
 
@@ -569,6 +583,7 @@ static void create_containers_from_table(struct tbl *containers, const struct ag
 {
 	int i;
 	int rc;
+	
 	for(i=0; i<containers->rows; i++) {
 		LOG(INFO, "Creatig container %s of type %s for tennant %s\n",
 			containers->value[i][1], containers->value[i][2], containers->value[i][0]);
@@ -594,12 +609,12 @@ static void create_containers_from_table(struct tbl *containers, const struct ag
 			change_container_state(containers->value[i][0], containers->value[i][1], "running", acfg);
 		}
         }
-	free_tbl(containers);
 }
 
 static void delete_containers_from_table(struct tbl *containers, const struct agent_config *acfg)
 {
 	int i;
+
 	for(i=0; i<containers->rows; i++) {
 		LOG(INFO, "Deleting container %s of type %s for tennant %s\n",
 			containers->value[i][1], containers->value[i][2], containers->value[i][0]);
