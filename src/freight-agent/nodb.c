@@ -50,7 +50,7 @@ static int nodb_connect(struct agent_config *acfg)
 	return 0;
 }
 
-struct tbl* nodb_get_table(const char *tbl, const char *cols, const char *filter,
+struct tbl* nodb_get_table(enum db_table type, const char *cols, const char *filter,
                                  const struct agent_config *acfg)
 {
 	struct tbl *table = NULL;
@@ -59,8 +59,8 @@ struct tbl* nodb_get_table(const char *tbl, const char *cols, const char *filter
  	 * For this local dummy database, we always just return a local tennant 
  	 * From the tennant_hosts table
  	 */
-	if (!strcmp(tbl, "tennant_hosts")) {
-		table = alloc_tbl(1,2);
+	if (type == TABLE_TENNANT_HOSTS) {
+		table = alloc_tbl(1,2, type);
 		if (table)
 			table->value[0][1] = strdup("local");
 	}

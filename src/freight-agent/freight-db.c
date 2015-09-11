@@ -34,6 +34,19 @@ static const char* channel_map[] = {
 	[CHAN_CONTAINERS] = "containers"
 };
 
+/*
+ * This table maps the human readable column names
+ * to the numeric columns that each table returns
+ */
+static int db_col_map[TABLE_MAX][COL_MAX] = {
+ [TABLE_TENNANTS] =		{0, -1, -1, -1, -1, -1, -1},
+ [TABLE_NODES] =		{-1, 0, 1, -1, -1, -1, -1},
+ [TABLE_TENNANT_HOSTS] = 	{1, 0, -1, -1, -1, -1, -1},
+ [TABLE_YUM_CONFIG] =		{2, -1, -1, 0, 1, -1, -1,},
+ [TABLE_CONTAINERS] =		{0, 3, 4, -1, -1, 1, 2}
+};
+
+
 struct channel_callback {
 	enum event_rc (*hndl)(const enum listen_channel chnl, const char *extra, const struct agent_config *acfg);
 	enum listen_channel chnl;
@@ -101,7 +114,7 @@ int channel_subscribe(const struct agent_config *acfg,
 	rc = __chn_subscribe(acfg, "LISTEN", chname);
 
 	for (i=0; i < table->rows; i++) {
-		chname = strjoin("\"", channel_map[chn], "-", table->value[i][1], "\"", NULL);
+		chname = strjoin("\"", channel_map[chn], "-", lookup_tbl(table, i, COL_TENNANT), "\"", NULL);
 		rc |= __chn_subscribe(acfg, "LISTEN", chname);
 		free(chname);
 	}
@@ -169,7 +182,7 @@ enum event_rc event_dispatch(const char *chn, const char *extra)
 }
 
 
-struct tbl *alloc_tbl(int rows, int cols)
+struct tbl *alloc_tbl(int rows, int cols, enum db_table type)
 {
 	int r;
 
@@ -178,6 +191,7 @@ struct tbl *alloc_tbl(int rows, int cols)
 		goto out;
 	table->rows = rows;
 	table->cols = cols;
+	table->type = type;
 
 	table->value = calloc(1, sizeof(char **)*rows);
 	if (!table->value)
@@ -218,6 +232,14 @@ void free_tbl(struct tbl *table)
 
 	free(table->value);
 	free(table);
+}
+
+void * lookup_tbl(struct tbl *table, int row, enum table_col col)
+{
+	if ((long long)(table->value[row][db_col_map[table->type][col]]) == -1)
+		return NULL;
+
+	return table->value[row][db_col_map[table->type][col]];
 }
 
 int add_repo(const char *name, const char *url,
@@ -318,7 +340,7 @@ int list_subscriptions(const char *tenant,
 
 	filter = strjoina("tennant = '", real_tenant, "'", NULL);
 
-	table = api->get_table("tennant_hosts", "*", filter, acfg);
+	table = api->get_table(TABLE_TENNANT_HOSTS, "*", filter, acfg);
 	if (!table)
 		LOGRAW("\nNo hosts subscribed to tennant %s\n", real_tenant);
 	else {
@@ -356,7 +378,7 @@ struct tbl* get_tennants_for_host(const char *host,
 
 	filter = strjoina("hostname = '", host, "'", NULL);
 
-	return api->get_table("tennant_hosts", "*", filter, acfg);
+	return api->get_table(TABLE_TENNANT_HOSTS, "*", filter, acfg);
 }
 
 struct tbl* get_repos_for_tennant(const char *tenant,
@@ -369,7 +391,7 @@ struct tbl* get_repos_for_tennant(const char *tenant,
 
 	filter = strjoina("tennant='", tenant, "'", NULL);
 
-	return api->get_table("yum_config", "name, url", filter, acfg);
+	return api->get_table(TABLE_YUM_CONFIG, "name, url", filter, acfg);
 }
 
 struct tbl* get_containers_for_host(const char *host,
@@ -383,7 +405,7 @@ struct tbl* get_containers_for_host(const char *host,
 
 	filter = strjoina("(hostname='", host, "' AND state='", state, "')", NULL);
 
-	return api->get_table("containers", "*", filter, acfg);
+	return api->get_table(TABLE_CONTAINERS, "*", filter, acfg);
 }
 
 static struct tbl *get_container_info(const char *iname,
@@ -396,7 +418,7 @@ static struct tbl *get_container_info(const char *iname,
 
 	filter = strjoina("(iname='", iname, "' AND tennant='", acfg->db.user,"')", NULL);
 
-	return api->get_table("contaienrs", "*", filter, acfg);
+	return api->get_table(TABLE_CONTAINERS, "*", filter, acfg);
 }
 
 int request_create_container(const char *cname,

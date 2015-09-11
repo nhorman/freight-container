@@ -26,8 +26,34 @@
 #include <errno.h>
 #include <freight-config.h>
 
+/*
+ * enum of table types in the db
+ */
+enum db_table {
+	TABLE_TENNANTS = 0,
+	TABLE_NODES,
+	TABLE_TENNANT_HOSTS,
+	TABLE_YUM_CONFIG,
+	TABLE_CONTAINERS,
+	TABLE_MAX
+};
+
+/*
+ * enum of column names
+ */
+enum table_col {
+	COL_TENNANT = 0,
+	COL_HOSTNAME,
+	COL_STATE,
+	COL_NAME,
+	COL_URL,
+	COL_INAME,
+	COL_CNAME,
+	COL_MAX
+};
 
 struct tbl {
+	enum db_table type;
 	int rows;
 	int cols;
 	char *** value;
@@ -54,7 +80,7 @@ struct db_api {
 	/* operational methods */
 	int (*send_raw_sql)(const char *values, const struct agent_config *acfg);
 
-	struct tbl* (*get_table)(const char *tbl, const char *cols, const char *filter,
+	struct tbl* (*get_table)(enum db_table tbl, const char *cols, const char *filter,
 				 const struct agent_config *acfg);
 	enum event_rc (*poll_notify)(const struct agent_config *acfg);
 };
@@ -124,9 +150,11 @@ extern void channel_unsubscribe(const struct agent_config *acfg,
 
 extern enum event_rc event_dispatch(const char *chn, const char *extra);
 
-extern struct tbl *alloc_tbl(int rows, int cols);
+extern struct tbl *alloc_tbl(int rows, int cols, enum db_table type);
 
 extern void free_tbl(struct tbl *table);
+
+extern void *lookup_tbl(struct tbl *table, int row, enum table_col col);
 
 extern int add_repo(const char *name,
 		    const char *url,
