@@ -120,7 +120,7 @@ void clean_container_root(const struct agent_config *acfg)
 
 	for(r=0; r < table->rows; r++)
                 clean_tennant_root(acfg->node.container_root,
-				   table->value[r][1], acfg);
+				   lookup_tbl(table, r, COL_TENNANT), acfg);
 
 	free_tbl(table);
 
@@ -294,17 +294,17 @@ static int init_tennant_root(const char *croot,
 			     "to fetch containers!\n");
 	else {
 		for (i=0; i < yum_config->rows; i++) {
-			repo = strjoina(troot, "/etc/yum.repos.d/", yum_config->value[i][0], ".repo", NULL);
+			repo = strjoina(troot, "/etc/yum.repos.d/", lookup_tbl(yum_config, i, COL_NAME), ".repo", NULL);
 			fptr = fopen(repo, "w");
 			if (!fptr) {
 				LOG(ERROR, "Unable to write /etc/yum.repos.d/%s.repo\n",
-					yum_config->value[i][0]);
+					(char *)lookup_tbl(yum_config, i, COL_NAME));
 				goto out;
 			}
 
-			fprintf(fptr, "[%s]\n", yum_config->value[i][0]);
-			fprintf(fptr, "name=%s\n", yum_config->value[i][0]);
-			fprintf(fptr, "baseurl=%s\n", yum_config->value[i][1]);
+			fprintf(fptr, "[%s]\n", (char *)lookup_tbl(yum_config, i, COL_NAME));
+			fprintf(fptr, "name=%s\n", (char *)lookup_tbl(yum_config, i, COL_NAME));
+			fprintf(fptr, "baseurl=%s\n", (char *)lookup_tbl(yum_config, i, COL_URL));
 			fprintf(fptr, "gpgcheck=0\n"); /* for now */
 			fprintf(fptr, "enabled=1\n");
 			fclose(fptr);
@@ -393,7 +393,7 @@ int init_container_root(const struct agent_config *acfg)
  	 * Now init the root space for each tennant
  	 */
 	for(r = 0; r < table->rows; r++) {
-		rc = init_tennant_root(croot, table->value[r][1], acfg);
+		rc = init_tennant_root(croot, lookup_tbl(table, r, COL_TENNANT), acfg);
 		if (rc) {
 			LOG(ERROR, "Unable to establish all tennants, cleaning...\n");
 			goto out_clean;
@@ -405,7 +405,7 @@ out:
 	return rc;
 out_clean:
 	for(r=0; r < table->rows; r++)
-		clean_tennant_root(croot, table->value[r][1], acfg);
+		clean_tennant_root(croot, lookup_tbl(table,r,COL_TENNANT), acfg);
 	goto out_free;
 
 }
@@ -616,14 +616,19 @@ static void create_containers_from_table(struct tbl *containers, const struct ag
 {
 	int i;
 	int rc;
+	char *tennant, *iname, *cname;
 	
 	for(i=0; i<containers->rows; i++) {
-		LOG(INFO, "Creatig container %s of type %s for tennant %s\n",
-			containers->value[i][1], containers->value[i][2], containers->value[i][0]);
+		tennant = lookup_tbl(containers, i, COL_TENNANT);
+		iname = lookup_tbl(containers, i, COL_INAME);
+		cname = lookup_tbl(containers, i, COL_CNAME);
 
-		if (install_and_update_container(containers->value[i][2], containers->value[i][0], acfg)) {
-			LOG(WARNING, "Unable to install/update container %s\n", containers->value[i][1]);
-			change_container_state(containers->value[i][0], containers->value[i][1],
+		LOG(INFO, "Creatig container %s of type %s for tennant %s\n",
+			iname, cname, tennant);
+
+		if (install_and_update_container(cname, tennant, acfg)) {
+			LOG(WARNING, "Unable to install/update container %s\n", iname);
+			change_container_state(tennant, iname,
 					       "failed", acfg);
 			continue;
 		}
@@ -631,15 +636,15 @@ static void create_containers_from_table(struct tbl *containers, const struct ag
 		/*
 		 * They're installed, now we just need to exec each container
 		 */
-		rc = exec_container(containers->value[i][2], containers->value[i][1], containers->value[i][0],
+		rc = exec_container(cname, iname, tennant,
 				    1, acfg);
 		if (rc) {
 			LOG(WARNING, "Failed to exec container %s: %s\n",
-				containers->value[i][1], strerror(rc));
-			change_container_state(containers->value[i][0], containers->value[i][1], "failed", acfg);
+				iname, strerror(rc));
+			change_container_state(tennant, iname, "failed", acfg);
 		} else {
-			LOG(INFO, "Started container %s\n", containers->value[i][1]);
-			change_container_state(containers->value[i][0], containers->value[i][1], "running", acfg);
+			LOG(INFO, "Started container %s\n", iname);
+			change_container_state(tennant, iname, "running", acfg);
 		}
         }
 }
@@ -647,10 +652,15 @@ static void create_containers_from_table(struct tbl *containers, const struct ag
 static void delete_containers_from_table(struct tbl *containers, const struct agent_config *acfg)
 {
 	int i;
+	char *tennant, *iname, *cname;
 
 	for(i=0; i<containers->rows; i++) {
+		iname = lookup_tbl(containers, i, COL_INAME);
+		tennant = lookup_tbl(containers, i, COL_TENNANT);
+		cname = lookup_tbl(containers, i, COL_CNAME);
+
 		LOG(INFO, "Deleting container %s of type %s for tennant %s\n",
-			containers->value[i][1], containers->value[i][2], containers->value[i][0]);
+			iname, cname, tennant);
 
         }
 	free_tbl(containers);
@@ -672,7 +682,7 @@ static void handle_new_containers(const struct agent_config *acfg)
 	 * This also services to block the next table update from considering
 	 * these as unserviced requests.
 	 */
-	if (change_container_state_batch(containers->value[0][0], "new",
+	if (change_container_state_batch(lookup_tbl(containers, 0, COL_TENNANT), "new",
 				         "installing", acfg)) {
 		LOG(WARNING, "Unable to update container state\n");
 		return;
@@ -683,7 +693,8 @@ static void handle_new_containers(const struct agent_config *acfg)
 	 */
 	if (create_table_worker(containers, acfg, create_containers_from_table)) {
 		LOG(WARNING, "Unable to fork container install process\n");
-		change_container_state_batch(containers->value[0][0], "installing", "failed", acfg);
+		change_container_state_batch(lookup_tbl(containers, 0, COL_TENNANT),
+					     "installing", "failed", acfg);
 		free_tbl(containers);
 		return;
 	}
@@ -706,7 +717,8 @@ static void handle_exiting_containers(const struct agent_config *acfg)
 	 */
 	if (create_table_worker(containers, acfg, delete_containers_from_table)) {
 		LOG(WARNING, "Unable to fork container install process\n");
-		change_container_state_batch(containers->value[0][0], "installing", "failed", acfg);
+		change_container_state_batch(lookup_tbl(containers, 0, COL_TENNANT),
+					     "installing", "failed", acfg);
 		free_tbl(containers);
 		return;
 	}
