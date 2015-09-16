@@ -25,6 +25,7 @@
 #include <string.h>
 #include <signal.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <sys/stat.h>
 #include <sys/vfs.h>
 #include <sys/mount.h>
@@ -443,6 +444,7 @@ int poweroff_container(const char *iname, const char *tennant,
 	pid_t pid;
 	int eoc = 3; /* machinectl poweroff <iname> */
 	char **execarray = NULL;
+	int status;
 	
 	eoc++; /* NULL terminator */
 
@@ -455,8 +457,10 @@ int poweroff_container(const char *iname, const char *tennant,
 	/*
 	 * parent
 	 */
-	if (pid > 0)
-		return 0;
+	if (pid > 0) {
+		waitpid(pid, &status, 0);
+		return WEXITSTATUS(status);
+	}
 
 	daemonize(acfg);
 
@@ -629,7 +633,7 @@ static void create_containers_from_table(struct tbl *containers, const struct ag
 		if (install_and_update_container(cname, tennant, acfg)) {
 			LOG(WARNING, "Unable to install/update container %s\n", iname);
 			change_container_state(tennant, iname,
-					       "failed", acfg);
+					       "installing", "failed", acfg);
 			continue;
 		}
 
@@ -641,15 +645,15 @@ static void create_containers_from_table(struct tbl *containers, const struct ag
 		if (rc) {
 			LOG(WARNING, "Failed to exec container %s: %s\n",
 				iname, strerror(rc));
-			change_container_state(tennant, iname, "failed", acfg);
+			change_container_state(tennant, iname, "installing", "failed", acfg);
 		} else {
 			LOG(INFO, "Started container %s\n", iname);
-			change_container_state(tennant, iname, "running", acfg);
+			change_container_state(tennant, iname, "installing", "running", acfg);
 		}
         }
 }
 
-static void delete_containers_from_table(struct tbl *containers, const struct agent_config *acfg)
+static void poweroff_containers_from_table(struct tbl *containers, const struct agent_config *acfg)
 {
 	int i;
 	char *tennant, *iname, *cname;
@@ -659,8 +663,13 @@ static void delete_containers_from_table(struct tbl *containers, const struct ag
 		tennant = lookup_tbl(containers, i, COL_TENNANT);
 		cname = lookup_tbl(containers, i, COL_CNAME);
 
-		LOG(INFO, "Deleting container %s of type %s for tennant %s\n",
+		LOG(INFO, "powering off container %s of type %s for tennant %s\n",
 			iname, cname, tennant);
+		if (poweroff_container(iname, tennant, acfg)) {
+			LOG(WARNING, "Could not poweroff container %s, failing operation\n", iname);
+			change_container_state(tennant, iname, "exiting", "failed", acfg);
+		} else
+			change_container_state(tennant, iname, "exiting", "staged", acfg);
 
         }
 	free_tbl(containers);
@@ -670,7 +679,7 @@ static void handle_new_containers(const struct agent_config *acfg)
 {
 	struct tbl *containers;
 
-	containers = get_containers_for_host(acfg->cmdline.hostname, "new", acfg);
+	containers = get_containers_for_host(acfg->cmdline.hostname, "start-requested", acfg);
 
 	if (!containers->rows) {
 		LOG(DEBUG, "No new containers\n");
@@ -682,7 +691,7 @@ static void handle_new_containers(const struct agent_config *acfg)
 	 * This also services to block the next table update from considering
 	 * these as unserviced requests.
 	 */
-	if (change_container_state_batch(lookup_tbl(containers, 0, COL_TENNANT), "new",
+	if (change_container_state_batch(lookup_tbl(containers, 0, COL_TENNANT), "start-requested",
 				         "installing", acfg)) {
 		LOG(WARNING, "Unable to update container state\n");
 		return;
@@ -707,6 +716,8 @@ static void handle_exiting_containers(const struct agent_config *acfg)
 
 	containers = get_containers_for_host(acfg->cmdline.hostname, "exiting", acfg);
 
+	LOG(INFO, "Handling Exiting Containers\n");
+
 	if (!containers->rows) {
 		LOG(DEBUG, "No exiting containers\n");
 		return;
@@ -715,10 +726,10 @@ static void handle_exiting_containers(const struct agent_config *acfg)
 	/*
 	 * Note: Need to fork here so that each tennant can do installs in parallel
 	 */
-	if (create_table_worker(containers, acfg, delete_containers_from_table)) {
+	if (create_table_worker(containers, acfg, poweroff_containers_from_table)) {
 		LOG(WARNING, "Unable to fork container install process\n");
 		change_container_state_batch(lookup_tbl(containers, 0, COL_TENNANT),
-					     "installing", "failed", acfg);
+					     "exiting", "failed", acfg);
 		free_tbl(containers);
 		return;
 	}
@@ -765,7 +776,7 @@ static void poweroff_all_containers(const struct agent_config *acfg)
 		 */
 		change_container_state(lookup_tbl(containers, i, COL_TENNANT),
 				      lookup_tbl(containers, i, COL_INAME),
-				      "failed", acfg);
+				      "running", "failed", acfg);
 	}	
 
 	free_tbl(containers);

@@ -201,8 +201,15 @@ extern int request_delete_container(const char *iname,
 				    const int force,
 				    const struct agent_config *acfg);
 
+extern int request_boot_container(const char *iname,
+				  const struct agent_config *acfg);
+
+extern int request_poweroff_container(const char *iname,
+				  const struct agent_config *acfg);
+
 extern int change_container_state(const char *tennant,
 				  const char *iname,
+				  const char *oldstate,
 				  const char *newstate,
 				  const struct agent_config *acfg);
 

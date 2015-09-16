@@ -71,6 +71,7 @@ GRANT SELECT ON tennant_hosts to $TENNANT;
 GRANT SELECT ON containers to $TENNANT;
 GRANT INSERT ON containers to $TENNANT;
 GRANT UPDATE ON containers to $TENNANT;
+GRANT DELETE ON containers to $TENNANT;
 
 EOF
 

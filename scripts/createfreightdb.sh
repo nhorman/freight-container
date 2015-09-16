@@ -92,7 +92,7 @@ psql -h 127.0.0.1 -w $DBNAME $ADMINUSER << EOF
 \x
 
 CREATE TYPE status as ENUM ('offline', 'operating', 'unreachable');
-CREATE TYPE cstate as ENUM ('new', 'failed', 'installing', 'running', 'exiting');
+CREATE TYPE cstate as ENUM ('staged', 'start-requested', 'failed', 'installing', 'running', 'exiting');
 
 CREATE TABLE tennants (
 	tennant	varchar(512) NOT NULL PRIMARY KEY

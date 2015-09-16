@@ -41,13 +41,37 @@ Request the creation of a container <cname> with instance name <iname> on host <
 Note that chost is optional, if left blank the freight-master process will be
 notified to schedule a host on behalf of the tennant.  chost may also be the
 reserved keyword all, which will cause all hosts belonging to the tennant to be
-notified, and the first to respond will create the container
+notified, and the first to respond will create the container.  Note that created
+containers are created in the STAGED state, it is stared by issuing the boot
+command below
+
+.B container boot <iname>
+Requests that the container named by <iname> be started.  Only containers in the
+STAGED or FAILED state may be booted
+
+.B container poweroff <iname>
+Requests that the container named by <iname> be shutdown and returned to the
+STAGED state.  On containers in the RUNNING state may be powered off
 
 .B container [delete] <iname>
-Request that the container refernce by <iname> in owned by the acting tennant be
-shutdown.  Note that only containers in the running or failed state can be
-deleted.  Requests to delete installing containers are ignored.
+Deletes the requested container from the database.  Only containers in the
+staged or failed state may be deleted.
 
+.SH CONTAINER LIFE CYCLE
+A container in freight as manged by freightctl exists in the following state table
+
+.TS
+allbox;
+cb	cb	cb
+.
+CURRENT STATE	DESCRIPTION	NEXT STATES
+STAGED	Container is created in DB	START-REQUESTED
+START-REQUESTED	Container has been requested to boot	INSTALLING,RUNNING,FAILED
+INSTALLING	Container image is downloading to agent system	RUNNING,FAILED
+RUNNING	Container is operational	FAILED,EXITING
+EXITING	Container is shutting down	FAILED,STAGED
+FAILED	Container has encountered a failure	-
+.TE
 .SH CONFIG FILE FORMAT 
 
 See the freight-agent man page for a description of the config file.  freghtctl

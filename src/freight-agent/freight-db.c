@@ -409,7 +409,7 @@ struct tbl* get_containers_for_host(const char *host,
 }
 
 static struct tbl *get_container_info(const char *iname,
-				      const struct agent_config *acfg)
+                                     const struct agent_config *acfg)
 {
 	char *filter;
 
@@ -437,7 +437,7 @@ int request_create_container(const char *cname,
 		       "'", iname, "',",
 		       "'", cname, "',",
 		       "'", chost, "',",
-		       "'new')", NULL);
+		       "'staged')", NULL);
 
 	rc = api->send_raw_sql(sql, acfg);
 
@@ -465,36 +465,77 @@ int request_delete_container(const char *iname,
 			     const int force,
 			     const struct agent_config *acfg)
 {
+	char *sql;
+
+	if (!api->send_raw_sql)
+		return -EOPNOTSUPP;
+
+	sql = strjoina("DELETE from containers WHERE tennant='",
+		acfg->db.user, "' AND iname='",iname,
+		"' AND (state='failed' OR state='staged')", NULL);
+
+	return api->send_raw_sql(sql, acfg);
+
+}
+
+extern int request_boot_container(const char *iname,
+				  const struct agent_config *acfg)
+{
 	int rc;
-	struct tbl *containers;
+	struct tbl *container;
+	char *host;
 
-	rc = change_container_state(acfg->db.user, iname, "exiting", acfg);
+	rc = change_container_state(acfg->db.user, iname, "staged",
+	 			    "start-requested", acfg);
+
 	if (rc)
-		return rc;
+		rc = change_container_state(acfg->db.user, iname, "failed",
+				    "start-requested", acfg);
 
-	containers = get_container_info(iname, acfg);
+	if (rc)
+		LOG(WARNING, "container %s is in the wrong state\n", iname);
 
-	if (!containers)
-		return -ENOENT;
+	container = get_container_info(iname, acfg);
 
-	if (containers->rows != 1) {
-		LOG(WARNING, "FOUND %d containers with the same name %s\n",
-			containers->rows, iname);
-		rc = -EINVAL;
-		goto out_free;
+	host = lookup_tbl(container, 0, COL_HOSTNAME);
+
+	if (host) {
+		if(!strcmp(host, "all"))
+			rc = notify_tennant(CHAN_CONTAINERS, acfg->db.user, acfg);
+		else
+			rc = notify_host(CHAN_CONTAINERS, host, acfg);
+	} else {
+		LOG(INFO, "NEED TO IMPLEMENT MASTER FUNCTION FOR HOST SELECTION\n");
 	}
 
-	/* Notify the host about the deleting container */
-	rc = notify_host(CHAN_CONTAINERS, containers->value[0][3], acfg);
+	if (rc)
+		LOG(WARNING, "Notificaion of host failed.  Boot may be delayed\n");
 
-out_free:
-	free_tbl(containers);
+	return rc; 
 	
+}
+
+extern int request_poweroff_container(const char *iname,
+				  const struct agent_config *acfg)
+{
+	int rc;
+	struct tbl *container;
+
+	rc = change_container_state(acfg->db.user, iname, "running",
+				    "exiting", acfg);
+
+	container = get_container_info(iname, acfg);
+
+	rc = notify_host(CHAN_CONTAINERS, lookup_tbl(container, 0, COL_HOSTNAME), acfg);
+
 	return rc;
 }
 
+
+
 extern int change_container_state(const char *tennant,
                                   const char *iname,
+				  const char *oldstate,
                                   const char *newstate,
                                   const struct agent_config *acfg)
 {
@@ -505,7 +546,8 @@ extern int change_container_state(const char *tennant,
 
 	sql = strjoina("UPDATE containers set state ='", newstate,
 		       "' WHERE tennant = '", tennant,
-		       "' AND iname = '", iname, "'");
+		       "' AND iname = '", iname,
+		       "' AND state = '", oldstate, "'", NULL);
 
 	return api->send_raw_sql(sql, acfg);
 }

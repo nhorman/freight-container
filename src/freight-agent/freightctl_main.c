@@ -115,6 +115,16 @@ static int container_op(char **argv, int argc,
 		if (argv[2] && !strcmp(argv[2], "force"))
 			force = 1;
 		rc = request_delete_container(argv[1], force, acfg);
+	} else if (!strcmp(argv[0], "boot")) {
+		if (argc < 2)
+			goto out;
+		LOG(INFO, "Booting Container %s\n", argv[1]);
+		rc = request_boot_container(argv[1], acfg);
+	} else if (!strcmp(argv[0], "poweroff")) {
+		if (argc < 2)
+			goto out;
+		LOG(INFO, "Powering off container %s\n", argv[1]);
+		rc = request_poweroff_container(argv[1], acfg);
 	} else
 		rc = -EINVAL;
 out:
