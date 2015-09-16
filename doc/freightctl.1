@@ -76,3 +76,10 @@ FAILED	Container has encountered a failure	-
 
 See the freight-agent man page for a description of the config file.  freghtctl
 only uses the db section of the configuration
+
+.SH
+NOTES
+freightctl has direct access to the freight database, and as such is completely
+insecure, in that any tennant has access to other tennants information.  If you
+wish to implement a production level multitennant environment, use a freight
+front end to gate access to the cluster.
