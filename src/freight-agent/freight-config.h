@@ -46,6 +46,11 @@ struct master_config {
 	/* empty for now */
 };
 
+struct proxy_config {
+	int serverport;
+	char *logpath;
+};
+
 enum op_mode {
 	OP_MODE_NODE = 0,
 	OP_MODE_INIT,
@@ -66,6 +71,7 @@ struct agent_config {
 	struct db_config db;
 	struct node_config node;
 	struct master_config master;	
+	struct proxy_config proxy;
 	struct cmdline_config cmdline;
 };
 

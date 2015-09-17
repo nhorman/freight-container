@@ -39,6 +39,7 @@ void release_configuration(struct agent_config *config)
 	free(config->db.user);
 	free(config->db.password);
 	free(config->node.container_root);
+	free(config->proxy.logpath);
 }
 
 static int parse_entry(config_setting_t *config, char **b, const char *name) {
@@ -127,6 +128,35 @@ out:
 	return rc;
 }
 
+static int parse_proxy_config(config_t *cfg, struct proxy_config *proxy)
+{
+	int rc = 0;
+	config_setting_t *proxy_cfg = config_lookup(cfg, "proxy");
+	char *serverport;
+
+	memset(proxy, 0, sizeof(struct proxy_config));
+
+	/*
+ 	 * Not having a proxy config isn't fatal
+ 	 */
+	if (!proxy_cfg)
+		goto out;
+	
+	rc = parse_entry(proxy_cfg, &serverport, "serverport");
+	if (rc == -ENOENT) 
+		LOG(ERROR, "proxy config must contain a valid serverport");
+	else
+		proxy->serverport = strtoul(serverport, NULL, 10);
+
+	free(serverport);
+
+	/* NULL entry is ok for log */
+	parse_entry(proxy_cfg, &proxy->logpath, "log");
+	
+out:
+	return rc;
+}
+
 int read_configuration(char *config_path, struct agent_config *acfg)
 {
 	struct config_t config;
@@ -154,6 +184,10 @@ int read_configuration(char *config_path, struct agent_config *acfg)
 		goto out_release;
 
 	rc = parse_node_config(&config, &acfg->node);
+	if (rc)
+		goto out_release;
+
+	rc = parse_proxy_config(&config, &acfg->proxy);
 	if (rc)
 		goto out_release;
 
