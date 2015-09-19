@@ -39,11 +39,11 @@ static const char* channel_map[] = {
  * to the numeric columns that each table returns
  */
 static int db_col_map[TABLE_MAX][COL_MAX] = {
- [TABLE_TENNANTS] =		{0, -1, -1, -1, -1, -1, -1},
- [TABLE_NODES] =		{-1, 0, 1, -1, -1, -1, -1},
- [TABLE_TENNANT_HOSTS] = 	{1, 0, -1, -1, -1, -1, -1},
- [TABLE_YUM_CONFIG] =		{2, -1, -1, 0, 1, -1, -1,},
- [TABLE_CONTAINERS] =		{0, 3, 4, -1, -1, 1, 2}
+ [TABLE_TENNANTS] =		{0, -1, -1, -1, -1, -1, -1, 1},
+ [TABLE_NODES] =		{-1, 0, 1, -1, -1, -1, -1, -1},
+ [TABLE_TENNANT_HOSTS] = 	{1, 0, -1, -1, -1, -1, -1, -1},
+ [TABLE_YUM_CONFIG] =		{2, -1, -1, 0, 1, -1, -1, -1},
+ [TABLE_CONTAINERS] =		{0, 3, 4, -1, -1, 1, 2, -1}
 };
 
 
@@ -240,6 +240,30 @@ void * lookup_tbl(struct tbl *table, int row, enum table_col col)
 		return NULL;
 
 	return table->value[row][db_col_map[table->type][col]];
+}
+
+char* get_tennant_proxy_pass(const char *user, const struct agent_config *acfg)
+{
+	struct tbl *table;
+	char *filter;
+	char *pass;
+
+	if (!api->get_table)
+		return NULL;
+
+	filter = strjoina("tennant = '", user, "'", NULL);
+
+	table = api->get_table(TABLE_TENNANTS, "*", filter, acfg);
+
+	pass = lookup_tbl(table, 0, COL_PROXYPASS);
+
+	if (!pass)
+		goto out;
+
+	pass = strdup(pass);
+out:
+	free_tbl(table);
+	return pass;
 }
 
 int add_repo(const char *name, const char *url,

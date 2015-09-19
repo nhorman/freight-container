@@ -5,7 +5,7 @@
 # Shell script to initalize the postgres database for use with a
 # Freight instance
 #
-# Usage ./createfreightdb.sh <dbname> <node user> <admin user> <pw>
+# Usage ./createfreightdb.sh <dbname> <node user> <admin user> <pw> <proxypw>
 ###################################################################
 
 DBNAME=$1
@@ -13,7 +13,7 @@ ADMINUSER=$2
 ADMINPASS=$3
 TENNANT=$4
 TENNANTPASS=$5
-
+PROXYPASS=$6
 
 usage() {
 	echo "./createfreghtdb.sh <dbname> <nodeuser> <node pass> <admn user> <pw>"
@@ -89,7 +89,7 @@ export PGPASSWORD=$TENNANTPASS
 psql -h 127.0.0.1 -w $DBNAME $TENNANT << EOF
 \x
 
-INSERT into tennants VALUES (current_user);
+INSERT into tennants VALUES (current_user, '$PROXYPASS');
 
 EOF
 

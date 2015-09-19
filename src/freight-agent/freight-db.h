@@ -49,6 +49,7 @@ enum table_col {
 	COL_URL,
 	COL_INAME,
 	COL_CNAME,
+	COL_PROXYPASS,
 	COL_MAX
 };
 
@@ -155,6 +156,8 @@ extern struct tbl *alloc_tbl(int rows, int cols, enum db_table type);
 extern void free_tbl(struct tbl *table);
 
 extern void *lookup_tbl(struct tbl *table, int row, enum table_col col);
+
+extern char* get_tennant_proxy_pass(const char *user, const struct agent_config *acfg);
 
 extern int add_repo(const char *name,
 		    const char *url,

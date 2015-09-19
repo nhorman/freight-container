@@ -95,7 +95,8 @@ CREATE TYPE status as ENUM ('offline', 'operating', 'unreachable');
 CREATE TYPE cstate as ENUM ('staged', 'start-requested', 'failed', 'installing', 'running', 'exiting');
 
 CREATE TABLE tennants (
-	tennant	varchar(512) NOT NULL PRIMARY KEY
+	tennant	varchar(512) NOT NULL PRIMARY KEY,
+	proxypass varchar(512)
 );
 
 CREATE TABLE nodes (
