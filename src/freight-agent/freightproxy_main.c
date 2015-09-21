@@ -35,6 +35,7 @@ struct agent_config config;
 
 static TServer abyssServer;
 
+extern void handle_freight_rpc(TSession *sessionP, TRequestInfo *requestP);
 
 /*
  * This....is a hot mess.  Its here because xmlrpc doesn't currently export RequestAuth, so
@@ -212,7 +213,6 @@ RequestAuthFromDb(TSession *   const sessionP,
 				*pass = 0;
 				pass++;
 				dbpass = get_tennant_proxy_pass(user, &config);
-				LOG(DEBUG, "dbpass is %s\n", dbpass);
 				if (!strcmp(dbpass, pass)) {
 					authorized = TRUE;
 				} else
@@ -258,7 +258,7 @@ static void usage(char **argv)
 static abyss_bool handleDefaultRequest(TSession * const sessionP)
 {
 	ResponseStatus(sessionP, 500); /* Not found */
-	ResponseError2(sessionP, "We don't serve regual html in these here parts");
+	ResponseError2(sessionP, "We don't serve regular html in these here parts");
 	return TRUE;
 }
 
@@ -267,26 +267,27 @@ static void handleFreightRPC(void * const handler,
 			     abyss_bool * const handledP)
 {
 	abyss_bool authenticated;
+	TRequestInfo *requestP = NULL;
 
-	LOG(DEBUG, "Got a RPC request\n");
+	*handledP = FALSE;
 
 	authenticated = RequestAuthFromDb(sessionP, "FreightProxyDomain");
-				   
 
-	if (authenticated) {
-		char *authHdrPtr, *creds;
-		char userpass[512];
-		ResponseStatus(sessionP, 200);
-		authHdrPtr = RequestHeaderValue(sessionP, "authorization");
-		creds = GetToken(&authHdrPtr);
-		LOG(DEBUG, "creds are %s\n", creds);
-		xmlrpc_base64Decode(creds, userpass);
-		LOG(DEBUG, "Userpass is %s: %s\n", authHdrPtr, userpass);
+	if (!authenticated)
+		return;				   
+
+	SessionGetRequestInfo(sessionP, (const TRequestInfo ** const)&requestP);
+
+	if (!requestP){
+		ResponseStatus(sessionP, 500);
+		ResponseError2(sessionP, "Invalid request");
+		return;
 	}
+
+	handle_freight_rpc(sessionP, requestP);
 
 	*handledP = TRUE;
 
-	LOG(DEBUG, "Done with RPC request\n");
 }
 
 

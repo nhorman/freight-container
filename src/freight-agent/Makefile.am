@@ -20,5 +20,5 @@ freightctl_SOURCES = freightctl_main.c \
 
 freightproxy_SOURCES = freightproxy_main.c freight-config.c \
 		       freight-db.c ../freight-common.c postgres-db.c \
-		       nodb.c
+		       nodb.c proxy_handlers.c
 
