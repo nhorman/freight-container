@@ -31,8 +31,46 @@
 #include <xmlrpc-c/abyss.h>
 
 
-void handle_freight_rpc(TSession *sessionP, TRequestInfo *requestP)
+void get_table(TSession *sessionP, TRequestInfo *requestP)
 {
+	LOG(DEBUG, "Got a get_table request\n");
+}
 
+
+
+
+
+
+
+struct handler_entry {
+	const char *uri;
+	void (*handler)(TSession *sessionP, TRequestInfo *requestP);
+} handlers[] = {
+	{
+		"/get.table",
+		get_table
+	},
+	{
+		NULL,
+		NULL,
+	},
+};
+
+extern void handle_freight_rpc(TSession *sessionP, TRequestInfo *requestP,
+			       abyss_bool * const handledP)
+{
+	struct handler_entry *idx;
+
+	idx = &handlers[0];
+	*handledP = FALSE;
+
+	while (idx->uri) {
+		if (!strncmp(requestP->uri, idx->uri, strlen(requestP->uri))) {
+			*handledP = TRUE;
+			ResponseStatus(sessionP, 200);
+			return idx->handler(sessionP, requestP);
+		}
+		idx++;
+	}
 }
 

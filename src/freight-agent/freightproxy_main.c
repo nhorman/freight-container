@@ -35,7 +35,8 @@ struct agent_config config;
 
 static TServer abyssServer;
 
-extern void handle_freight_rpc(TSession *sessionP, TRequestInfo *requestP);
+extern void handle_freight_rpc(TSession *sessionP, TRequestInfo *requestP,
+			       abyss_bool * const handledP);
 
 /*
  * This....is a hot mess.  Its here because xmlrpc doesn't currently export RequestAuth, so
@@ -269,7 +270,7 @@ static void handleFreightRPC(void * const handler,
 	abyss_bool authenticated;
 	TRequestInfo *requestP = NULL;
 
-	*handledP = FALSE;
+	*handledP = TRUE;
 
 	authenticated = RequestAuthFromDb(sessionP, "FreightProxyDomain");
 
@@ -284,9 +285,8 @@ static void handleFreightRPC(void * const handler,
 		return;
 	}
 
-	handle_freight_rpc(sessionP, requestP);
+	handle_freight_rpc(sessionP, requestP, handledP);
 
-	*handledP = TRUE;
 
 }
 
