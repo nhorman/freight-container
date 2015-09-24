@@ -632,3 +632,12 @@ int notify_tennant(const enum listen_channel chn, const char *tennant,
 	 */
 	return notify_host(chn, tennant, acfg);
 }
+
+struct tbl* get_raw_table(enum db_table table, char *filter, const struct agent_config *acfg)
+{
+	if (!api->get_table)
+		return NULL;
+
+        return api->get_table(table, "*", filter, acfg);
+}
+
