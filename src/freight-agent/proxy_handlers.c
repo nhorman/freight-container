@@ -123,8 +123,14 @@ void get_table(TSession *sessionP, TRequestInfo *requestP, const struct agent_co
 
 	xmlrpc_serialize_response(&env, output, xtbl);
 
+	ResponseContentType(sessionP,"text/html");
+
+	ResponseWriteStart(sessionP);
+
 	ResponseWriteBody(sessionP, xmlrpc_mem_block_contents(output),
 			  xmlrpc_mem_block_size(output));
+
+	ResponseWriteEnd(sessionP);
 
 	/*
 	 * free everything
