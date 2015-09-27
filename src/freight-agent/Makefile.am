@@ -4,9 +4,13 @@ ${libpq_CFLAGS} ${libconfig_CFLAGS} \
 
 AM_LDFLAGS = ${libpq_LIBS} ${libconfig_LIBS}
 
-freightproxy_CFLAGS = ${AM_CFLAGS} ${xmlrpc_abyss_CFLAGS}
+freightproxy_CFLAGS = ${AM_CFLAGS} ${xmlrpc_CFLAGS}\
+		      ${xmlrpc_abyss_CFLAGS}\
+		      ${xmlrpc_util_CFLAGS}
 
-freightproxy_LDFLAGS = ${AM_LDFLAGS} ${xmlrpc_abyss_LIBS}
+freightproxy_LDFLAGS = ${AM_LDFLAGS} ${xmlrpc_LIBS}\
+		       ${xmlrpc_abyss_LIBS}\
+		       ${xmlrpc_util_LIBS}
 
 bin_PROGRAMS = freight-agent freightctl freightproxy
 

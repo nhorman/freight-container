@@ -29,7 +29,9 @@
 #include <freight-log.h>
 #include <freight-config.h>
 #include <freight-db.h>
+#include <xmlrpc-c/base.h>
 #include <xmlrpc-c/abyss.h>
+#include <xmlrpc-c/util.h>
 
 static const char *tablenames[] = {
  [TABLE_TENNANTS] = "tennants",
@@ -47,9 +49,12 @@ void get_table(TSession *sessionP, TRequestInfo *requestP, const struct agent_co
 	struct tbl *table;
 	char *filter;
 	enum db_table tid;
-	int i;
-	
-	LOG(DEBUG, "Got a get_table request\n");
+	int i, j;
+	xmlrpc_env env;
+	xmlrpc_value *xtbl;
+	xmlrpc_value *xrow;
+	xmlrpc_value *xcell;
+	xmlrpc_mem_block *output;
 
 	if (!query) {
 		ResponseStatus(sessionP, 500);
@@ -78,7 +83,7 @@ void get_table(TSession *sessionP, TRequestInfo *requestP, const struct agent_co
 	tid = TABLE_MAX;
 
 	for (i=0; tablenames[i] != NULL; i++) {
-		if (!strncmp(tablenames[i], tableval, strlen(tablenames[i]))) {
+		if (!strncmp(tablenames[i], tableval, 128)) {
 			tid = i;
 			break;
 		}
@@ -93,8 +98,41 @@ void get_table(TSession *sessionP, TRequestInfo *requestP, const struct agent_co
 	filter = strjoina("tennant='",requestP->user,"'",NULL);
 	table = get_raw_table(tid, filter, acfg);
 
-	LOG(DEBUG, "DONE WITH GET GET TABLE %p\n", table);	
+	if (!table){
+		ResponseStatus(sessionP, 500);
+		ResponseError2(sessionP, "Failed to get table");
+		return;
+	}
+
+	xmlrpc_env_init(&env);
+	xtbl = xmlrpc_array_new(&env);
+
+	for (i = 0; i < table->rows; i++) {
+		xrow = xmlrpc_array_new(&env);
+		for (j=0; j < table->cols; j++) {
+			xcell = xmlrpc_string_new(&env, (char *)table->value[i][j]);
+			xmlrpc_array_append_item(&env, xrow, xcell);
+			xmlrpc_DECREF(xcell);
+		}
+		xmlrpc_array_append_item(&env, xtbl, xrow);
+		xmlrpc_DECREF(xrow);
+	}
+
+
+	output = XMLRPC_TYPED_MEM_BLOCK_NEW(char, &env, 0);
+
+	xmlrpc_serialize_response(&env, output, xtbl);
+
+	ResponseWriteBody(sessionP, xmlrpc_mem_block_contents(output),
+			  xmlrpc_mem_block_size(output));
+
+	/*
+	 * free everything
+	 */
+	xmlrpc_DECREF(xtbl);
 	free_tbl(table);
+	XMLRPC_TYPED_MEM_BLOCK_FREE(char, output);
+	xmlrpc_env_clean(&env);
 }
 
 
@@ -117,7 +155,7 @@ struct handler_entry {
 	},
 };
 
-extern void handle_freight_rpc(TSession *sessionP, TRequestInfo *requestP,
+void handle_freight_rpc(TSession *sessionP, TRequestInfo *requestP,
 			       abyss_bool * const handledP,
 			       const struct agent_config *acfg)
 {
@@ -130,9 +168,10 @@ extern void handle_freight_rpc(TSession *sessionP, TRequestInfo *requestP,
 		if (!strncmp(requestP->uri, idx->uri, strlen(requestP->uri))) {
 			*handledP = TRUE;
 			ResponseStatus(sessionP, 200);
-			return idx->handler(sessionP, requestP, acfg);
+			idx->handler(sessionP, requestP, acfg);
 		}
 		idx++;
 	}
+
 }
 
