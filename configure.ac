@@ -26,6 +26,7 @@ PKG_CHECK_MODULES([libconfig], [libconfig], [], [AC_MSG_ERROR([libconfig is requ
 PKG_CHECK_MODULES([xmlrpc], [xmlrpc], [], [AC_MSG_ERROR([xmlrpc is required])])
 PKG_CHECK_MODULES([xmlrpc_util], [xmlrpc_util], [], [AC_MSG_ERROR([xmlrpc_util is required])])
 PKG_CHECK_MODULES([xmlrpc_abyss], [xmlrpc_abyss], [], [AC_MSG_ERROR([xmlrpc_abyss is required])])
+PKG_CHECK_MODULES([xmlrpc_client], [xmlrpc_client], [], [AC_MSG_ERROR([xmlrpc_client is required])])
 
 AC_CHECK_FUNC([getopt_long], [AC_DEFINE([HAVE_GETOPT_LONG],[1],[getopt_long support])])
 AC_CHECK_FUNC([nftw], [AC_DEFINE([HAVE_NFTW],[1],[nftw support])], [

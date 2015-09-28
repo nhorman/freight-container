@@ -12,6 +12,11 @@ freightproxy_LDFLAGS = ${AM_LDFLAGS} ${xmlrpc_LIBS}\
 		       ${xmlrpc_abyss_LIBS}\
 		       ${xmlrpc_util_LIBS}
 
+freightctl_CFLAGS = ${AM_CFLAGS} ${xmlrpc_client_CFLAGS}
+
+freightctl_LDFLAGS = ${AM_LDFLAGS} ${xmlrpc_client_LIBS}\
+		     ${xmlrpc_util_LIBS}
+
 bin_PROGRAMS = freight-agent freightctl freightproxy
 
 freight_agent_SOURCES = main.c freight-config.c\
@@ -20,7 +25,8 @@ freight_agent_SOURCES = main.c freight-config.c\
 
 freightctl_SOURCES = freightctl_main.c \
 		freight-config.c postgres-db.c\
-		nodb.c freight-db.c ../freight-common.c
+		nodb.c freight-db.c xmlrpc_client.c\
+		../freight-common.c
 
 freightproxy_SOURCES = freightproxy_main.c freight-config.c \
 		       freight-db.c ../freight-common.c postgres-db.c \
