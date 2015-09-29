@@ -76,8 +76,9 @@ The config file has the following format
 
 
 db = {
-	dbtype = "postgres";
+	dbtype = "postgres | nodb | freightproxy";
 	hostaddr = "hostname of db server";
+	hostport = "optional port of db server
 	dbname = "Name of database on server";
 	user = "User name to access server";
 	password = "password to access server";
@@ -95,4 +96,19 @@ master = {
 ----------------------------------------------
 .fi
 
+
+.TP
+Note that the dbtype field supports the following database types
+.TP
+.B postgres
+.P
+Standard postgres database
+.TP
+.B nodb
+.P
+A Null db for local freigght agent use
+.TP
+.B freightproxy
+.P
+Connection to the freightproxy xmlrpc database proxy
 

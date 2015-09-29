@@ -35,6 +35,7 @@ void release_configuration(struct agent_config *config)
 		return;
 	
 	free(config->db.hostaddr);
+	free(config->db.hostport);
 	free(config->db.dbname);
 	free(config->db.user);
 	free(config->db.password);
@@ -92,6 +93,9 @@ static int parse_db_config(config_t *cfg, struct db_config *db)
 	rc = parse_entry(db_cfg, &db->hostaddr, "hostaddr");
 	if (rc < 0)
 		return rc;
+
+	/* Ignore return code, we use default port numbers */
+	rc = parse_entry(db_cfg, &db->hostport, "hostport");
 
 	rc = parse_entry(db_cfg, &db->dbname, "dbname");
 	if (rc < 0)

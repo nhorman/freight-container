@@ -65,11 +65,16 @@ static int pg_disconnect(struct agent_config *acfg)
 static int pg_connect(struct agent_config *acfg)
 {
 	int rc = -ENOTCONN;
+	char *port = "5432";
 
 	struct postgres_info *info = acfg->db.db_priv;
 
+	if (acfg->db.hostport)
+		port = acfg->db.hostport;
+
 	char * k[] = {
 		"hostaddr",
+		"port",
 		"dbname",
 		"user",
 		"password",
@@ -79,6 +84,7 @@ static int pg_connect(struct agent_config *acfg)
 
 	char *v[] = {
 		acfg->db.hostaddr,
+		port,
 		acfg->db.dbname,
 		acfg->db.user,
 		acfg->db.password,

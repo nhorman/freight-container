@@ -32,6 +32,7 @@ enum db_type {
 struct db_config {
 	enum db_type dbtype;
 	char *hostaddr;
+	char *hostport;
 	char *dbname;
 	char *user;
 	char *password;
