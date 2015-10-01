@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <freight-common.h>
 #include <freight-log.h>
 #include <freight-db.h>
 #include <xmlrpc-c/client.h>
@@ -34,6 +35,7 @@ struct xmlrpc_info {
 static int xmlrpc_init(struct agent_config *acfg)
 {
 	struct xmlrpc_info *info;
+	char *port = "80";
 	acfg->db.db_priv = info = calloc(1, sizeof(struct xmlrpc_info));
 	if (!acfg->db.db_priv)
 		return -ENOMEM;
@@ -42,6 +44,11 @@ static int xmlrpc_init(struct agent_config *acfg)
 	xmlrpc_client_setup_global_const(&info->env);
 	xmlrpc_client_create(&info->env, XMLRPC_CLIENT_NO_FLAGS, "Freight Proxy Client",
 			     "1.0", NULL, 0, &info->client);
+	if (acfg->db.hostport)
+		port = acfg->db.hostport;
+
+	info->baseurl = strjoin("http://",acfg->db.hostaddr,":",port,"/", NULL);
+
 	return 0;
 }
 
@@ -53,7 +60,8 @@ static void xmlrpc_cleanup(struct agent_config *acfg)
 	xmlrpc_client_teardown_global_const();
 	xmlrpc_env_clean(&info->env);
 
-	free(acfg->db.db_priv);
+	free(info->baseurl);
+	free(info);
 	acfg->db.db_priv = NULL;
 	return;
 }
@@ -71,19 +79,7 @@ static int xmlrpc_connect(struct agent_config *acfg)
 struct tbl* xmlrpc_get_table(enum db_table type, const char *cols, const char *filter,
                                  const struct agent_config *acfg)
 {
-	struct tbl *table = NULL;
-
-	/*
- 	 * For this local dummy database, we always just return a local tennant 
- 	 * From the tennant_hosts table
- 	 */
-	if (type == TABLE_TENNANT_HOSTS) {
-		table = alloc_tbl(1,2, type);
-		if (table)
-			table->value[0][1] = strdup("local");
-	}
-
-	return table;
+	return NULL;
 }
 
 struct db_api xmlrpc_api = {

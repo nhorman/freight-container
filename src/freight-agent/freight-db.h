@@ -103,6 +103,11 @@ static inline struct db_api* get_db_api(struct agent_config *acfg)
 	case DB_TYPE_POSTGRES:
 		api = &postgres_db_api;
 		return &postgres_db_api;
+		break;
+	case DB_TYPE_FREIGHTPROXY:
+		api = &xmlrpc_api;
+		return &xmlrpc_api;
+		break;
 	default:
 		return NULL;
 	}
