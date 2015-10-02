@@ -29,13 +29,15 @@
 struct xmlrpc_info {
 	xmlrpc_env env;
 	xmlrpc_client *client;
-	char *baseurl;
+	xmlrpc_server_info *server;
 };
 
 static int xmlrpc_init(struct agent_config *acfg)
 {
 	struct xmlrpc_info *info;
 	char *port = "80";
+	char *baseurl;
+
 	acfg->db.db_priv = info = calloc(1, sizeof(struct xmlrpc_info));
 	if (!acfg->db.db_priv)
 		return -ENOMEM;
@@ -47,7 +49,16 @@ static int xmlrpc_init(struct agent_config *acfg)
 	if (acfg->db.hostport)
 		port = acfg->db.hostport;
 
-	info->baseurl = strjoin("http://",acfg->db.hostaddr,":",port,"/", NULL);
+	baseurl = strjoina("http://",acfg->db.hostaddr,":",port,"/", NULL);
+
+	info->server = xmlrpc_server_info_new(&info->env, baseurl);
+
+	/*
+	 * Set the auth header
+	 */
+	xmlrpc_server_info_set_user(&info->env, info->server,
+				    acfg->db.user, acfg->db.password);
+	xmlrpc_server_info_allow_auth_basic(&info->env, info->server);
 
 	return 0;
 }
@@ -56,11 +67,11 @@ static void xmlrpc_cleanup(struct agent_config *acfg)
 {
 	struct xmlrpc_info *info = acfg->db.db_priv;
 
+	xmlrpc_server_info_free(info->server);
 	xmlrpc_client_destroy(info->client);
 	xmlrpc_client_teardown_global_const();
 	xmlrpc_env_clean(&info->env);
 
-	free(info->baseurl);
 	free(info);
 	acfg->db.db_priv = NULL;
 	return;
@@ -79,7 +90,65 @@ static int xmlrpc_connect(struct agent_config *acfg)
 struct tbl* xmlrpc_get_table(enum db_table type, const char *cols, const char *filter,
                                  const struct agent_config *acfg)
 {
-	return NULL;
+	struct xmlrpc_info *info = acfg->db.db_priv;
+	xmlrpc_value *result;
+	char *tablearg;
+	const char *tmps;
+	xmlrpc_value *tablename;
+	xmlrpc_value *params;
+	xmlrpc_value *tmpr, *tmpc;
+	int r, c, i, j;
+	struct tbl *table;
+
+	params = xmlrpc_array_new(&info->env);
+
+	tablearg = strjoina("table=",get_tablename(type));
+	tablename = xmlrpc_string_new(&info->env, tablearg); 
+	xmlrpc_array_append_item(&info->env, params, tablename);
+	xmlrpc_DECREF(tablename);
+
+	xmlrpc_client_call2(&info->env, info->client,
+			    info->server, "get.table",
+			    params,
+			    &result);
+
+	xmlrpc_DECREF(params);
+
+	/*
+	 * check to make sure it worked properly
+	 */
+	if (info->env.fault_occurred) {
+		LOG(ERROR, "Failed to issue xmlrpc: %s\n", info->env.fault_string);
+		return NULL;
+	}
+
+	/*
+	 * Now we find out how many rows and colums this table has
+	 */
+	r = xmlrpc_array_size(&info->env, result);
+	xmlrpc_array_read_item(&info->env, result, 0, &tmpr);
+	c = xmlrpc_array_size(&info->env, tmpr); 
+	xmlrpc_DECREF(tmpr);
+
+	LOG(DEBUG, "Allocating table of %d rows by %d cols\n", r, c);
+	table = alloc_tbl(r, c, type);
+
+	for (i=0; i < r; i++) {
+		xmlrpc_array_read_item(&info->env, result, i, &tmpr);
+
+		for (j=0; j < c; j++) {
+			xmlrpc_array_read_item(&info->env, tmpr, j, &tmpc);
+			xmlrpc_read_string(&info->env, tmpc, &tmps);
+			LOG(DEBUG, "INSERTING %s to %d:%d\n", tmps, i, j);
+			table->value[i][j] = strdup(tmps);
+			xmlrpc_DECREF(tmpc);
+		}
+		xmlrpc_DECREF(tmpr);
+	}
+
+	xmlrpc_DECREF(result);
+
+	return table;
 }
 
 struct db_api xmlrpc_api = {

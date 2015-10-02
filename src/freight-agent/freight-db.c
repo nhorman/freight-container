@@ -34,6 +34,15 @@ static const char* channel_map[] = {
 	[CHAN_CONTAINERS] = "containers"
 };
 
+static char *tablenames[TABLE_MAX] = {
+        [TABLE_TENNANTS] = "tennants",
+        [TABLE_NODES] = "nodes",
+        [TABLE_TENNANT_HOSTS] = "tennant_hosts",
+        [TABLE_YUM_CONFIG] = "yum_config",
+        [TABLE_CONTAINERS] = "containers"
+};
+
+
 /*
  * This table maps the human readable column names
  * to the numeric columns that each table returns
@@ -181,6 +190,11 @@ enum event_rc event_dispatch(const char *chn, const char *extra)
 	return EVENT_NOCHAN;
 }
 
+
+const char* get_tablename(enum db_table id)
+{
+	return tablenames[id];
+}
 
 struct tbl *alloc_tbl(int rows, int cols, enum db_table type)
 {

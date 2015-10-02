@@ -25,13 +25,6 @@
 #include <freight-common.h>
 #include <freight-db.h>
 
-static char *tablenames[TABLE_MAX] = {
-	[TABLE_TENNANTS] = "tennants",
-	[TABLE_NODES] = "nodes",
-	[TABLE_TENNANT_HOSTS] = "tennant_hosts",
-	[TABLE_YUM_CONFIG] = "yum_config",
-	[TABLE_CONTAINERS] = "containers"
-};
 
 struct postgres_info {
 	PGconn *conn;
@@ -142,9 +135,10 @@ static struct tbl* pg_get_table(enum db_table type,
 	ExecStatusType rc;
 	int row, col, r, c;
 	char *sql;
-	char *table = tablenames[type]; 
+	const char *table; 
 	struct tbl *rtable = NULL;
 
+	table = get_tablename(type);
 	sql = strjoina("SELECT ", cols, " FROM ", table, " WHERE ", filter);
 	result = PQexec(info->conn, sql);
 

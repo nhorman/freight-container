@@ -16,10 +16,12 @@ freightproxy_LDFLAGS = ${AM_LDFLAGS} ${xmlrpc_LIBS}\
 freightctl_CFLAGS = ${AM_CFLAGS} ${xmlrpc_client_CFLAGS}
 
 freightctl_LDFLAGS = ${AM_LDFLAGS} ${xmlrpc_client_LIBS}\
-		     ${xmlrpc_util_LIBS}
+		     ${xmlrpc_util_LIBS}\
+		     ${xmlrpc_LIBS}
 
 freight_agent_LDFLAGS = ${AM_LDFLAGS} ${xmlrpc_client_LIBS}\
-			${xmlrpc_util_LIBS}
+			${xmlrpc_util_LIBS}\
+			${xmlrpc_LIBS}
 
 bin_PROGRAMS = freight-agent freightctl freightproxy
 

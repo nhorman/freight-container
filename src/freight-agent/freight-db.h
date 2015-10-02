@@ -157,6 +157,8 @@ extern void channel_unsubscribe(const struct agent_config *acfg,
 
 extern enum event_rc event_dispatch(const char *chn, const char *extra);
 
+extern const char* get_tablename(enum db_table id);
+
 extern struct tbl *alloc_tbl(int rows, int cols, enum db_table type);
 
 extern void free_tbl(struct tbl *table);
