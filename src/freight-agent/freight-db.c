@@ -196,6 +196,19 @@ const char* get_tablename(enum db_table id)
 	return tablenames[id];
 }
 
+const enum db_table get_tableid(const char *name)
+{
+	int i;
+
+	for (i=0; i < TABLE_MAX; i++) {
+		if (!strcmp(name, tablenames[i]))
+			return i;
+	}
+
+	return TABLE_MAX;
+}
+
+
 struct tbl *alloc_tbl(int rows, int cols, enum db_table type)
 {
 	int r;

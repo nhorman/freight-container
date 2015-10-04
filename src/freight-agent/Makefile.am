@@ -11,7 +11,9 @@ freightproxy_CFLAGS = ${AM_CFLAGS} ${xmlrpc_CFLAGS}\
 freightproxy_LDFLAGS = ${AM_LDFLAGS} ${xmlrpc_LIBS}\
 		       ${xmlrpc_abyss_LIBS}\
 		       ${xmlrpc_util_LIBS}\
-		       ${xmlrpc_client_LIBS}
+		       ${xmlrpc_client_LIBS}\
+		       ${xmlrpc_server_LIBS}\
+		       ${xmlrpc_server_abyss_LIBS}
 
 freightctl_CFLAGS = ${AM_CFLAGS} ${xmlrpc_client_CFLAGS}
 

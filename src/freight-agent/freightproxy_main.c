@@ -26,18 +26,22 @@
 #include <string.h>
 #include <signal.h>
 #include <config.h>
+#include <freight-common.h>
 #include <freight-log.h>
 #include <freight-config.h>
 #include <freight-db.h>
 #include <xmlrpc-c/abyss.h>
+#include <xmlrpc-c/server.h>
+#include <xmlrpc-c/server_abyss.h>
+#include <proxy_handlers.h>
 
-struct agent_config config;
+static struct agent_config config;
 
 static TServer abyssServer;
 
-extern void handle_freight_rpc(TSession *sessionP, TRequestInfo *requestP,
-			       abyss_bool * const handledP,
-			       const struct agent_config *acfg);
+static xmlrpc_registry *registry;
+
+static	xmlrpc_env env;
 
 /*
  * This....is a hot mess.  Its here because xmlrpc doesn't currently export RequestAuth, so
@@ -55,6 +59,106 @@ typedef enum {
 } bool;
 #endif
 #endif
+
+static void
+processContentLength(TSession *    const httpRequestP,
+                     size_t *      const inputLenP,
+                     bool *        const missingP,
+                     const char ** const errorP) {
+/*----------------------------------------------------------------------------
+  Make sure the content length is present and non-zero.  This is
+  technically required by XML-RPC, but we only enforce it because we
+  don't want to figure out how to safely handle HTTP < 1.1 requests
+  without it.
+-----------------------------------------------------------------------------*/
+    const char * const content_length =
+        RequestHeaderValue(httpRequestP, "content-length");
+
+    if (content_length == NULL) {
+        *missingP = TRUE;
+        *errorP = NULL;
+    } else {
+        *missingP = FALSE;
+        *inputLenP = 0;  /* quiet compiler warning */
+        if (content_length[0] == '\0')
+            asprintf((char **)errorP, "The value in your content-length "
+                            "HTTP header value is a null string");
+        else {
+            unsigned long contentLengthValue;
+            char * tail;
+
+            contentLengthValue = strtoul(content_length, &tail, 10);
+
+            if (*tail != '\0')
+                asprintf((char **)errorP, "There's non-numeric crap in "
+                                "the value of your content-length "
+                                "HTTP header: '%s'", tail);
+            else if (contentLengthValue < 1)
+                asprintf((char **)errorP, "According to your content-length "
+                                "HTTP header, your request is empty (zero "
+                                "length)");
+            else if ((unsigned long)(size_t)contentLengthValue
+                     != contentLengthValue)
+                asprintf((char **)errorP, "According to your content-length "
+                                "HTTP header, your request is too big to "
+                                "process; we can't even do arithmetic on its "
+                                "size: %s bytes", content_length);
+            else {
+                *errorP = NULL;
+                *inputLenP = (size_t)contentLengthValue;
+            }
+        }
+    }
+}
+
+static void
+getBody(xmlrpc_env *        const envP,
+        TSession *          const abyssSessionP,
+        xmlrpc_mem_block ** const bodyP) {
+/*----------------------------------------------------------------------------
+   Get the entire body, which is of size 'contentSize' bytes, from the
+   Abyss session and return it as the new memblock *bodyP.
+
+   The first chunk of the body may already be in Abyss's buffer.  We
+   retrieve that before reading more.
+-----------------------------------------------------------------------------*/
+    xmlrpc_mem_block * body;
+    const char * const trace = NULL;
+    size_t contentSize;
+    bool missingP;
+    char * errorP;
+
+    contentSize = 0;
+    processContentLength(abyssSessionP, &contentSize, 
+			 &missingP, (const char ** const)&errorP);
+    if (trace)
+        fprintf(stderr, "XML-RPC handler processing body.  "
+                "Content Size = %u bytes\n", (unsigned)contentSize);
+
+    body = xmlrpc_mem_block_new(envP, 0);
+    if (!envP->fault_occurred) {
+        size_t bytesRead;
+        const char * chunkPtr;
+        size_t chunkLen;
+
+        bytesRead = 0;
+
+        while (!envP->fault_occurred && bytesRead < contentSize) {
+            SessionGetReadData(abyssSessionP, contentSize - bytesRead,
+                               &chunkPtr, &chunkLen);
+            bytesRead += chunkLen;
+
+            assert(bytesRead <= contentSize);
+
+            XMLRPC_MEMBLOCK_APPEND(char, envP, body, chunkPtr, chunkLen);
+            if (bytesRead < contentSize)
+		SessionRefillBuffer(abyssSessionP);
+        }
+        if (envP->fault_occurred)
+            xmlrpc_mem_block_free(body);
+    }
+    *bodyP = body;
+}
 
 void
 NextToken(const char ** const pP) {
@@ -254,7 +358,7 @@ static void usage(char **argv)
 {
 #ifdef HAVE_GETOPT_LONG
 	LOG(INFO, "%s [-h | --help] "
-		"[-c | --config=<config>] <op>\n", argv[0]);
+		"[-c | --config=<config>]\n", argv[0]);
 #else
 	frpintf(stderr, "%s [-h] [-c <config>] <op>\n", argv[0];
 #endif
@@ -273,6 +377,9 @@ static void handleFreightRPC(void * const handler,
 {
 	abyss_bool authenticated;
 	TRequestInfo *requestP = NULL;
+	xmlrpc_mem_block *response;
+	struct call_info cinfo;
+	xmlrpc_mem_block *body;
 
 	*handledP = TRUE;
 
@@ -280,6 +387,8 @@ static void handleFreightRPC(void * const handler,
 
 	if (!authenticated)
 		return;				   
+
+	getBody(&env, sessionP, &body);
 
 	SessionGetRequestInfo(sessionP, (const TRequestInfo ** const)&requestP);
 
@@ -289,8 +398,21 @@ static void handleFreightRPC(void * const handler,
 		return;
 	}
 
-	handle_freight_rpc(sessionP, requestP, handledP, &config);
+	cinfo.tennant = requestP->user;
+	xmlrpc_registry_process_call2(&env, registry, xmlrpc_mem_block_contents(body),
+				      xmlrpc_mem_block_size(body), &cinfo, &response);	
 
+	ResponseStatus(sessionP, 200);
+	ResponseContentLength(sessionP, xmlrpc_mem_block_size(response));
+
+	ResponseWriteStart(sessionP);
+
+	ResponseWriteBody(sessionP, xmlrpc_mem_block_contents(response),
+			  xmlrpc_mem_block_size(response));
+
+	ResponseWriteEnd(sessionP);
+
+	XMLRPC_TYPED_MEM_BLOCK_FREE(char, response);
 
 }
 
@@ -300,9 +422,22 @@ static void sigint_handler(int sig, siginfo_t *info, void *ptr)
 	ServerTerminate(&abyssServer);
 }
 
+
+static struct xmlrpc_method_info3 methods[] = {
+	{
+		"get.table", /* method name */
+		&get_table, /* method func */
+		NULL, /*server info, to be replaced with agent_config at run time */
+		65535, /* stack size */
+		NULL, /* method signature */
+		"Fetch a db table from the server"
+	},
+};
+
 int main(int argc, char **argv)
 {
 	int rc = 1;
+	int i;
 	int opt, longind;
 	char *config_file = "/etc/freight-agent/config";
 	int verbose = 0;
@@ -383,6 +518,9 @@ int main(int argc, char **argv)
 		goto out_serverfree;
 	}
 
+	/*
+	 * Set up our hanlers
+	 */
 	ServerDefaultHandler(&abyssServer, handleDefaultRequest);
 
 	ServerAddHandler3(&abyssServer, &hDesc, &arc);
@@ -392,6 +530,26 @@ int main(int argc, char **argv)
 		goto out_serverfree;
 	}
 
+	/*
+	 * Now build our environment
+	 */
+	xmlrpc_env_init(&env);
+
+	/*
+	 * Now create a registry
+	 */
+	registry = xmlrpc_registry_new(&env);
+
+	/*
+	 * Then setup our method handlers
+	 */
+	for (i=0; i < ARRAY_SIZE(methods); i++) {
+		methods[i].serverInfo = &config;
+		xmlrpc_registry_add_method3(&env, registry, &methods[i]);
+	}
+#if 0
+	xmlrpc_server_abyss_set_handlers2(&abyssServer, "/", registry);
+#endif
 	memset(&intact, 0, sizeof(struct sigaction));
 
 	intact.sa_sigaction = sigint_handler;
