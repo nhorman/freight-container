@@ -36,7 +36,7 @@
 
 xmlrpc_value* get_table(xmlrpc_env * const envp, xmlrpc_value * const params, void * serverinfo, void *callinfo)
 {
-	const char *tablearg;
+	char *tablearg, *tablename;
 	struct tbl *table;
 	char *filter;
 	enum db_table tid;
@@ -48,17 +48,24 @@ xmlrpc_value* get_table(xmlrpc_env * const envp, xmlrpc_value * const params, vo
 	const struct call_info *cinfo = callinfo;
 
 	xmlrpc_parse_value(envp, params, "(s)", &tablearg);
+	tablename = strchr(tablearg, '=');
+	if(!tablename) {
+		free(tablearg);
+		return xmlrpc_nil_new(envp); 
+	}
 
-	tid = get_tableid(tablearg);
+	tid = get_tableid(tablename+1);
+
+	free(tablearg);
 
 	if (!tid)
-		return NULL;
+		return xmlrpc_nil_new(envp);
 
 	filter = strjoina("tennant='",cinfo->tennant,"'",NULL);
 	table = get_raw_table(tid, filter, acfg);
 
 	if (!table)
-		return NULL;
+		return xmlrpc_nil_new(envp);
 
 	xtbl = xmlrpc_array_new(envp);
 
