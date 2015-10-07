@@ -126,9 +126,13 @@ struct tbl* xmlrpc_get_table(enum db_table type, const char *cols, const char *f
 	 * Now we find out how many rows and colums this table has
 	 */
 	r = xmlrpc_array_size(&info->env, result);
-	xmlrpc_array_read_item(&info->env, result, 0, &tmpr);
-	c = xmlrpc_array_size(&info->env, tmpr); 
-	xmlrpc_DECREF(tmpr);
+	if (!r)
+		c = 0;
+	else {
+		xmlrpc_array_read_item(&info->env, result, 0, &tmpr);
+		c = xmlrpc_array_size(&info->env, tmpr); 
+		xmlrpc_DECREF(tmpr);
+	}
 
 	LOG(DEBUG, "Allocating table of %d rows by %d cols\n", r, c);
 	table = alloc_tbl(r, c, type);
