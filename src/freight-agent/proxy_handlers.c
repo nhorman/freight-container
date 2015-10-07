@@ -49,14 +49,11 @@ xmlrpc_value* get_table(xmlrpc_env * const envp, xmlrpc_value * const params, vo
 
 	xmlrpc_parse_value(envp, params, "(s)", &tablearg);
 	tablename = strchr(tablearg, '=');
-	if(!tablename) {
-		free(tablearg);
+	if(!tablename)
 		return xmlrpc_nil_new(envp); 
-	}
 
 	tid = get_tableid(tablename+1);
 
-	free(tablearg);
 
 	if (!tid)
 		return xmlrpc_nil_new(envp);
