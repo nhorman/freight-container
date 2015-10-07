@@ -134,7 +134,6 @@ struct tbl* xmlrpc_get_table(enum db_table type, const char *cols, const char *f
 		xmlrpc_DECREF(tmpr);
 	}
 
-	LOG(DEBUG, "Allocating table of %d rows by %d cols\n", r, c);
 	table = alloc_tbl(r, c, type);
 
 	for (i=0; i < r; i++) {
@@ -143,7 +142,6 @@ struct tbl* xmlrpc_get_table(enum db_table type, const char *cols, const char *f
 		for (j=0; j < c; j++) {
 			xmlrpc_array_read_item(&info->env, tmpr, j, &tmpc);
 			xmlrpc_read_string(&info->env, tmpc, &tmps);
-			LOG(DEBUG, "INSERTING %s to %d:%d\n", tmps, i, j);
 			table->value[i][j] = strdup(tmps);
 			xmlrpc_DECREF(tmpc);
 		}
