@@ -96,7 +96,8 @@ CREATE TYPE cstate as ENUM ('staged', 'start-requested', 'failed', 'installing',
 
 CREATE TABLE tennants (
 	tennant	varchar(512) NOT NULL PRIMARY KEY,
-	proxypass varchar(512)
+	proxypass varchar(512),
+	proxyadmin boolean
 );
 
 CREATE TABLE nodes (

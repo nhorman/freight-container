@@ -14,6 +14,7 @@ ADMINPASS=$3
 TENNANT=$4
 TENNANTPASS=$5
 PROXYPASS=$6
+ADMIN=$7
 
 usage() {
 	echo "./createfreghtdb.sh <dbname> <nodeuser> <node pass> <admn user> <pw>"
@@ -22,6 +23,8 @@ usage() {
 	echo "pw - password for the admin user"
 	echo "tennant - the tennant name to create"
 	echo "tennantpw - the password for the new tennant"
+	echo "proxypass" - the proxy password for the new tannant"
+	echo "admin - [t|f]: tennant is an admin"
 }
 
 
@@ -89,7 +92,7 @@ export PGPASSWORD=$TENNANTPASS
 psql -h 127.0.0.1 -w $DBNAME $TENNANT << EOF
 \x
 
-INSERT into tennants VALUES (current_user, '$PROXYPASS');
+INSERT into tennants VALUES (current_user, '$PROXYPASS', '$ADMIN');
 
 EOF
 
