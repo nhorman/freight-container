@@ -200,6 +200,37 @@ static xmlrpc_value* get_add_repo_params(const char *sql, const struct agent_con
 	
 }
 
+static xmlrpc_value* get_del_repo_params(const char *sql, const struct agent_config *acfg)
+{
+	struct xmlrpc_info *info = acfg->db.db_priv;
+	xmlrpc_value *params;
+	xmlrpc_value *p;
+	char *tmp;
+	char *name;
+	char stor;
+
+
+	params = xmlrpc_array_new(&info->env);
+
+	name = strstr(sql, "'");
+	name += 1;
+	tmp = strstr(name, "'");
+	stor = *tmp;
+	*tmp = 0;
+
+	name = strjoina("name=",name);
+
+	p = xmlrpc_string_new(&info->env, name);	
+
+	*tmp = stor;
+
+	xmlrpc_array_append_item(&info->env, params, p);
+
+	xmlrpc_DECREF(p);
+
+	return params;
+	
+}
 
 static int parse_int_result(xmlrpc_value *result, const struct agent_config *acfg)
 {
@@ -220,6 +251,11 @@ struct xmlrpc_ops {
 
 static struct xmlrpc_ops insert_ops[] = {
 	{"yum_config", "add.repo", get_add_repo_params, parse_int_result},
+	{NULL, NULL, NULL, NULL},
+};
+
+static struct xmlrpc_ops delete_ops[] = {
+	{"yum_config", "del.repo", get_del_repo_params, parse_int_result},
 	{NULL, NULL, NULL, NULL},
 };
 
@@ -284,7 +320,16 @@ static int insert_fn(const char *values, const struct agent_config *acfg)
 
 static int delete_fn(const char *values, const struct agent_config *acfg)
 {
-	return -EOPNOTSUPP;
+	char *table;
+
+	table = strstr(values, "FROM");
+
+	if (!table)
+		return -EINVAL;
+
+	table += strlen("FROM") + 1;
+
+	return run_ops(table, delete_ops, acfg);
 }
 
 static int update_fn(const char *values, const struct agent_config *acfg)

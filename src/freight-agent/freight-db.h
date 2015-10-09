@@ -174,6 +174,7 @@ extern int add_repo(const char *name,
 		    const struct agent_config *acfg);
 
 extern int del_repo(const char *name,
+		    const char *tennant,
 		    const struct agent_config *acfg);
 
 extern int add_host(const char *hostname,

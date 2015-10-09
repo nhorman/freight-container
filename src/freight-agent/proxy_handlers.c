@@ -105,3 +105,21 @@ xmlrpc_value* xmlrpc_add_repo(xmlrpc_env * const envp, xmlrpc_value * const para
 
 	return xmlrpc_int_new(envp, rc);
 }
+
+xmlrpc_value* xmlrpc_del_repo(xmlrpc_env * const envp, xmlrpc_value * const params, void * serverinfo, void *callinfo)
+{
+	char *rname;
+	const struct agent_config *acfg = serverinfo;
+	const struct call_info *cinfo = callinfo;
+	int rc;
+
+	xmlrpc_decompose_value(envp, params, "(s)", &rname);
+
+	rname = strstr(rname, "=");
+	rname += 1;
+
+	rc = del_repo(rname, cinfo->tennant, acfg);
+
+	return xmlrpc_int_new(envp, rc);
+}
+

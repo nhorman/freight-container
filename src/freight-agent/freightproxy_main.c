@@ -438,7 +438,15 @@ static struct xmlrpc_method_info3 methods[] = {
 		NULL,
 		65535,
 		"i:ss",
-		"Add a repository to a tennant yum_configuration"
+		"Add a repository to a tennant yum configuration"
+	},
+	{
+		"del.repo",
+		&xmlrpc_del_repo,
+		NULL,
+		65535,
+		"i:s",
+		"Delete a repository from a tennant yum configuration"
 	},
 };
 

@@ -309,6 +309,7 @@ int add_repo(const char *name, const char *url,
 }
 
 extern int del_repo(const char *name,
+		    const char *tennant,
 		    const struct agent_config *acfg)
 {
 	char *sql;
@@ -317,7 +318,7 @@ extern int del_repo(const char *name,
 		return -EOPNOTSUPP;
 
 	sql = strjoina("DELETE FROM yum_config WHERE name = '", name, 
-		"' AND tennant='", acfg->db.user, "'", NULL);
+		"' AND tennant='", tennant, "'", NULL);
 
 	return api->send_raw_sql(sql, acfg);
 }
