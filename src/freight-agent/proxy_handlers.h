@@ -31,6 +31,7 @@ struct call_info {
 };
 
 extern xmlrpc_value* get_table(xmlrpc_env * const envp, xmlrpc_value * const params, void * serverinfo, void *callinfo);
+extern xmlrpc_value* xmlrpc_add_repo(xmlrpc_env * const envp, xmlrpc_value * const params, void * serverinfo, void *callinfo);
 
 #endif
 

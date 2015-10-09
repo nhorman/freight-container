@@ -86,3 +86,14 @@ xmlrpc_value* get_table(xmlrpc_env * const envp, xmlrpc_value * const params, vo
 }
 
 
+xmlrpc_value* xmlrpc_add_repo(xmlrpc_env * const envp, xmlrpc_value * const params, void * serverinfo, void *callinfo)
+{
+	char *rname, *rurl;
+
+	xmlrpc_decompose_value(envp, params, "(ss)", "name", &rname, "url", &rurl);
+
+
+	LOG(DEBUG, "adding repo %s:%s\n", rname, rurl);
+
+	return xmlrpc_int_new(envp, 0);
+}

@@ -432,6 +432,14 @@ static struct xmlrpc_method_info3 methods[] = {
 		NULL, /* method signature */
 		"Fetch a db table from the server"
 	},
+	{
+		"add.repo",
+		&xmlrpc_add_repo,
+		NULL,
+		65535,
+		NULL,
+		"Add a repository to a tennant yum_configuration"
+	},
 };
 
 int main(int argc, char **argv)
