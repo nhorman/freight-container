@@ -547,9 +547,7 @@ int main(int argc, char **argv)
 		methods[i].serverInfo = &config;
 		xmlrpc_registry_add_method3(&env, registry, &methods[i]);
 	}
-#if 0
-	xmlrpc_server_abyss_set_handlers2(&abyssServer, "/", registry);
-#endif
+
 	memset(&intact, 0, sizeof(struct sigaction));
 
 	intact.sa_sigaction = sigint_handler;
