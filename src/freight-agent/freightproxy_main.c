@@ -112,7 +112,7 @@ processContentLength(TSession *    const httpRequestP,
 }
 
 static void
-getBody(xmlrpc_env *        const envP,
+getXmlBody(xmlrpc_env *        const envP,
         TSession *          const abyssSessionP,
         xmlrpc_mem_block ** const bodyP) {
 /*----------------------------------------------------------------------------
@@ -388,7 +388,7 @@ static void handleFreightRPC(void * const handler,
 	if (!authenticated)
 		return;				   
 
-	getBody(&env, sessionP, &body);
+	getXmlBody(&env, sessionP, &body);
 
 	SessionGetRequestInfo(sessionP, (const TRequestInfo ** const)&requestP);
 
@@ -437,7 +437,7 @@ static struct xmlrpc_method_info3 methods[] = {
 		&xmlrpc_add_repo,
 		NULL,
 		65535,
-		NULL,
+		"i:ss",
 		"Add a repository to a tennant yum_configuration"
 	},
 };

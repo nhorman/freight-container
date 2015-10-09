@@ -153,10 +153,186 @@ struct tbl* xmlrpc_get_table(enum db_table type, const char *cols, const char *f
 	return table;
 }
 
+static xmlrpc_value* get_add_repo_params(const char *sql, const struct agent_config *acfg)
+{
+	struct xmlrpc_info *info = acfg->db.db_priv;
+	xmlrpc_value *params;
+	xmlrpc_value *p;
+	char *tmp;
+	char *name, *url;
+	char stor;
+
+
+	params = xmlrpc_array_new(&info->env);
+
+	name = strstr(sql, "'");
+	name += 1;
+	tmp = strstr(name, "'");
+	stor = *tmp;
+	*tmp = 0;
+
+	name = strjoina("name=",name);
+
+	p = xmlrpc_string_new(&info->env, name);	
+
+	*tmp = stor;
+
+	xmlrpc_array_append_item(&info->env, params, p);
+
+	xmlrpc_DECREF(p);
+
+	url = strstr(tmp+1, "'");
+	url += 1;
+	tmp = strstr(url, "'");
+	stor = *tmp;
+	*tmp = 0;
+
+	url = strjoina("url=", url);
+
+	p = xmlrpc_string_new(&info->env, url);
+
+	xmlrpc_array_append_item(&info->env, params, p);
+
+	*tmp = stor;
+	xmlrpc_DECREF(p);
+
+	return params;
+	
+}
+
+
+static int parse_int_result(xmlrpc_value *result, const struct agent_config *acfg)
+{
+	int rc;
+	struct xmlrpc_info *info = acfg->db.db_priv;
+
+	xmlrpc_decompose_value(&info->env, result, "i", &rc);
+
+	return rc;
+}
+
+struct xmlrpc_ops {
+	char *table;
+	char *xmlrpc_op;
+	xmlrpc_value* (*get_params)(const char *sql, const struct agent_config *acfg);
+	int (*parse_result)(xmlrpc_value *result, const struct agent_config *acfg);
+};
+
+static struct xmlrpc_ops insert_ops[] = {
+	{"yum_config", "add.repo", get_add_repo_params, parse_int_result},
+	{NULL, NULL, NULL, NULL},
+};
+
+static int run_ops(const char *values, struct xmlrpc_ops *ops,
+		   const struct agent_config *acfg)
+{
+	struct xmlrpc_ops *xop;
+	xmlrpc_value *params;
+	char *sql;
+	xmlrpc_value *result;
+	int rc;
+	struct xmlrpc_info *info = acfg->db.db_priv;
+
+	sql = NULL;
+	for (xop = &ops[0]; xop->table; xop++) {
+		if (!strncmp(values, xop->table, strlen(xop->table))) {
+			sql = strstr(values, xop->table);
+			sql += strlen(xop->table)+1;
+			break;
+		}
+	}
+
+	if (!xop->table)
+		return -EOPNOTSUPP;
+
+	params = xop->get_params(sql, acfg);
+
+	xmlrpc_client_call2(&info->env, info->client,
+			    info->server, xop->xmlrpc_op,
+			    params,
+			    &result);
+	
+	xmlrpc_DECREF(params);
+
+	/*
+	 * check to make sure it worked properly
+	 */
+	if (info->env.fault_occurred) {
+		LOG(ERROR, "Failed to issue xmlrpc: %s\n", info->env.fault_string);
+                return -EFAULT;
+	}
+
+	rc = xop->parse_result(result, acfg);
+
+	xmlrpc_DECREF(result);
+	return rc;
+}
+
+static int insert_fn(const char *values, const struct agent_config *acfg)
+{
+	char *table;
+
+	table = strstr(values, "INTO");
+
+	if (!table)
+		return -EINVAL;
+
+	table += strlen("INTO") + 1;
+
+	return run_ops(table, insert_ops, acfg);
+}
+
+static int delete_fn(const char *values, const struct agent_config *acfg)
+{
+	return -EOPNOTSUPP;
+}
+
+static int update_fn(const char *values, const struct agent_config *acfg)
+{
+	return -EOPNOTSUPP;
+}
+
+static int notify_fn(const char *values, const struct agent_config *acfg)
+{
+	/* Just pretend like this worked */
+	return 0;
+}
+
+static int xmlrpc_send_raw_sql(const char *values, const struct agent_config *acfg)
+{
+
+	struct sql_op_fns {
+		const char *op;
+		int (*opfn)(const char *values, const struct agent_config *acfg);
+	} sql_ops[] = {
+		{"INSERT", insert_fn},
+		{"UPDATE", update_fn},
+		{"DELETE", delete_fn},
+		{"NOTIFY", notify_fn},
+		{NULL,NULL},
+	};
+	struct sql_op_fns *sql_op;
+
+	int rc = -EOPNOTSUPP;
+
+
+	for(sql_op = &sql_ops[0]; sql_op->op; sql_op++) {
+		if (!strncmp(values, sql_op->op, strlen(sql_op->op))) {
+			char *sql = strstr(values, sql_op->op);
+			sql += strlen(sql_op->op) + 1;
+			rc = sql_op->opfn(sql, acfg);
+			break;
+		}
+	}
+
+	return rc;
+}
+
 struct db_api xmlrpc_api = {
 	.init = xmlrpc_init,
 	.cleanup = xmlrpc_cleanup,
 	.connect = xmlrpc_connect,
 	.disconnect = xmlrpc_disconnect,
 	.get_table = xmlrpc_get_table,
+	.send_raw_sql = xmlrpc_send_raw_sql,
 };

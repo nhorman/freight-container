@@ -89,11 +89,19 @@ xmlrpc_value* get_table(xmlrpc_env * const envp, xmlrpc_value * const params, vo
 xmlrpc_value* xmlrpc_add_repo(xmlrpc_env * const envp, xmlrpc_value * const params, void * serverinfo, void *callinfo)
 {
 	char *rname, *rurl;
+	const struct agent_config *acfg = serverinfo;
+	const struct call_info *cinfo = callinfo;
+	int rc;
 
-	xmlrpc_decompose_value(envp, params, "(ss)", "name", &rname, "url", &rurl);
+	xmlrpc_decompose_value(envp, params, "(ss)", &rname, &rurl);
 
+	rname = strstr(rname, "=");
+	rname += 1;
 
-	LOG(DEBUG, "adding repo %s:%s\n", rname, rurl);
+	rurl = strstr(rurl, "=");
+	rurl += 1;
 
-	return xmlrpc_int_new(envp, 0);
+	rc = add_repo(rname, rurl, cinfo->tennant, acfg);
+
+	return xmlrpc_int_new(envp, rc);
 }

@@ -170,6 +170,7 @@ extern char* get_tennant_proxy_pass(const char *user, const struct agent_config 
 
 extern int add_repo(const char *name,
 		    const char *url,
+		    const char *tennant,
 		    const struct agent_config *acfg);
 
 extern int del_repo(const char *name,

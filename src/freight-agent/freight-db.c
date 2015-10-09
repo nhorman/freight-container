@@ -294,6 +294,7 @@ out:
 }
 
 int add_repo(const char *name, const char *url,
+	     const char *tennant,
 	     const struct agent_config *acfg)
 {
 	char *sql; 
@@ -302,7 +303,7 @@ int add_repo(const char *name, const char *url,
 		return -EOPNOTSUPP;
 
 	sql = strjoina("INSERT INTO yum_config VALUES ('", name, "', '",
-			url, "', '", acfg->db.user, "')", NULL);
+			url, "', '", tennant, "')", NULL);
 
 	return api->send_raw_sql(sql, acfg);
 }

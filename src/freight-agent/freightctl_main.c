@@ -50,7 +50,7 @@ static int repo_op(char **argv, int argc,
 
 	if (!strcmp(argv[0], "add")) {
 		LOG(INFO, "Adding repository %s\n", argv[1]);
-		rc = add_repo(argv[1], argv[2], acfg);
+		rc = add_repo(argv[1], argv[2], acfg->db.user, acfg);
 	} else if (!strcmp(argv[0], "del")) {
 		LOG(INFO, "Deleteing repository %s\n", argv[1]);
 		rc = del_repo(argv[1], acfg);
