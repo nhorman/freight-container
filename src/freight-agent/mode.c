@@ -438,13 +438,16 @@ static void daemonize(const struct agent_config *acfg)
 	}
 }
 
-int poweroff_container(const char *iname, const char *tennant,
+int poweroff_container(const char *iname, const char *cname, const char *tennant,
 		       const struct agent_config *acfg)
 {
 	pid_t pid;
 	int eoc = 3; /* machinectl poweroff <iname> */
 	char **execarray = NULL;
+	char *instance_path, *btrfscmd;
+	char *machinecmd;
 	int status;
+	int rc;
 	
 	eoc++; /* NULL terminator */
 
@@ -458,8 +461,39 @@ int poweroff_container(const char *iname, const char *tennant,
 	 * parent
 	 */
 	if (pid > 0) {
+
+		/*
+		 * Wait for the child to exit
+		 */
 		waitpid(pid, &status, 0);
-		return WEXITSTATUS(status);
+		rc = WEXITSTATUS(status);
+
+		/*
+		 * we still have to wait until the machine is shutdown,
+		 * as that is an async operation
+		 */
+		machinecmd = strjoin("machinectl status ", iname, " > /dev/null 2>&1 ", NULL);
+
+		rc = 0;
+
+		while (!rc) {
+			rc = system(machinecmd);
+		}	
+
+		free(machinecmd);
+
+		LOG(INFO, "container %s is shutdown\n", iname);
+		rc = 0;
+
+		/* 
+		 * Then clean up the container snapshot
+		 */
+		instance_path = strjoina(acfg->node.container_root, "/", tennant, "/containers/", cname, "/", iname, NULL);
+
+		btrfscmd = strjoina("btrfs subvolume delete ", instance_path, NULL);
+		run_command(btrfscmd, 0);
+
+		return rc;
 	}
 
 	daemonize(acfg);
@@ -483,8 +517,11 @@ int exec_container(const char *rpm, const char *name, const char *tenant,
 	int eoc;
 	struct container_options copts;
 	char *config_path;
+	char *instance_path;
+	char *btrfscmd;
 	char** execarray = NULL;
 	config_path = strjoina(acfg->node.container_root, "/", tenant, "/containers/", rpm, "/container_config", NULL);
+
 
 	/*
  	 * Lets parse the container configuration
@@ -537,11 +574,15 @@ int exec_container(const char *rpm, const char *name, const char *tenant,
 		exit(1);
 
 	config_path = strjoina(acfg->node.container_root, "/", tenant, "/containers/", rpm, "/containerfs", NULL);
+	instance_path = strjoina(acfg->node.container_root, "/", tenant, "/containers/", rpm, "/", name, NULL);
 
+	btrfscmd = strjoina("btrfs subvolume snapshot ", config_path, " ", instance_path, NULL);
+	run_command(btrfscmd, 0);
+	
 	eoc = 0;
 	execarray[eoc++] = "systemd-nspawn"; /* argv[0] */
 	execarray[eoc++] = "-D"; /* -D */
-	execarray[eoc++] = config_path; /* <dir> */
+	execarray[eoc++] = instance_path; /* <dir> */
 	execarray[eoc++] = "-M"; /*-M*/
 	execarray[eoc++] = (char *)name;
 	execarray[eoc++] = "-b"; /* -b */
@@ -665,7 +706,7 @@ static void poweroff_containers_from_table(struct tbl *containers, const struct 
 
 		LOG(INFO, "powering off container %s of type %s for tennant %s\n",
 			iname, cname, tennant);
-		if (poweroff_container(iname, tennant, acfg)) {
+		if (poweroff_container(iname, cname, tennant, acfg)) {
 			LOG(WARNING, "Could not poweroff container %s, failing operation\n", iname);
 			change_container_state(tennant, iname, "exiting", "failed", acfg);
 		} else
@@ -766,6 +807,7 @@ static void poweroff_all_containers(const struct agent_config *acfg)
 
 	for (i = 0; i < containers->rows; i++) {
 		poweroff_container(lookup_tbl(containers, i, COL_INAME),
+				   lookup_tbl(containers, i, COL_CNAME),
 				   lookup_tbl(containers, i, COL_TENNANT),
 				   acfg);
 

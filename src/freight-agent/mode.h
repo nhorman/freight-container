@@ -47,7 +47,7 @@ int exec_container(const char *rpm, const char *name,
 		   const char *tennant,
 		   int should_fork, const struct agent_config *acfg);
 
-int poweroff_container(const char *iname, const char *tennant,
+int poweroff_container(const char *iname, const char *cname, const char *tennant,
 		   const struct agent_config *acfg);
 
 /*
