@@ -75,6 +75,7 @@ The config file has the following format
 # These are comments
 
 
+# The type of database to connect to
 db = {
 	dbtype = "postgres | nodb | freightproxy";
 	hostaddr = "hostname of db server";
@@ -85,10 +86,16 @@ db = {
 };
 
 
+# configuration for freight-agent when running in node mode
 node = {
 	container_root = "Path to container store";
 };
 
+# configuration for freight proxy server
+proxy = {
+        serverport = "8080";
+        log = "/tmp/freightproxy.log";
+};
 
 master = {
 };
