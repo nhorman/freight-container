@@ -164,6 +164,8 @@ extern struct tbl *alloc_tbl(int rows, int cols, enum db_table type);
 
 extern void free_tbl(struct tbl *table);
 
+extern int is_tbl_empty(struct tbl *table);
+
 extern void *lookup_tbl(struct tbl *table, int row, enum table_col col);
 
 extern char* get_tennant_proxy_pass(const char *user, const struct agent_config *acfg);

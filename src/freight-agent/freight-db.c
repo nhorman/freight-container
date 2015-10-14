@@ -261,6 +261,11 @@ void free_tbl(struct tbl *table)
 	free(table);
 }
 
+int is_tbl_empty(struct tbl *table)
+{
+	return (table->rows == 0);
+}
+
 void * lookup_tbl(struct tbl *table, int row, enum table_col col)
 {
 	if ((long long)(table->value[row][db_col_map[table->type][col]]) == -1)
@@ -538,6 +543,14 @@ extern int request_boot_container(const char *iname,
 	struct tbl *container;
 	char *host;
 
+	container = get_container_info(iname, acfg);
+
+	if (is_tbl_empty(container)) {
+		LOG(WARNING, "Container %s does not exist\n", iname);
+		rc = -EEXIST;
+		goto out;
+	}
+
 	rc = change_container_state(acfg->db.user, iname, "staged",
 	 			    "start-requested", acfg);
 
@@ -548,8 +561,7 @@ extern int request_boot_container(const char *iname,
 	if (rc)
 		LOG(WARNING, "container %s is in the wrong state\n", iname);
 
-	container = get_container_info(iname, acfg);
-
+		
 	host = lookup_tbl(container, 0, COL_HOSTNAME);
 
 	if (host) {
@@ -564,6 +576,8 @@ extern int request_boot_container(const char *iname,
 	if (rc)
 		LOG(WARNING, "Notificaion of host failed.  Boot may be delayed\n");
 
+out:
+	free_tbl(container);
 	return rc; 
 	
 }
