@@ -171,8 +171,6 @@ static xmlrpc_value* get_add_repo_params(const char *sql, const struct agent_con
 	stor = *tmp;
 	*tmp = 0;
 
-	name = strjoina("name=",name);
-
 	p = xmlrpc_string_new(&info->env, name);	
 
 	*tmp = stor;
@@ -186,8 +184,6 @@ static xmlrpc_value* get_add_repo_params(const char *sql, const struct agent_con
 	tmp = strstr(url, "'");
 	stor = *tmp;
 	*tmp = 0;
-
-	url = strjoina("url=", url);
 
 	p = xmlrpc_string_new(&info->env, url);
 
@@ -217,8 +213,6 @@ static xmlrpc_value* get_del_repo_params(const char *sql, const struct agent_con
 	tmp = strstr(name, "'");
 	stor = *tmp;
 	*tmp = 0;
-
-	name = strjoina("name=",name);
 
 	p = xmlrpc_string_new(&info->env, name);	
 

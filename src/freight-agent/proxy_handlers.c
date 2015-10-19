@@ -95,12 +95,6 @@ xmlrpc_value* xmlrpc_add_repo(xmlrpc_env * const envp, xmlrpc_value * const para
 
 	xmlrpc_decompose_value(envp, params, "(ss)", &rname, &rurl);
 
-	rname = strstr(rname, "=");
-	rname += 1;
-
-	rurl = strstr(rurl, "=");
-	rurl += 1;
-
 	rc = add_repo(rname, rurl, cinfo->tennant, acfg);
 
 	return xmlrpc_int_new(envp, rc);
@@ -114,9 +108,6 @@ xmlrpc_value* xmlrpc_del_repo(xmlrpc_env * const envp, xmlrpc_value * const para
 	int rc;
 
 	xmlrpc_decompose_value(envp, params, "(s)", &rname);
-
-	rname = strstr(rname, "=");
-	rname += 1;
 
 	rc = del_repo(rname, cinfo->tennant, acfg);
 
