@@ -133,8 +133,23 @@ xmlrpc_value* xmlrpc_create_container(xmlrpc_env * const envp, xmlrpc_value * co
 
 	xmlrpc_decompose_value(envp, params, "(sss)", &iname, &cname, &host);
 
-	LOG(DEBUG, "CREATING CONTAINER %s: %s on host %s\n", cname, iname, host);
 	rc = request_create_container(cname, iname, host, cinfo->tennant, acfg);
+
+	return xmlrpc_int_new(envp, rc);	
+}
+
+
+xmlrpc_value* xmlrpc_delete_container(xmlrpc_env * const envp, xmlrpc_value * const params, void * serverinfo, void *callinfo)
+{
+	char *iname;
+	const struct agent_config *acfg = serverinfo;
+	const struct call_info *cinfo = callinfo;
+	int rc;
+
+
+	xmlrpc_decompose_value(envp, params, "(s)", &iname);
+
+	rc = request_delete_container(iname, cinfo->tennant, 0, acfg);
 
 	return xmlrpc_int_new(envp, rc);	
 }

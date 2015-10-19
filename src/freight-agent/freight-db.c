@@ -521,6 +521,7 @@ int request_create_container(const char *cname,
 }
 
 int request_delete_container(const char *iname,
+			     const char *tennant,
 			     const int force,
 			     const struct agent_config *acfg)
 {
@@ -529,8 +530,8 @@ int request_delete_container(const char *iname,
 	if (!api->send_raw_sql)
 		return -EOPNOTSUPP;
 
-	sql = strjoina("DELETE from containers WHERE tennant='",
-		acfg->db.user, "' AND iname='",iname,
+	sql = strjoina("DELETE FROM containers WHERE tennant='",
+		tennant, "' AND iname='",iname,
 		"' AND (state='failed' OR state='staged')", NULL);
 
 	return api->send_raw_sql(sql, acfg);
@@ -647,7 +648,7 @@ int delete_container(const char *iname, const char *tennant,
 	if (!api->send_raw_sql)
 		return -EOPNOTSUPP;
 
-	sql = strjoina("DELETE from containers where tennant='", tennant,
+	sql = strjoina("DELETE FROM containers where tennant='", tennant,
 		"' AND iname='", iname, "'", NULL);
 
 	return api->send_raw_sql(sql, acfg);

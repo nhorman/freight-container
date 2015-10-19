@@ -114,7 +114,7 @@ static int container_op(char **argv, int argc,
 		LOG(INFO, "Issuing delete container %s\n", argv[1]);
 		if (argv[2] && !strcmp(argv[2], "force"))
 			force = 1;
-		rc = request_delete_container(argv[1], force, acfg);
+		rc = request_delete_container(argv[1], acfg->db.user, force, acfg);
 	} else if (!strcmp(argv[0], "boot")) {
 		if (argc < 2)
 			goto out;

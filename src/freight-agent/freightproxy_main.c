@@ -423,6 +423,9 @@ static void sigint_handler(int sig, siginfo_t *info, void *ptr)
 }
 
 
+/*
+ * xmlrpc operations
+ */
 static struct xmlrpc_method_info3 methods[] = {
 	{
 		"get.table", /* method name */
@@ -455,6 +458,14 @@ static struct xmlrpc_method_info3 methods[] = {
 		65535,
 		"i:sss",
 		"Request the creation of a container"
+	},
+	{
+		"del.container",
+		&xmlrpc_delete_container,
+		NULL,
+		65535,
+		"i:sss",
+		"Request the deleting of a container"
 	},
 };
 

@@ -248,7 +248,6 @@ static xmlrpc_value* get_container_create_params(const char *sql, const struct a
 	value = strstr(sql, "'");
 	value += 1;
 	tmp = strstr(value, "'");
-	LOG(DEBUG, "VALUE is %s\n", value);
 
 	/* Get CNAME param */
 	value = strstr(tmp+1, "'");
@@ -256,7 +255,6 @@ static xmlrpc_value* get_container_create_params(const char *sql, const struct a
 	tmp = strstr(value, "'");
 	stor = *tmp;
 	*tmp = 0;
-	LOG(DEBUG, "VALUE is %s\n", value);
 	p = xmlrpc_string_new(&info->env, value);	
 	*tmp = stor;
 	xmlrpc_array_append_item(&info->env, params, p);
@@ -268,7 +266,6 @@ static xmlrpc_value* get_container_create_params(const char *sql, const struct a
 	tmp = strstr(value, "'");
 	stor = *tmp;
 	*tmp = 0;
-	LOG(DEBUG, "VALUE is %s\n", value);
 	p = xmlrpc_string_new(&info->env, value);
 	xmlrpc_array_append_item(&info->env, params, p);
 	*tmp = stor;
@@ -280,7 +277,6 @@ static xmlrpc_value* get_container_create_params(const char *sql, const struct a
 	tmp = strstr(value, "'");
 	stor = *tmp;
 	*tmp = 0;
-	LOG(DEBUG, "VALUE is %s\n", value);
 	p = xmlrpc_string_new(&info->env, value);
 	xmlrpc_array_append_item(&info->env, params, p);
 	*tmp = stor;
@@ -288,6 +284,38 @@ static xmlrpc_value* get_container_create_params(const char *sql, const struct a
 
 	return params;
 }
+
+static xmlrpc_value* get_container_del_params(const char *sql, const struct agent_config *acfg)
+{
+	struct xmlrpc_info *info = acfg->db.db_priv;
+	xmlrpc_value *params;
+	xmlrpc_value *p;
+	char *tmp;
+	char *value;
+	char stor;
+
+
+	params = xmlrpc_array_new(&info->env);
+
+	/* Skip over the TENNANT param */
+	value = strstr(sql, "'");
+	value += 1;
+	tmp = strstr(value, "'");
+
+	/* Get INAME param */
+	value = strstr(tmp+1, "'");
+	value += 1;
+	tmp = strstr(value, "'");
+	stor = *tmp;
+	*tmp = 0;
+	p = xmlrpc_string_new(&info->env, value);
+	xmlrpc_array_append_item(&info->env, params, p);
+	*tmp = stor;
+	xmlrpc_DECREF(p);
+
+	return params;
+}
+
 
 static int parse_int_result(xmlrpc_value *result, const struct agent_config *acfg)
 {
@@ -321,6 +349,7 @@ static struct xmlrpc_ops insert_ops[] = {
 
 static struct xmlrpc_ops delete_ops[] = {
 	{"yum_config", "del.repo", get_del_repo_params, parse_int_result},
+	{"containers", "del.container", get_container_del_params, parse_int_result},
 	{NULL, NULL, NULL, NULL},
 };
 
