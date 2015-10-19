@@ -212,6 +212,7 @@ extern struct tbl* get_containers_for_host(const char *host,
 extern int request_create_container(const char *cname,
 				    const char *iname,
 				    const char *chost,
+				    const char *tennant,
 				    const struct agent_config *acfg);
 extern int request_delete_container(const char *iname,
 				    const int force,

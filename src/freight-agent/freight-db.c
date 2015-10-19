@@ -482,6 +482,7 @@ static struct tbl *get_container_info(const char *iname,
 int request_create_container(const char *cname,
                              const char *iname,
                              const char *chost,
+			     const char *tennant,
 			     const struct agent_config *acfg)
 {
 	char *sql;
@@ -491,7 +492,7 @@ int request_create_container(const char *cname,
 		return -EOPNOTSUPP;
 
 	sql = strjoina("INSERT INTO containers VALUES(",
-		       "'", acfg->db.user, "',",
+		       "'", tennant, "',",
 		       "'", iname, "',",
 		       "'", cname, "',",
 		       "'", chost, "',",
@@ -509,7 +510,7 @@ int request_create_container(const char *cname,
 	 */
 	if (chost)
 		if (!strcmp(chost, "all"))
-			rc = notify_tennant(CHAN_CONTAINERS, acfg->db.user, acfg);
+			rc = notify_tennant(CHAN_CONTAINERS, tennant, acfg);
 		else
 			rc = notify_host(CHAN_CONTAINERS, chost, acfg);
 	else

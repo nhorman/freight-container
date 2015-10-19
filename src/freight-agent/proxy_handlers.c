@@ -123,3 +123,18 @@ xmlrpc_value* xmlrpc_del_repo(xmlrpc_env * const envp, xmlrpc_value * const para
 	return xmlrpc_int_new(envp, rc);
 }
 
+xmlrpc_value* xmlrpc_create_container(xmlrpc_env * const envp, xmlrpc_value * const params, void * serverinfo, void *callinfo)
+{
+	char *cname, *iname, *host;
+	const struct agent_config *acfg = serverinfo;
+	const struct call_info *cinfo = callinfo;
+	int rc;
+
+
+	xmlrpc_decompose_value(envp, params, "(sss)", &iname, &cname, &host);
+
+	LOG(DEBUG, "CREATING CONTAINER %s: %s on host %s\n", cname, iname, host);
+	rc = request_create_container(cname, iname, host, cinfo->tennant, acfg);
+
+	return xmlrpc_int_new(envp, rc);	
+}

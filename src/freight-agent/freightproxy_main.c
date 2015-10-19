@@ -448,6 +448,14 @@ static struct xmlrpc_method_info3 methods[] = {
 		"i:s",
 		"Delete a repository from a tennant yum configuration"
 	},
+	{
+		"create.container",
+		&xmlrpc_create_container,
+		NULL,
+		65535,
+		"i:sss",
+		"Request the creation of a container"
+	},
 };
 
 int main(int argc, char **argv)

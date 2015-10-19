@@ -30,9 +30,12 @@ struct call_info {
 	const char *tennant;
 };
 
-extern xmlrpc_value* get_table(xmlrpc_env * const envp, xmlrpc_value * const params, void * serverinfo, void *callinfo);
-extern xmlrpc_value* xmlrpc_add_repo(xmlrpc_env * const envp, xmlrpc_value * const params, void * serverinfo, void *callinfo);
-extern xmlrpc_value* xmlrpc_del_repo(xmlrpc_env * const envp, xmlrpc_value * const params, void * serverinfo, void *callinfo);
+#define XMLRPC_HANDLER(op) extern xmlrpc_value* (op)(xmlrpc_env * const envp, xmlrpc_value * const params, void * serverinfo, void *callinfo)
+
+XMLRPC_HANDLER(get_table);
+XMLRPC_HANDLER(xmlrpc_add_repo);
+XMLRPC_HANDLER(xmlrpc_del_repo);
+XMLRPC_HANDLER(xmlrpc_create_container);
 
 #endif
 

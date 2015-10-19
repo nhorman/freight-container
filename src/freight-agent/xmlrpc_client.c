@@ -232,6 +232,63 @@ static xmlrpc_value* get_del_repo_params(const char *sql, const struct agent_con
 	
 }
 
+static xmlrpc_value* get_container_create_params(const char *sql, const struct agent_config *acfg)
+{
+	struct xmlrpc_info *info = acfg->db.db_priv;
+	xmlrpc_value *params;
+	xmlrpc_value *p;
+	char *tmp;
+	char *value;
+	char stor;
+
+
+	params = xmlrpc_array_new(&info->env);
+
+	/* Skip over TENNANT PARAM, its implied by auth header */
+	value = strstr(sql, "'");
+	value += 1;
+	tmp = strstr(value, "'");
+	LOG(DEBUG, "VALUE is %s\n", value);
+
+	/* Get CNAME param */
+	value = strstr(tmp+1, "'");
+	value += 1;
+	tmp = strstr(value, "'");
+	stor = *tmp;
+	*tmp = 0;
+	LOG(DEBUG, "VALUE is %s\n", value);
+	p = xmlrpc_string_new(&info->env, value);	
+	*tmp = stor;
+	xmlrpc_array_append_item(&info->env, params, p);
+	xmlrpc_DECREF(p);
+
+	/* Get INAME param */
+	value = strstr(tmp+1, "'");
+	value += 1;
+	tmp = strstr(value, "'");
+	stor = *tmp;
+	*tmp = 0;
+	LOG(DEBUG, "VALUE is %s\n", value);
+	p = xmlrpc_string_new(&info->env, value);
+	xmlrpc_array_append_item(&info->env, params, p);
+	*tmp = stor;
+	xmlrpc_DECREF(p);
+
+	/* HOST PARAM */
+	value = strstr(tmp+1, "'");
+	value += 1;
+	tmp = strstr(value, "'");
+	stor = *tmp;
+	*tmp = 0;
+	LOG(DEBUG, "VALUE is %s\n", value);
+	p = xmlrpc_string_new(&info->env, value);
+	xmlrpc_array_append_item(&info->env, params, p);
+	*tmp = stor;
+	xmlrpc_DECREF(p);
+
+	return params;
+}
+
 static int parse_int_result(xmlrpc_value *result, const struct agent_config *acfg)
 {
 	int rc;
@@ -242,6 +299,13 @@ static int parse_int_result(xmlrpc_value *result, const struct agent_config *acf
 	return rc;
 }
 
+
+/*
+ * Parse table for xmlrpc_clent.
+ * This set of structure tables lets us figure out what to do based on the
+ * passed in sql on the send_raw_sql command
+ */
+
 struct xmlrpc_ops {
 	char *table;
 	char *xmlrpc_op;
@@ -251,6 +315,7 @@ struct xmlrpc_ops {
 
 static struct xmlrpc_ops insert_ops[] = {
 	{"yum_config", "add.repo", get_add_repo_params, parse_int_result},
+	{"containers", "create.container", get_container_create_params, parse_int_result},
 	{NULL, NULL, NULL, NULL},
 };
 

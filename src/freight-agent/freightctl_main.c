@@ -106,7 +106,7 @@ static int container_op(char **argv, int argc,
 		if (argc < 4)
 			goto out;
 		LOG(INFO, "Issuing create container %s on %s\n", argv[2], argv[3]);
-		rc = request_create_container(argv[1], argv[2], argv[3], acfg);
+		rc = request_create_container(argv[1], argv[2], argv[3], acfg->db.user, acfg);
 	} else if (!strcmp(argv[0], "delete")) {
 		int force = 0;
 		if (argc < 3)
