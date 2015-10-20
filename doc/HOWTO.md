@@ -23,14 +23,14 @@ according to the following diagram:
 	|    freightctl   +-----> |             |    | agent node|  |agent node |
 	|                 |       |             |    |           |  |           |
 	+-----------------+       +-------------+    +----+------+  +-----+-----+
-							  ^               ^      
-				  +-------------+         |               |      
-				  |             +---------+               |      
-				  |             |                         |      
-				  | yum repo    |                         |      
-				  |             +-------------------------+      
-				  |             |                                
-				  +-------------+                                
+                                                          ^               ^      
+                                  +-------------+         |               |      
+                                  |             +---------+               |      
+                                  |             |                         |      
+                                  | yum repo    |                         |      
+                                  |             +-------------------------+      
+                                  |             |                                
+                                  +-------------+                                
 
 
 This diagram lays out all the existing components of Freight:
