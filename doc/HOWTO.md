@@ -7,22 +7,22 @@ This document exists to outline the general details on how to implement a freigh
 Freight Is made up of several components which interact (generally speaking)
 according to the following diagram:
 
-						    +------------+               
-						    |  admin     |               
-						    |  freightctl|               
-						    +---+--------+               
+                                                    +------------+               
+                                                    |  admin     |               
+                                                    |  freightctl|               
+                                                    +---+--------+               
                                                         |                        
         +-----------------+       +-------------+    +--v--------+               
-	|    tennant      |       |             |    |           |               
-	|    freightctl   +-----> |             |    | postgres  |               
-	|                 |       |             |    +------+----+------+        
-	+-----------------+       |             +-----^     |           |        
+        |    tennant      |       |             |    |           |               
+        |    freightctl   +-----> |             |    | postgres  |               
+        |                 |       |             |    +------+----+------+        
+        +-----------------+       |             +-----^     |           |        
                                   | freightproxy|           |           |        
-	+-----------------+       |             |    +------v----+  +---v-------+
-	|    tennant      |       |             |    | freight-  |  |freight-   |
-	|    freightctl   +-----> |             |    | agent node|  |agent node |
-	|                 |       |             |    |           |  |           |
-	+-----------------+       +-------------+    +----+------+  +-----+-----+
+        +-----------------+       |             |    +------v----+  +---v-------+
+        |    tennant      |       |             |    | freight-  |  |freight-   |
+        |    freightctl   +-----> |             |    | agent node|  |agent node |
+        |                 |       |             |    |           |  |           |
+        +-----------------+       +-------------+    +----+------+  +-----+-----+
                                                           ^               ^      
                                   +-------------+         |               |      
                                   |             +---------+               |      
