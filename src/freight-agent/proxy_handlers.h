@@ -37,6 +37,7 @@ XMLRPC_HANDLER(xmlrpc_add_repo);
 XMLRPC_HANDLER(xmlrpc_del_repo);
 XMLRPC_HANDLER(xmlrpc_create_container);
 XMLRPC_HANDLER(xmlrpc_delete_container);
+XMLRPC_HANDLER(xmlrpc_boot_container);
 
 #endif
 

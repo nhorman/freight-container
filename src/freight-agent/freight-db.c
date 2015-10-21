@@ -467,6 +467,7 @@ struct tbl* get_containers_for_host(const char *host,
 }
 
 static struct tbl *get_container_info(const char *iname,
+				      const char *tennant,
                                      const struct agent_config *acfg)
 {
 	char *filter;
@@ -474,7 +475,7 @@ static struct tbl *get_container_info(const char *iname,
 	if (!api->get_table)
 		return NULL;
 
-	filter = strjoina("(iname='", iname, "' AND tennant='", acfg->db.user,"')", NULL);
+	filter = strjoina("(iname='", iname, "' AND tennant='", tennant,"')", NULL);
 
 	return api->get_table(TABLE_CONTAINERS, "*", filter, acfg);
 }
@@ -538,14 +539,14 @@ int request_delete_container(const char *iname,
 
 }
 
-extern int request_boot_container(const char *iname,
+extern int request_boot_container(const char *iname, const char *tennant,
 				  const struct agent_config *acfg)
 {
 	int rc;
 	struct tbl *container;
 	char *host;
 
-	container = get_container_info(iname, acfg);
+	container = get_container_info(iname, tennant, acfg);
 
 	if (is_tbl_empty(container)) {
 		LOG(WARNING, "Container %s does not exist\n", iname);
@@ -553,11 +554,11 @@ extern int request_boot_container(const char *iname,
 		goto out;
 	}
 
-	rc = change_container_state(acfg->db.user, iname, "staged",
+	rc = change_container_state(tennant, iname, "staged",
 	 			    "start-requested", acfg);
 
 	if (rc)
-		rc = change_container_state(acfg->db.user, iname, "failed",
+		rc = change_container_state(tennant, iname, "failed",
 				    "start-requested", acfg);
 
 	if (rc)
@@ -568,7 +569,7 @@ extern int request_boot_container(const char *iname,
 
 	if (host) {
 		if(!strcmp(host, "all"))
-			rc = notify_tennant(CHAN_CONTAINERS, acfg->db.user, acfg);
+			rc = notify_tennant(CHAN_CONTAINERS, tennant, acfg);
 		else
 			rc = notify_host(CHAN_CONTAINERS, host, acfg);
 	} else {
@@ -593,7 +594,7 @@ extern int request_poweroff_container(const char *iname,
 	rc = change_container_state(acfg->db.user, iname, "running",
 				    "exiting", acfg);
 
-	container = get_container_info(iname, acfg);
+	container = get_container_info(iname, acfg->db.user, acfg);
 
 	rc = notify_host(CHAN_CONTAINERS, lookup_tbl(container, 0, COL_HOSTNAME), acfg);
 

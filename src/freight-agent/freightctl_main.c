@@ -119,7 +119,7 @@ static int container_op(char **argv, int argc,
 		if (argc < 2)
 			goto out;
 		LOG(INFO, "Booting Container %s\n", argv[1]);
-		rc = request_boot_container(argv[1], acfg);
+		rc = request_boot_container(argv[1], acfg->db.user, acfg);
 	} else if (!strcmp(argv[0], "poweroff")) {
 		if (argc < 2)
 			goto out;

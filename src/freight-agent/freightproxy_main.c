@@ -467,6 +467,14 @@ static struct xmlrpc_method_info3 methods[] = {
 		"i:sss",
 		"Request the deleting of a container"
 	},
+	{
+		"boot.container",
+		&xmlrpc_boot_container,
+		NULL,
+		65535,
+		"i:s",
+		"Request the booting of a container"
+	},
 };
 
 int main(int argc, char **argv)

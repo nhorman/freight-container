@@ -310,6 +310,50 @@ static xmlrpc_value* get_container_del_params(const char *sql, const struct agen
 	return params;
 }
 
+static xmlrpc_value* get_boot_container_params(const char *sql, const struct agent_config *acfg)
+{
+	struct xmlrpc_info *info = acfg->db.db_priv;
+	xmlrpc_value *params;
+	xmlrpc_value *p;
+	char *tmp;
+	char *value;
+	char stor;
+
+
+	params = xmlrpc_array_new(&info->env);
+
+	/* Get NEWSTATE param */
+	value = strstr(sql, "'");
+	value += 1;
+	tmp = strstr(value, "'");
+	stor = *tmp;
+	*tmp = 0;
+	if (strcmp(value, "start-requested")) {
+		*tmp = stor;
+		/* This isn't a boot request */
+		return NULL;
+	}
+
+	*tmp = stor;
+
+	/* Skip the TENNANT param */
+	value = strstr(tmp+1, "'");
+	value += 1;
+	tmp = strstr(value, "'");
+
+	/* Get the INAME param */
+	value = strstr(tmp+1, "'");
+	value += 1;
+	tmp = strstr(value, "'");
+	stor = *tmp;
+	*tmp = 0;
+	p = xmlrpc_string_new(&info->env, value);
+	xmlrpc_array_append_item(&info->env, params, p);
+	*tmp = stor;
+	xmlrpc_DECREF(p);
+
+	return params;
+}
 
 static int parse_int_result(xmlrpc_value *result, const struct agent_config *acfg)
 {
@@ -347,6 +391,11 @@ static struct xmlrpc_ops delete_ops[] = {
 	{NULL, NULL, NULL, NULL},
 };
 
+static struct xmlrpc_ops update_ops[] = {
+	{"containers", "boot.container", get_boot_container_params, parse_int_result},
+	{NULL, NULL, NULL, NULL},
+};
+
 static int run_ops(const char *values, struct xmlrpc_ops *ops,
 		   const struct agent_config *acfg)
 {
@@ -359,6 +408,9 @@ static int run_ops(const char *values, struct xmlrpc_ops *ops,
 
 	sql = NULL;
 	for (xop = &ops[0]; xop->table; xop++) {
+try_again:
+		if (!xop->table)
+			break;
 		if (!strncmp(values, xop->table, strlen(xop->table))) {
 			sql = strstr(values, xop->table);
 			sql += strlen(xop->table)+1;
@@ -370,6 +422,11 @@ static int run_ops(const char *values, struct xmlrpc_ops *ops,
 		return -EOPNOTSUPP;
 
 	params = xop->get_params(sql, acfg);
+
+	if (!params) {
+		xop++;
+		goto try_again;
+	}
 
 	xmlrpc_client_call2(&info->env, info->client,
 			    info->server, xop->xmlrpc_op,
@@ -422,7 +479,7 @@ static int delete_fn(const char *values, const struct agent_config *acfg)
 
 static int update_fn(const char *values, const struct agent_config *acfg)
 {
-	return -EOPNOTSUPP;
+	return run_ops(values, update_ops, acfg);
 }
 
 static int notify_fn(const char *values, const struct agent_config *acfg)
