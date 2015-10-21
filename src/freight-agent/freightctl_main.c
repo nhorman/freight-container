@@ -124,7 +124,7 @@ static int container_op(char **argv, int argc,
 		if (argc < 2)
 			goto out;
 		LOG(INFO, "Powering off container %s\n", argv[1]);
-		rc = request_poweroff_container(argv[1], acfg);
+		rc = request_poweroff_container(argv[1], acfg->db.user, acfg);
 	} else
 		rc = -EINVAL;
 out:

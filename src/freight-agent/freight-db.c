@@ -586,15 +586,16 @@ out:
 }
 
 extern int request_poweroff_container(const char *iname,
+				      const char *tennant,
 				  const struct agent_config *acfg)
 {
 	int rc;
 	struct tbl *container;
 
-	rc = change_container_state(acfg->db.user, iname, "running",
+	rc = change_container_state(tennant, iname, "running",
 				    "exiting", acfg);
 
-	container = get_container_info(iname, acfg->db.user, acfg);
+	container = get_container_info(iname, tennant, acfg);
 
 	rc = notify_host(CHAN_CONTAINERS, lookup_tbl(container, 0, COL_HOSTNAME), acfg);
 

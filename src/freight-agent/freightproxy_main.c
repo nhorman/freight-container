@@ -475,6 +475,14 @@ static struct xmlrpc_method_info3 methods[] = {
 		"i:s",
 		"Request the booting of a container"
 	},
+	{
+		"poweroff.container",
+		&xmlrpc_poweroff_container,
+		NULL,
+		65535,
+		"i:s",
+		"Request a contaienr be powered off"
+	},
 };
 
 int main(int argc, char **argv)
