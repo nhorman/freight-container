@@ -11,13 +11,13 @@ according to the following diagram:
 						    |  admin     |               
 						    |  freightctl|               
 						    +---+--------+               
-							|                        
-	+-----------------+       +-------------+    +--v--------+               
+                                                        |                        
+        +-----------------+       +-------------+    +--v--------+               
 	|    tennant      |       |             |    |           |               
 	|    freightctl   +-----> |             |    | postgres  |               
 	|                 |       |             |    +------+----+------+        
 	+-----------------+       |             +-----^     |           |        
-				  | freightproxy|           |           |        
+                                  | freightproxy|           |           |        
 	+-----------------+       |             |    +------v----+  +---v-------+
 	|    tennant      |       |             |    | freight-  |  |freight-   |
 	|    freightctl   +-----> |             |    | agent node|  |agent node |
