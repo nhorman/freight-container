@@ -602,6 +602,37 @@ extern int request_poweroff_container(const char *iname,
 	return rc;
 }
 
+int print_container_list(const char *tennant, 
+			 const struct agent_config *acfg)
+{
+	struct tbl *containers;
+	char *filter;
+	int i;
+
+	if (!api->get_table)
+		return -EOPNOTSUPP;
+
+	filter = strjoina("tennant='",tennant,"'",NULL);
+
+	containers = get_raw_table(TABLE_CONTAINERS, filter, acfg);
+
+	if (!containers || !containers->rows)
+		return -ENOENT;
+
+	LOGRAW("CONTAINER NAME   |   CONTAINER TYPE   |   STATE\n");
+	LOGRAW("--------------------------------------------\n");
+	for (i=0; i < containers->rows; i++) {
+		LOGRAW("%-17s|%-20s|%-8s\n",
+			(char *)lookup_tbl(containers, i, COL_INAME),
+			(char *)lookup_tbl(containers, i, COL_CNAME),
+			(char *)lookup_tbl(containers, i, COL_STATE));
+	}
+
+	free_tbl(containers);
+	return 0;
+
+}
+
 
 
 extern int change_container_state(const char *tennant,

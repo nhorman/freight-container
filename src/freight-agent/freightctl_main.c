@@ -125,6 +125,12 @@ static int container_op(char **argv, int argc,
 			goto out;
 		LOG(INFO, "Powering off container %s\n", argv[1]);
 		rc = request_poweroff_container(argv[1], acfg->db.user, acfg);
+
+	} else if (!strcmp(argv[0], "list")) {
+		rc = print_container_list(acfg->db.user, acfg);
+		if (rc == -ENOENT)
+			LOG(INFO, "No Containers\n");
+		rc = 0;
 	} else
 		rc = -EINVAL;
 out:
