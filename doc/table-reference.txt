@@ -75,3 +75,65 @@ Status - The status of the host, an enum of the following values:
 Hostname - The name of a given node
 
 tennant - The tennant that is subscribed to that node (foreign key to tennants)
+
+
+##########################################################################
+# The containers table 
+#
+# Description: A list of containers that are currently being managed 
+# 
+#
+##########################################################################
++------+------+-------------+-------+-----------+
+|      |      |             |       |           |
+| Iname| Cname| Tennant(F.K)| State | Networks  | 
++------+------+-------------+-------+-----------+
+
+Iname -  The name of this container
+
+Cname - The rpm holding the container image
+
+Tennant - The tennant to which this container belongs
+
+State - the State that the container is in
+
+Networks - A comma separated list of networks to which this container is
+attached
+
+
+##########################################################################
+# The network table 
+#
+# Description: A list of networks that a container might connect to
+# 
+#
+##########################################################################
++------+-------------+-----+-------+-----------+------+
+|      |             |     |       |           |      |
+| Name | Tennant(F.K)| Type| Config| Controller| State|
++------+-------------+-----+-------+-----------+------+
+
+Name - Descriptive name for the network
+
+Tennant - The tennant who owns this network definition
+
+Type - The type of network it is, currently:
+	- macvlan
+
+Config - A string formatted in a libconfig format defining configuration
+parameters for this network
+
+Controller - The name of an rpm in the tennants repo that will act as the
+controller for this net.  When this net is started, an instance of a container
+of this type will be started automatically.  This container instance will be
+responsible for network management (DHCP/DNS/etc) on this network.  Note that
+this field may be empty for networks that have no such need.
+
+State - An ennumeration of states to describe the readyness of the network to
+have containers attached to it When this net is started, an instance of a
+container of this type will be started automatically.  This container instance
+will be responsible for network management (DHCP/DNS/etc) on this network.  Note
+that this field may be empty for networks that have no such need.
+
+State - An ennumeration of states to describe the readyness of the network to
+have containers attached to it.. 
