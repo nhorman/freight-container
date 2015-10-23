@@ -93,6 +93,8 @@ psql -h 127.0.0.1 -w $DBNAME $ADMINUSER << EOF
 
 CREATE TYPE status as ENUM ('offline', 'operating', 'unreachable');
 CREATE TYPE cstate as ENUM ('staged', 'start-requested', 'failed', 'installing', 'running', 'exiting');
+CREATE TYPE ntype as ENUM ('macvlan');
+CREATE TYPe nstate as ENUM ('staged', 'active', 'failed');
 
 CREATE TABLE tennants (
 	tennant	varchar(512) NOT NULL PRIMARY KEY,
@@ -123,20 +125,34 @@ CREATE TABLE containers (
 	cname           varchar(512) NOT NULL,
 	hostname        varchar(512) NOT NULL references nodes(hostname),
 	state		cstate NOT NULL,
+	networks	varchar(512),
+	netleader	boolean,
 	PRIMARY KEY (tennant, iname)
 );
+
+CREATE TABLE networks (
+	name		varchar(512) NOT NULL,
+	tennant		varchar(512) NOT NULL references tennants(tennant),
+	type		ntype NOT NULL,
+	state		nstate NOT NULL,
+	config		varchar NOT NULL,
+	PRIMARY KEY (tennant, name)
+);
+	
 
 GRANT ALL on tennants to $ADMINUSER;
 GRANT ALL on nodes to $ADMINUSER;
 GRANT ALL on tennant_hosts to $ADMINUSER;
 GRANT ALL on yum_config to $ADMINUSER;
 GRANT ALL on containers to $ADMINUSER;
+GRANT ALL on networks to $ADMINUSER;
 
 GRANT ALL on tennants to $NODEUSER;
 GRANT ALL on nodes to $NODEUSER;
 GRANT ALL on tennant_hosts to $NODEUSER;
 GRANT ALL on yum_config to $NODEUSER;
 GRANT ALL on containers to $NODEUSER;
+GRANT ALL on networks to $NODEUSER;
 EOF
 
 

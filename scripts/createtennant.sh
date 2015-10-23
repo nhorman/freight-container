@@ -23,7 +23,7 @@ usage() {
 	echo "pw - password for the admin user"
 	echo "tennant - the tennant name to create"
 	echo "tennantpw - the password for the new tennant"
-	echo "proxypass" - the proxy password for the new tannant"
+	echo "proxypass - the proxy password for the new tannant"
 	echo "admin - [t|f]: tennant is an admin"
 }
 
@@ -75,6 +75,7 @@ GRANT SELECT ON containers to $TENNANT;
 GRANT INSERT ON containers to $TENNANT;
 GRANT UPDATE ON containers to $TENNANT;
 GRANT DELETE ON containers to $TENNANT;
+GRANT ALL ON networks to $TENNANT;
 
 EOF
 
