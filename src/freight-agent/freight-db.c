@@ -726,3 +726,60 @@ struct tbl* get_raw_table(enum db_table table, char *filter, const struct agent_
         return api->get_table(table, "*", filter, acfg);
 }
 
+
+int network_create(const char *name, const char *configfile, const char *tennant, const struct agent_config *acfg)
+{
+	struct stat buf;
+	char *configbuf;
+	FILE *configp;
+	int rc = -ENOENT;
+	char *sql;
+
+	/*
+	 * Check to make sure we have the ability to send sql
+	 */
+	if (!api->send_raw_sql)
+		return -EOPNOTSUPP;
+
+	/*
+	 * Start by reading in the config file to a string
+	 */
+
+	if (stat(configfile, &buf)) {
+		/* Problem with the config file */
+		return errno;
+	}
+
+	if (buf.st_size > 8192) {
+		/* hm, suspciuosly large config */
+		return -ERANGE;
+	}
+
+	configbuf = calloc(1, buf.st_size);
+
+	if (!configbuf)
+		return -ENOMEM;
+
+	configp = fopen(configfile, "r");
+
+	if (!configp)
+		goto out_free;
+
+	rc = ERANGE;
+	if (fread(configbuf, buf.st_size, 1, configp) != 1)
+		goto out_close;
+
+	sql = strjoin("INSERT INTO networks VALUES('", name, "' , '"
+		      , tennant, "' , 'staged', '", configbuf, "')", NULL); 
+
+	rc = api->send_raw_sql(sql, acfg);
+
+	free(sql);
+
+out_close:
+	fclose(configp);
+out_free:
+	free(configbuf);
+	return rc;
+
+}

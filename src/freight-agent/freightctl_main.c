@@ -137,6 +137,21 @@ out:
 	return rc;
 }
 
+static int network_op(char **argv, int argc,
+		const struct agent_config *acfg,
+		const struct db_api *api)
+{
+
+	int rc = -EINVAL;
+
+	if (!strcmp(argv[0], "create")) {
+		LOG(INFO, "Creating network %s\n", argv[1]);
+		rc = network_create(argv[1], argv[2], acfg->db.user, acfg);
+	}
+
+	return rc;
+}
+
 #ifdef HAVE_GETOPT_LONG
 struct option lopts[] = {
 	{"help", 0, NULL, 'h'},
@@ -237,6 +252,11 @@ int main(int argc, char **argv)
 		rc = container_op(&argv[optind+1], argc-optind, &config, api);
 		if (rc)
 			LOG(ERROR, "Could not preform container op: %s\n",
+				strerror(rc));
+	} else if (!strcmp(op, "network")) {
+		rc = network_op(&argv[optind+1], argc-optind, &config, api);
+		if (rc)
+			LOG(ERROR, "Could not preform network op: %s\n",
 				strerror(rc));
 	} else {
 		LOG(ERROR, "Unknown operation\n");

@@ -93,7 +93,7 @@ psql -h 127.0.0.1 -w $DBNAME $ADMINUSER << EOF
 
 CREATE TYPE status as ENUM ('offline', 'operating', 'unreachable');
 CREATE TYPE cstate as ENUM ('staged', 'start-requested', 'failed', 'installing', 'running', 'exiting');
-CREATE TYPe nstate as ENUM ('staged', 'active', 'failed');
+CREATE TYPE nstate as ENUM ('staged', 'active', 'failed');
 
 CREATE TABLE tennants (
 	tennant	varchar(512) NOT NULL PRIMARY KEY,
@@ -137,10 +137,12 @@ CREATE TABLE networks (
 );
 
 CREATE TABLE net_container_map (
-	tennant		varchar(512) NOT NULL references tennants(tennant),
-	name		varchar(512) NOT NULL references containers(iname),
-	network		varchar(512) NOT NULL references networks(name),
-	PRIMARY KEY (tennant, name, network)
+	tennant		varchar(512) NOT NULL,
+	name		varchar(512) NOT NULL,
+	network		varchar(512) NOT NULL,
+	PRIMARY KEY (tennant, name, network),
+	FOREIGN KEY (tennant, name) references containers(tennant, iname),
+	FOREIGN KEY (tennant, name) references networks(tennant, name)
 );
 
 	
