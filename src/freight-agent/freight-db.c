@@ -783,3 +783,16 @@ out_free:
 	return rc;
 
 }
+
+int network_delete(const char *name, const char *tennant, const struct agent_config *acfg)
+{
+	char *sql;
+
+	if (!api->send_raw_sql)
+		return -EOPNOTSUPP;
+
+	sql = strjoina("DELETE FROM networks WHERE name='",name,"' AND tennant='",tennant,"'",NULL);
+
+	return api->send_raw_sql(sql, acfg);
+}
+

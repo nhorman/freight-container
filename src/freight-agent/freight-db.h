@@ -259,4 +259,6 @@ extern struct tbl* get_raw_table(enum db_table table, char *filter, const struct
 
 extern int network_create(const char *name, const char *configfile, const char *tennant, const struct agent_config *acfg);
 
+extern int network_delete(const char *name, const char *tennant, const struct agent_config *acfg);
+
 #endif

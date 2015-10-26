@@ -147,6 +147,9 @@ static int network_op(char **argv, int argc,
 	if (!strcmp(argv[0], "create")) {
 		LOG(INFO, "Creating network %s\n", argv[1]);
 		rc = network_create(argv[1], argv[2], acfg->db.user, acfg);
+	} else if (!strcmp(argv[0], "delete")) {
+		LOG(INFO, "Deleting network %s\n", argv[1]);
+		rc = network_delete(argv[1],acfg->db.user, acfg);
 	}
 
 	return rc;
