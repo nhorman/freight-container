@@ -796,3 +796,31 @@ int network_delete(const char *name, const char *tennant, const struct agent_con
 	return api->send_raw_sql(sql, acfg);
 }
 
+int network_list(const char *tennant, const struct agent_config *acfg)
+{
+	struct tbl *networks;
+	char *filter;
+	int i;
+
+	filter = strjoina("tennant='",tennant,"'",NULL);
+
+	LOGRAW("Available networks\n");
+	
+	networks = get_raw_table(TABLE_NETWORKS, filter, acfg);
+
+	if (!networks)
+		return 0;
+
+	LOGRAW("NETWORK NAME   |   STATE\n");
+	LOGRAW("--------------------------------------------\n");
+	for (i=0; i < networks->rows; i++) {
+		LOGRAW("%-17s|%-8s\n",
+			(char *)lookup_tbl(networks, i, COL_NAME),
+			(char *)lookup_tbl(networks, i, COL_STATE));
+	}
+
+
+	free_tbl(networks);
+	return 0;	
+}
+

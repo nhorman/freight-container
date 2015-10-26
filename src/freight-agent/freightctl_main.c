@@ -150,6 +150,8 @@ static int network_op(char **argv, int argc,
 	} else if (!strcmp(argv[0], "delete")) {
 		LOG(INFO, "Deleting network %s\n", argv[1]);
 		rc = network_delete(argv[1],acfg->db.user, acfg);
+	} else if (!strcmp(argv[0], "list")) {
+		rc = network_list(acfg->db.user, acfg);
 	}
 
 	return rc;

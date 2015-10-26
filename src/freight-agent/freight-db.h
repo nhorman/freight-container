@@ -261,4 +261,7 @@ extern int network_create(const char *name, const char *configfile, const char *
 
 extern int network_delete(const char *name, const char *tennant, const struct agent_config *acfg);
 
+extern int network_list(const char *tennant, const struct agent_config *acfg);
+
+
 #endif
