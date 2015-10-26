@@ -483,6 +483,14 @@ static struct xmlrpc_method_info3 methods[] = {
 		"i:s",
 		"Request a contaienr be powered off"
 	},
+	{
+		"create.network",
+		&xmlrpc_create_network,
+		NULL,
+		65535,
+		"i:ss",
+		"Create a new network"
+	},
 };
 
 int main(int argc, char **argv)

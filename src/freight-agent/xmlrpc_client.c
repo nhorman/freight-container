@@ -401,6 +401,53 @@ static xmlrpc_value* get_poweroff_container_params(const char *sql, const struct
 	return params;
 }
 
+static xmlrpc_value* get_network_create_params(const char *sql, const struct agent_config *acfg)
+{
+	struct xmlrpc_info *info = acfg->db.db_priv;
+	xmlrpc_value *params;
+	xmlrpc_value *p;
+	char *tmp;
+	char *value;
+	char stor;
+
+
+	params = xmlrpc_array_new(&info->env);
+
+	/* Get NAME param */
+	value = strstr(sql, "'");
+	value += 1;
+	tmp = strstr(value, "'");
+	stor = *tmp;
+	*tmp = 0;
+	p = xmlrpc_string_new(&info->env, value);	
+	*tmp = stor;
+	xmlrpc_array_append_item(&info->env, params, p);
+	xmlrpc_DECREF(p);
+
+	/* skip TENNANT param */
+	value = strstr(tmp+1, "'");
+	value += 1;
+	tmp = strstr(value, "'");
+
+	/* skip STATE PARAM */
+	value = strstr(tmp+1, "'");
+	value += 1;
+	tmp = strstr(value, "'");
+
+	/* get CONFIG param */
+	value = strstr(tmp+1, "'");
+	value += 1;
+	tmp = strstr(value, "'");
+	stor = *tmp;
+	*tmp = 0;
+	p = xmlrpc_string_new(&info->env, value);
+	xmlrpc_array_append_item(&info->env, params, p);
+	*tmp = stor;
+	xmlrpc_DECREF(p);
+
+	return params;
+}
+
 static int parse_int_result(xmlrpc_value *result, const struct agent_config *acfg)
 {
 	int rc;
@@ -428,6 +475,7 @@ struct xmlrpc_ops {
 static struct xmlrpc_ops insert_ops[] = {
 	{"yum_config", "add.repo", get_add_repo_params, parse_int_result},
 	{"containers", "create.container", get_container_create_params, parse_int_result},
+	{"networks", "create.network", get_network_create_params, parse_int_result},
 	{NULL, NULL, NULL, NULL},
 };
 

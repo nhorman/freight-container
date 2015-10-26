@@ -174,3 +174,19 @@ xmlrpc_value* xmlrpc_poweroff_container(xmlrpc_env * const envp, xmlrpc_value * 
 
 	return xmlrpc_int_new(envp, rc);	
 }
+
+xmlrpc_value* xmlrpc_create_network(xmlrpc_env * const envp, xmlrpc_value * const params, void * serverinfo, void *callinfo)
+{
+	char *name, *config;
+	const struct agent_config *acfg = serverinfo;
+	const struct call_info *cinfo = callinfo;
+	int rc;
+
+
+	xmlrpc_decompose_value(envp, params, "(ss)", &name, &config);
+
+	rc = network_create_config(name, config, cinfo->tennant, acfg);
+
+	return xmlrpc_int_new(envp, rc);	
+}
+

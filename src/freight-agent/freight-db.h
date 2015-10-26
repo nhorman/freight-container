@@ -257,6 +257,8 @@ extern int notify_tennant(const enum listen_channel chn, const char *tennant,
 
 extern struct tbl* get_raw_table(enum db_table table, char *filter, const struct agent_config *acfg);
 
+extern int network_create_config(const char *name, const char *cfstring, const char *tennant, const struct agent_config *acfg);
+
 extern int network_create(const char *name, const char *configfile, const char *tennant, const struct agent_config *acfg);
 
 extern int network_delete(const char *name, const char *tennant, const struct agent_config *acfg);
