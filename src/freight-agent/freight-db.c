@@ -40,7 +40,8 @@ static char *tablenames[TABLE_MAX] = {
         [TABLE_TENNANT_HOSTS] = "tennant_hosts",
         [TABLE_YUM_CONFIG] = "yum_config",
         [TABLE_CONTAINERS] = "containers",
-	[TABLE_NETWORKS] = "networks"
+	[TABLE_NETWORKS] = "networks",
+	[TABLE_NETMAP] = "net_container_map"
 };
 
 /*
@@ -48,15 +49,17 @@ static char *tablenames[TABLE_MAX] = {
  * to the numeric columns that each table returns.
  * The array indicies are:
  * TENNANT, HOSTNAME, STATE, NAME, URL, INAME, CNAME, PROXYPASS, TYPE, CONFIG, NETWORKS, NETLEADER
+ * Note, that the net_contaienr_map uses INAME for the container name and CNAME for the network name
  */
 
 static int db_col_map[TABLE_MAX][COL_MAX] = {
- [TABLE_TENNANTS] =		{ 0, -1, -1, -1, -1, -1, -1,  1, -1, -1, -1, -1},
- [TABLE_NODES] =		{-1,  0,  1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
- [TABLE_TENNANT_HOSTS] = 	{ 1,  0, -1, -1, -1, -1, -1, -1, -1  -1, -1, -1},
- [TABLE_YUM_CONFIG] =		{ 2, -1, -1,  0,  1, -1, -1, -1, -1, -1, -1, -1},
- [TABLE_CONTAINERS] =		{ 0,  3,  4, -1, -1,  1,  2, -1, -1, -1,  5,  6},
- [TABLE_NETWORKS] =		{ 1, -1,  3,  0, -1, -1, -1, -1,  2,  4, -1, -1}
+ [TABLE_TENNANTS] =		{ 0, -1, -1, -1, -1, -1, -1,  1, -1, -1},
+ [TABLE_NODES] =		{-1,  0,  1, -1, -1, -1, -1, -1, -1, -1},
+ [TABLE_TENNANT_HOSTS] = 	{ 1,  0, -1, -1, -1, -1, -1, -1, -1, -1},
+ [TABLE_YUM_CONFIG] =		{ 2, -1, -1,  0,  1, -1, -1, -1, -1, -1},
+ [TABLE_CONTAINERS] =		{ 0,  3,  4, -1, -1,  1,  2, -1, -1,  5},
+ [TABLE_NETWORKS] =		{ 1, -1,  2,  0, -1, -1, -1, -1,  3, -1},
+ [TABLE_NETMAP] =		{ 0, -1, -1, -1, -1,  1,  2, -1, -1, -1} 
 };
 
 
