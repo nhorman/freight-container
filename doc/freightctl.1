@@ -65,6 +65,12 @@ Creates a networked named <name> with configuration supplied in the file named
 by <configuration>.  For the configuration file format, see
 freight-network-config
 
+.B network [delete] <name>
+Delete the named network from the cluster. No container may be using the named
+network, or the delete operation will fail
+
+.B network [list]
+List the available networks for the tennant
 
 .SH CONTAINER LIFE CYCLE
 A container in freight as manged by freightctl exists in the following state table
