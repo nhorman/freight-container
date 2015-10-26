@@ -108,10 +108,10 @@ attached
 # 
 #
 ##########################################################################
-+------+-------------+-----+-------+-----------+------+
-|      |             |     |       |           |      |
-| Name | Tennant(F.K)| Type| Config| Controller| State|
-+------+-------------+-----+-------+-----------+------+
++------+-------------+------+-----+
+|      |             |      |     |
+| Name | Tennant(F.K)|Config|State|
++------+-------------+------+-----+
 
 Name - Descriptive name for the network
 
@@ -123,17 +123,8 @@ Type - The type of network it is, currently:
 Config - A string formatted in a libconfig format defining configuration
 parameters for this network
 
-Controller - The name of an rpm in the tennants repo that will act as the
-controller for this net.  When this net is started, an instance of a container
-of this type will be started automatically.  This container instance will be
-responsible for network management (DHCP/DNS/etc) on this network.  Note that
-this field may be empty for networks that have no such need.
-
 State - An ennumeration of states to describe the readyness of the network to
 have containers attached to it When this net is started, an instance of a
 container of this type will be started automatically.  This container instance
 will be responsible for network management (DHCP/DNS/etc) on this network.  Note
 that this field may be empty for networks that have no such need.
-
-State - An ennumeration of states to describe the readyness of the network to
-have containers attached to it.. 

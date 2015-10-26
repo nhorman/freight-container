@@ -1,0 +1,52 @@
+.TH freight-network-config "1" "Apr 2015" "Neil Horman"
+.SH NAME
+freight-network-config - Configuration file format for freight networks
+.B 
+.SH CONFIG FILE FORMAT
+
+The network config file has the following format
+
+.nf
+---------------------------------------------
+# These are comments
+
+
+# The leading config block starts with network= 
+network = {
+        type = "<network type>";
+};
+
+address_config = {
+	ipv4_aquisition = "dhcp|static";
+	ipv6_aquisition = "dhcpv6|slaac|static";
+	ipv4_addr="192.168.122.1/24";
+	ipv6_addr="2001:470:8:a08:7aac:c0ff:fec2:933b/64";
+};
+
+<type>_config = {
+	# see network type sections for config options
+};
+
+
+
+.SH NETWORK TYPES
+
+
+.B bridged
+.P
+Bridged networks are just that, simple straight layer 2 bridges.  Freight nodes
+running containers attached to networks of this type will create a bridge,
+attach a physical interface to the bridge, create a veth pair, attach one end to
+the bridge and pass the other end to the container.
+
+
+.SH ADDRESS CONFIG
+The address config section ennumerates how a container on this network will
+obtain an address.  Current supported formats are dhcp, slaac and static.  Note
+that static assignment is of limited usefulness as it only allows one address
+asignment per network.
+
+.SH NETWORK TYPE CONFIGURATIONS
+.B bridged_config
+.P
+There are no bridge specific config options

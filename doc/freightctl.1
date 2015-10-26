@@ -60,6 +60,12 @@ staged or failed state may be deleted.
 .B container [list]
 Lists the containers for the tennant and what state they are in
 
+.B network [create] <name> <configuration>
+Creates a networked named <name> with configuration supplied in the file named
+by <configuration>.  For the configuration file format, see
+freight-network-config
+
+
 .SH CONTAINER LIFE CYCLE
 A container in freight as manged by freightctl exists in the following state table
 
