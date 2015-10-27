@@ -53,7 +53,6 @@ enum table_col {
 	COL_CNAME,
 	COL_PROXYPASS,
 	COl_CONFIG,
-	COL_NETLEADER,
 	COL_MAX
 };
 

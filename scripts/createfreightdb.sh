@@ -124,7 +124,6 @@ CREATE TABLE containers (
 	cname           varchar(512) NOT NULL,
 	hostname        varchar(512) NOT NULL references nodes(hostname),
 	state		cstate NOT NULL,
-	netleader	boolean,
 	PRIMARY KEY (tennant, iname)
 );
 
