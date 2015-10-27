@@ -733,8 +733,12 @@ int network_create_config(const char *name, const char *cfstring, const char *te
 	if (!api->send_raw_sql)
 		return -EOPNOTSUPP;
 
+	/*
+	 * until we implement network start/stop functions, we just mark
+	 * all networks as active
+	 */
 	sql = strjoina("INSERT INTO networks VALUES('", name, "' , '"
-			, tennant, "' , 'staged', '", cfstring, "')", NULL);
+			, tennant, "' , 'active', '", cfstring, "')", NULL);
 
 
 	return api->send_raw_sql(sql, acfg);
