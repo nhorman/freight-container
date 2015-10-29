@@ -32,6 +32,7 @@
 #include <fcntl.h>
 #include <libconfig.h>
 #include <mode.h>
+#include <freight-networks.h>
 #include <freight-log.h>
 #include <freight-common.h>
 
@@ -719,6 +720,9 @@ static void poweroff_containers_from_table(struct tbl *containers, const struct 
 static void handle_new_containers(const struct agent_config *acfg)
 {
 	struct tbl *containers;
+	int i;
+	char *container;
+	char *tennant;
 
 	containers = get_containers_for_host(acfg->cmdline.hostname, "start-requested", acfg);
 
@@ -726,6 +730,19 @@ static void handle_new_containers(const struct agent_config *acfg)
 		LOG(DEBUG, "No new containers\n");
 		return;
 	}
+
+	/*
+	 * We need to do this here, before we have several threads trying to create the same network
+	 */
+	for (i=0; i< containers->rows; i++) {
+		container = lookup_tbl(containers, i, COL_INAME);
+		tennant = lookup_tbl(containers, i, COL_TENNANT);
+
+		if (establish_networks_on_host(container, tennant, acfg)) {
+			LOG(ERROR, "Unable to setup all networks for %s:%s\n",
+				tennant, container);
+		}
+	}	
 
 	/*
 	 * Do a batch update of the contanier states so we know they are all installing
