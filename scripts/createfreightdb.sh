@@ -141,7 +141,7 @@ CREATE TABLE net_container_map (
 	network		varchar(512) NOT NULL,
 	PRIMARY KEY (tennant, name, network),
 	FOREIGN KEY (tennant, name) references containers(tennant, iname),
-	FOREIGN KEY (tennant, name) references networks(tennant, name)
+	FOREIGN KEY (tennant, network) references networks(tennant, name)
 );
 
 	
