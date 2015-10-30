@@ -264,5 +264,10 @@ extern int network_delete(const char *name, const char *tennant, const struct ag
 
 extern int network_list(const char *tennant, const struct agent_config *acfg);
 
+extern int network_attach(const char *container, const char *network, const char *tennant, const struct agent_config *acfg);
+
+extern int network_detach(const char *container, const char *network, const char *tennant, const struct agent_config *acfg);
+
+extern struct tbl * get_network_info(const char *network, const char *tennant, const struct agent_config *acfg);
 
 #endif

@@ -105,7 +105,7 @@ static int create_bridge_from_entry(struct network *net, const struct agent_conf
 	char *cmd;
 	int rc;
 
-	cmd = strjoina("ip link add name ", net->bridge, "type bridge", NULL);
+	cmd = strjoina("ip link add name ", net->bridge, " type bridge", NULL);
 
 	rc = run_command(cmd, 0);	
 
@@ -172,6 +172,7 @@ int establish_networks_on_host(const char *container, const char *tennant,
 	char *filter;
 	int rc = 0;
 	int i;
+	struct tbl *netinfo;
 	char *netname;
 	char *cfstring;
 	struct network *new;
@@ -188,29 +189,39 @@ int establish_networks_on_host(const char *container, const char *tennant,
 	 * we have created a corresponding bridge.  If we haven't, create it
 	 */
 	for(i=0; i < networks->rows; i++) {
-		netname = lookup_tbl(networks, i, COL_NAME);
-		cfstring = lookup_tbl(networks, i, COL_CONFIG);
+		netname = lookup_tbl(networks, i, COL_CNAME);
+
+		netinfo = get_network_info(netname, tennant,  acfg);
+		if (!netinfo)
+			continue;
+
+		cfstring = lookup_tbl(netinfo, 0, COL_CONFIG);
 
 		/*
 		 * if we already have the network, just go on
 		 */
-		if (get_network_bridge(netname, tennant))
+		if (get_network_bridge(netname, tennant)) {
+			free_tbl(netinfo);
 			continue;
+		}
 
 		new = add_network_bridge(netname, tennant, acfg);
 		if (new) {
 			LOG(ERROR, "Failed to add network bridge for network %s:%s\n",
 				netname, tennant);
 			rc = EINVAL;
+			free_tbl(netinfo);
 			goto out_free;
 		}
 
 		rc = attach_network_to_bridge(new, cfstring, acfg);
 		if (rc) {
 			LOG(ERROR, "Failed to attach physical network to bridge %s\n", new->bridge);
+			free_tbl(netinfo);
 			goto out_remove_bridge;
 		}
 
+		free_tbl(netinfo);
 		link_network_bridge(new);
 
 	}

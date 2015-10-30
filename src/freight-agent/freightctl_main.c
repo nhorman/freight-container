@@ -152,6 +152,10 @@ static int network_op(char **argv, int argc,
 		rc = network_delete(argv[1],acfg->db.user, acfg);
 	} else if (!strcmp(argv[0], "list")) {
 		rc = network_list(acfg->db.user, acfg);
+	} else if (!strcmp(argv[0], "attach")) {
+		rc = network_attach(argv[1], argv[2], acfg->db.user, acfg);
+	} else if (!strcmp(argv[0], "detach")) {
+		rc = network_detach(argv[1], argv[2], acfg->db.user, acfg);
 	}
 
 	return rc;

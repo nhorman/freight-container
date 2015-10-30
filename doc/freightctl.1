@@ -72,6 +72,12 @@ network, or the delete operation will fail
 .B network [list]
 List the available networks for the tennant
 
+.B network [attach] <container> <network>
+Attaches the refereced container to the referenced network
+
+.B network [detach] <container> <network>
+Detaches the referenced container from the referenced network
+
 .SH CONTAINER LIFE CYCLE
 A container in freight as manged by freightctl exists in the following state table
 

@@ -831,3 +831,52 @@ int network_list(const char *tennant, const struct agent_config *acfg)
 	return 0;	
 }
 
+int network_attach(const char *container, const char *network, const char *tennant, const struct agent_config *acfg)
+{
+	char *sql;
+
+	if (!api->send_raw_sql)
+		return -EOPNOTSUPP;
+
+	sql = strjoina("INSERT INTO net_container_map VALUES('", tennant, "','",
+		       container, "','", network, "')", NULL);
+
+	return api->send_raw_sql(sql, acfg);
+}
+
+
+int network_detach(const char *container, const char *network, const char *tennant, const struct agent_config *acfg)
+{
+	char *sql;
+
+	if (!api->send_raw_sql)
+		return -EOPNOTSUPP;
+
+	sql = strjoina("DELETE FROM net_container_map WHERE ",
+		       "tennant='", tennant,"'",
+		       "AND name='", container, "'",
+		       "AND network='", network,"'", NULL);
+
+	return api->send_raw_sql(sql, acfg);
+}
+
+struct tbl * get_network_info(const char *network, const char *tennant, const struct agent_config *acfg)
+{
+	struct tbl *networks;
+	char *filter;
+
+	filter = strjoina("tennant='",tennant,"' AND name='", network, "'",NULL);
+
+	
+	networks = get_raw_table(TABLE_NETWORKS, filter, acfg);
+
+	if (!networks)
+		return 0;
+
+	if (networks->rows == 0) {
+		free_tbl(networks);
+		networks = NULL;
+	}
+
+	return networks;
+}
