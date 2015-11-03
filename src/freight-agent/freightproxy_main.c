@@ -320,7 +320,7 @@ RequestAuthFromDb(TSession *   const sessionP,
 				*pass = 0;
 				pass++;
 				dbpass = get_tennant_proxy_pass(user, &config);
-				if (!strcmp(dbpass, pass)) {
+				if (dbpass && !strcmp(dbpass, pass)) {
 					SessionGetRequestInfo(sessionP, (const TRequestInfo ** const)&requestP);
 					requestP->user = strdup(user);
 					authorized = TRUE;
@@ -491,6 +491,30 @@ static struct xmlrpc_method_info3 methods[] = {
 		"i:ss",
 		"Create a new network"
 	},
+	{
+		"delete.network",
+		&xmlrpc_delete_network,
+		NULL,
+		65535,
+		"i:s",
+		"Delete a network"
+	},
+	{
+		"attach.network",
+		&xmlrpc_attach_network,
+		NULL,
+		65535,
+		"i:ss",
+		"Attach a container to a network"
+	},
+	{
+		"detach.network",
+		&xmlrpc_detach_network,
+		NULL,
+		65535,
+		"i:ss",
+		"Detach a container from a network"
+	}
 };
 
 int main(int argc, char **argv)

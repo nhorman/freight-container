@@ -190,3 +190,47 @@ xmlrpc_value* xmlrpc_create_network(xmlrpc_env * const envp, xmlrpc_value * cons
 	return xmlrpc_int_new(envp, rc);	
 }
 
+xmlrpc_value* xmlrpc_delete_network(xmlrpc_env * const envp, xmlrpc_value * const params, void * serverinfo, void *callinfo)
+{
+	char *name;
+	const struct agent_config *acfg = serverinfo;
+	const struct call_info *cinfo = callinfo;
+	int rc;
+
+
+	xmlrpc_decompose_value(envp, params, "(s)", &name);
+
+	rc = network_delete(name, cinfo->tennant, acfg);
+
+	return xmlrpc_int_new(envp, rc);	
+}
+
+xmlrpc_value* xmlrpc_attach_network(xmlrpc_env * const envp, xmlrpc_value * const params, void * serverinfo, void *callinfo)
+{
+	char *network, *container;
+	const struct agent_config *acfg = serverinfo;
+	const struct call_info *cinfo = callinfo;
+	int rc;
+
+
+	xmlrpc_decompose_value(envp, params, "(ss)", &container, &network);
+
+	rc = network_attach(container, network, cinfo->tennant, acfg);
+
+	return xmlrpc_int_new(envp, rc);	
+}
+
+xmlrpc_value* xmlrpc_detach_network(xmlrpc_env * const envp, xmlrpc_value * const params, void * serverinfo, void *callinfo)
+{
+	char *container, *network;
+	const struct agent_config *acfg = serverinfo;
+	const struct call_info *cinfo = callinfo;
+	int rc;
+
+
+	xmlrpc_decompose_value(envp, params, "(ss)", &container, &network);
+
+	rc = network_detach(container, network, cinfo->tennant, acfg);
+
+	return xmlrpc_int_new(envp, rc);	
+}

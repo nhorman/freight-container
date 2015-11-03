@@ -40,6 +40,9 @@ XMLRPC_HANDLER(xmlrpc_delete_container);
 XMLRPC_HANDLER(xmlrpc_boot_container);
 XMLRPC_HANDLER(xmlrpc_poweroff_container);
 XMLRPC_HANDLER(xmlrpc_create_network);
+XMLRPC_HANDLER(xmlrpc_delete_network);
+XMLRPC_HANDLER(xmlrpc_attach_network);
+XMLRPC_HANDLER(xmlrpc_detach_network);
 
 #endif
 
