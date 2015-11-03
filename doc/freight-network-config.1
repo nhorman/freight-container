@@ -17,8 +17,8 @@ network = {
 };
 
 address_config = {
-	ipv4_aquisition = "dhcp";
-	ipv6_aquisition = "dhcpv6|slaac";
+	ipv4_aquisition = "dhcp|static";
+	ipv6_aquisition = "dhcpv6|slaac|static";
 };
 
 <type>_config = {
@@ -26,10 +26,19 @@ address_config = {
 };
 
 
-<name>_static_address = {
-	ipv4_addr="192.168.1.1";
-	ipv6_addr="fe80::fc54:ff:fe84:f6f0/64";
-};
+static_address = [ 
+	{
+		cname = "container name";
+		ipv4_addr="192.168.1.1";
+		ipv6_addr="fe80::fc54:ff:fe84:f6f0/64";
+	},
+	{
+		cname = "container name"'
+		ipv4_addr="192.168.1.2";
+		ipv6_addr="fe80::fc54:ff:fe84:f6f1/64";
+	},
+	...
+];
 
 
 .SH NETWORK TYPES
