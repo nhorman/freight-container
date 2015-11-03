@@ -285,7 +285,7 @@ char* get_tennant_proxy_pass(const char *user, const struct agent_config *acfg)
 {
 	struct tbl *table;
 	char *filter;
-	char *pass;
+	char *pass = NULL;
 
 	if (!api->get_table)
 		return NULL;
@@ -293,6 +293,9 @@ char* get_tennant_proxy_pass(const char *user, const struct agent_config *acfg)
 	filter = strjoina("tennant = '", user, "'", NULL);
 
 	table = api->get_table(TABLE_TENNANTS, "*", filter, acfg);
+
+	if (!table->rows)
+		goto out;
 
 	pass = lookup_tbl(table, 0, COL_PROXYPASS);
 
