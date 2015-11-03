@@ -24,15 +24,170 @@
 #include <errno.h>
 #include <freight-networks.h>
 #include <freight-common.h>
+#include <libconfig.h>
+
+enum network_type {
+	NET_TYPE_BRIDGED = 0,
+};
+
+enum aquire_type {
+	AQUIRE_NONE = 0,
+	AQUIRE_DHCP,
+	AQUIRE_DHCPV6,
+	AQUIRE_SLAAC,
+	AQUIRE_STATIC,
+};
+
+struct static_entry {
+	char *cname;
+	char *ipv4_address;
+	char *ipv6_address;
+};
+
+struct address_config {
+	enum aquire_type ipv4;
+	enum aquire_type ipv6;
+};
+	
+struct netconf {
+	enum network_type type;
+	struct address_config aconf;
+	/* network type config should go here */
+	unsigned int static_entries;
+	struct static_entry entries[0];
+};
 
 struct network {
 	char *tennant;
 	char *network;
 	char *bridge;
+	struct netconf *conf;
 	struct network *next;
 };
 
 struct network *active_networks = NULL;
+
+static int parse_network_type(config_t *config, struct netconf *conf)
+{
+	config_setting_t *network = config_lookup(config, "network");
+	config_setting_t *type;
+	const char *typestr;
+	int rc = -ENOENT;
+
+	if (!network)
+		return -ENOENT;
+
+	type = config_setting_get_member(network, "type");
+	if (!type)
+		return -ENOENT;
+
+	typestr = config_setting_get_string(type);	
+
+	if (!strcmp(typestr, "bridged")) {
+		rc = 0;
+		conf->type = NET_TYPE_BRIDGED;
+	}
+
+	return rc;
+}
+
+static int parse_address_config(config_t *config, struct netconf *conf)
+{
+	config_setting_t *acfg = config_lookup(config, "address_config");
+	config_setting_t *type;
+	const char *typestr;
+	int rc = 0;
+
+	if (!acfg)
+		return -ENOENT;
+
+	type = config_setting_get_member(acfg, "ipv4_aquisition");
+	if (!type)
+		return -ENOENT;
+	typestr = config_setting_get_string(type);	
+	if (!strcmp(typestr, "dhcp"))
+		conf->aconf.ipv4 = AQUIRE_DHCP;
+	else if (!strcmp(typestr, "static"))
+		conf->aconf.ipv4 = AQUIRE_STATIC;
+	else {
+		rc = -EINVAL;
+		goto out;
+	}
+
+	type = config_setting_get_member(acfg, "ipv6_aquisition");
+	if (type) {
+		typestr = config_setting_get_string(type);	
+		if (!strcmp(typestr, "dhcpv6"))
+			conf->aconf.ipv4 = AQUIRE_DHCPV6;
+		else if (!strcmp(typestr, "static"))
+			conf->aconf.ipv4 = AQUIRE_STATIC;
+		else if (!strcmp(typestr, "slaac"))
+			conf->aconf.ipv4 = AQUIRE_SLAAC;
+		else {
+			rc = -EINVAL;
+			goto out;
+		}
+	}
+
+out:
+	return rc;
+}
+
+
+static int parse_network_configuration(const char *cfstring, struct network *net,
+				       const struct agent_config *acfg)
+{
+	config_t config;
+	config_setting_t *tmp;
+	int rc;
+	int entry_cnt = 0;
+
+	config_init(&config);
+
+	rc = config_read_string(&config, cfstring);
+	if (rc == CONFIG_FALSE) {
+		LOG(ERROR, "Could not read network configuration on line %d: %s\n",
+			config_error_line(&config), config_error_text(&config));
+		rc = -EINVAL;
+		goto out;
+	}
+
+	/*
+	 * We have to count the number of static entries before we can allocate
+	 * the config struct
+	 */
+	tmp = config_lookup(&config, "static_address");
+
+	if (tmp)
+		entry_cnt = config_setting_length(tmp);
+
+	net->conf = calloc(1,sizeof(struct netconf)+((sizeof(struct static_entry)*entry_cnt)));
+
+	if (!net->conf) {
+		LOG(ERROR, "Unable to allocate memory for network config\n");
+		rc = -EINVAL;
+		goto out_destroy;
+	}
+
+	net->conf->static_entries = entry_cnt;
+
+	rc = parse_network_type(&config, net->conf);
+	if (rc) {
+		LOG(ERROR, "Error determining network type: %s\n", strerror(rc));
+		goto out_destroy;
+	}
+
+	rc = parse_address_config(&config, net->conf);
+	if (rc) {
+		LOG(ERROR, "Error parsing address config\n");
+		goto out_destroy;
+	}
+
+out_destroy:
+	config_destroy(&config);
+out:
+	return rc;
+}
 
 static const char* get_network_bridge(const char *network, const char *tennant)
 {
@@ -73,6 +228,7 @@ static void free_network_entry(struct network *ptr)
 	free(ptr->tennant);
 	free(ptr->network);
 	free(ptr->bridge);
+	free(ptr->conf);
 	free(ptr);
 }
 
@@ -135,7 +291,8 @@ static void remove_network_bridge(struct network *ptr)
 	return;
 }
 
-static struct network* add_network_bridge(const char *network, const char *tennant, const struct agent_config *acfg)
+static struct network* add_network_bridge(const char *network, const char *tennant,
+					  const char *cfstring,  const struct agent_config *acfg)
 {
 	struct network *new;
 	int rc;
@@ -144,6 +301,10 @@ static struct network* add_network_bridge(const char *network, const char *tenna
 
 	if (!new)
 		goto out;
+
+	rc = parse_network_configuration(cfstring, new, acfg);
+	if (rc)
+		goto out_free;
 
 	rc = create_bridge_from_entry(new, acfg);
 
@@ -156,11 +317,6 @@ out_free:
 	free_network_entry(new);
 	new = NULL;
 	goto out;
-}
-
-static int attach_network_to_bridge(struct network *net, const char *cfstring, const struct agent_config *acfg)
-{
-	return 0;
 }
 
 
@@ -205,22 +361,22 @@ int establish_networks_on_host(const char *container, const char *tennant,
 			continue;
 		}
 
-		new = add_network_bridge(netname, tennant, acfg);
-		if (new) {
+		new = add_network_bridge(netname, tennant, cfstring, acfg);
+		if (!new) {
 			LOG(ERROR, "Failed to add network bridge for network %s:%s\n",
 				netname, tennant);
 			rc = EINVAL;
 			free_tbl(netinfo);
 			goto out_free;
 		}
-
-		rc = attach_network_to_bridge(new, cfstring, acfg);
+#if 0
+		rc = attach_host_network_to_bridge(new, acfg);
+#endif
 		if (rc) {
 			LOG(ERROR, "Failed to attach physical network to bridge %s\n", new->bridge);
 			free_tbl(netinfo);
 			goto out_remove_bridge;
 		}
-
 		free_tbl(netinfo);
 		link_network_bridge(new);
 
