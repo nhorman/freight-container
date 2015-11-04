@@ -602,8 +602,8 @@ int exec_container(const char *rpm, const char *name, const char *tenant,
 	return 0;
 }
 
-static int create_table_worker(struct tbl *table, const struct agent_config *config,
-			       void (*work)(struct tbl *, const struct agent_config *))
+static int create_table_worker(const struct agent_config *config,
+			       void (*work)(const struct agent_config *))
 {
 	pid_t rc;
 	struct agent_config *acfg = (struct agent_config *)config;
@@ -636,18 +636,17 @@ static int create_table_worker(struct tbl *table, const struct agent_config *con
 
 	if (db_init(acfg)) {
 		LOG(WARNING, "Could not re-init database connection\n");
-		goto out_free;
+		goto out;
 	}
 
 	if (db_connect(acfg)) {
 		LOG(WARNING, "Could not establish new database connection\n");
-		goto out_free;
+		goto out;
 	}
 
-	work(table, acfg);
+	work(acfg);
 	db_disconnect(acfg);
-out_free:
-	free_tbl(table);
+out:
 	exit(0);
 }
 
@@ -657,13 +656,25 @@ static enum event_rc handle_node_update(const enum listen_channel chnl, const ch
 	return EVENT_CONSUMED;
 }
 
-static void create_containers_from_table(struct tbl *containers, const struct agent_config *acfg)
+static void create_containers_from_table(const struct agent_config *acfg)
 
 {
 	int i;
 	int rc;
 	char *tennant, *iname, *cname;
-	
+	struct tbl *containers = containers = get_containers_for_host(acfg->cmdline.hostname, "start-requested", acfg);
+
+	/*
+	 * Do a batch update of the contanier states so we know they are all installing
+	 * This also services to block the next table update from considering
+	 * these as unserviced requests.
+	 */
+	if (change_container_state_batch(lookup_tbl(containers, 0, COL_TENNANT), "start-requested",
+				         "installing", acfg)) {
+		LOG(WARNING, "Unable to update container state\n");
+		goto out;
+	}
+
 	for(i=0; i<containers->rows; i++) {
 		tennant = lookup_tbl(containers, i, COL_TENNANT);
 		iname = lookup_tbl(containers, i, COL_INAME);
@@ -693,12 +704,16 @@ static void create_containers_from_table(struct tbl *containers, const struct ag
 			change_container_state(tennant, iname, "installing", "running", acfg);
 		}
         }
+
+out:
+	free_tbl(containers);
 }
 
-static void poweroff_containers_from_table(struct tbl *containers, const struct agent_config *acfg)
+static void poweroff_containers_from_table(const struct agent_config *acfg)
 {
 	int i;
 	char *tennant, *iname, *cname;
+	struct tbl *containers = get_containers_for_host(acfg->cmdline.hostname, "exiting", acfg);
 
 	for(i=0; i<containers->rows; i++) {
 		iname = lookup_tbl(containers, i, COL_INAME);
@@ -728,7 +743,7 @@ static void handle_new_containers(const struct agent_config *acfg)
 
 	if (!containers->rows) {
 		LOG(DEBUG, "No new containers\n");
-		return;
+		goto out;
 	}
 
 	/*
@@ -745,27 +760,16 @@ static void handle_new_containers(const struct agent_config *acfg)
 	}	
 
 	/*
-	 * Do a batch update of the contanier states so we know they are all installing
-	 * This also services to block the next table update from considering
-	 * these as unserviced requests.
-	 */
-	if (change_container_state_batch(lookup_tbl(containers, 0, COL_TENNANT), "start-requested",
-				         "installing", acfg)) {
-		LOG(WARNING, "Unable to update container state\n");
-		return;
-	}
-
-	/*
 	 * Note: Need to fork here so that each tennant can do installs in parallel
 	 */
-	if (create_table_worker(containers, acfg, create_containers_from_table)) {
+	if (create_table_worker(acfg, create_containers_from_table)) {
 		LOG(WARNING, "Unable to fork container install process\n");
 		change_container_state_batch(lookup_tbl(containers, 0, COL_TENNANT),
 					     "installing", "failed", acfg);
-		free_tbl(containers);
-		return;
 	}
 
+out:
+	free_tbl(containers);
 }
 
 static void handle_exiting_containers(const struct agent_config *acfg)
@@ -778,19 +782,21 @@ static void handle_exiting_containers(const struct agent_config *acfg)
 
 	if (!containers->rows) {
 		LOG(DEBUG, "No exiting containers\n");
-		return;
+		goto out;
 	}
 
 	/*
 	 * Note: Need to fork here so that each tennant can do installs in parallel
 	 */
-	if (create_table_worker(containers, acfg, poweroff_containers_from_table)) {
+	if (create_table_worker(acfg, poweroff_containers_from_table)) {
 		LOG(WARNING, "Unable to fork container install process\n");
 		change_container_state_batch(lookup_tbl(containers, 0, COL_TENNANT),
 					     "exiting", "failed", acfg);
-		free_tbl(containers);
 		return;
 	}
+
+out:
+	free_tbl(containers);
 
 }
 static enum event_rc handle_container_update(const enum listen_channel chnl, const char *extra,

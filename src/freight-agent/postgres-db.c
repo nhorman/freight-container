@@ -122,6 +122,7 @@ static int pg_send_raw_sql(const char *sql,
 
 	retc = 0;
 out:
+	PQclear(result);
 	return retc;
 }
 
