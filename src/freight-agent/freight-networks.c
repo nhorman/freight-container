@@ -62,6 +62,7 @@ struct network {
 	char *network;
 	char *bridge;
 	struct netconf *conf;
+	int clients;
 	struct network *next;
 };
 
@@ -238,7 +239,6 @@ static void link_network_bridge(struct network *ptr)
 	active_networks = ptr;
 }
 
-#if 0 /* Unused for now */
 static void unlink_network_bridge(struct network *ptr)
 {
 	struct network *idx = active_networks;
@@ -254,7 +254,6 @@ static void unlink_network_bridge(struct network *ptr)
 			tmp = tmp->next;
 	}
 }
-#endif
 
 static int create_bridge_from_entry(struct network *net, const struct agent_config *acfg)
 {
@@ -288,6 +287,8 @@ static void remove_network_bridge(struct network *ptr)
 		LOG(ERROR, "Unable to delete bridge %s\n", ptr->bridge);
 	}
 
+	unlink_network_bridge(ptr);
+	free_network_entry(ptr);
 	return;
 }
 
@@ -311,6 +312,8 @@ static struct network* add_network_bridge(const char *network, const char *tenna
 	if (rc)
 		goto out_free;
 
+	link_network_bridge(new);	
+
 out:
 	return new;
 out_free:
@@ -319,6 +322,63 @@ out_free:
 	goto out;
 }
 
+static int hattach_macvlan_to_bridge(struct network *net, const struct agent_config *acfg)
+{
+	char *cmd;
+	int rc = 0;
+
+	/* Create the macvlan interface */
+	cmd = strjoin("ip link add link ", acfg->node.host_ifc, " name mvl-",
+		      net->tennant,"-",net->network, " type macvlan", NULL);
+
+	rc = run_command(cmd, 0);
+	if (rc) {
+		LOG(ERROR, "Unable to create a macvlan interface mvl-%s-%s : %s\n",
+			net->tennant, net->network, strerror(rc));
+		goto out;
+	}
+
+	/* Set the interface into promisc mode */
+	free(cmd);
+	cmd = strjoin("ip link set dev mvl-", net->tennant, "-", net->network," promisc on", NULL);
+	rc = run_command(cmd, 0);
+	if (rc) {
+		LOG(ERROR, "Unable to set macvlan mvl-%s-%s into promisc mode\n",
+			net->tennant, net->network);
+		goto out_destroy;
+	}
+
+	/* And attach it to the bridge */
+	free(cmd);
+	cmd = strjoin("ip link set dev mvl-", net->tennant, "-", net->network, 
+		      " master ", net->bridge, NULL);
+	rc = run_command(cmd, 0);
+	if (rc) {
+		LOG(ERROR, "Unable to attach mvl-%s-%s to bridge %s\n",
+			net->tennant, net->network, net->bridge);
+		goto out_destroy;
+	}
+	free(cmd);
+out:
+	return rc;
+out_destroy:
+	free(cmd);
+	cmd = strjoin("ip link del dev mvl-", net->tennant, "-", net->network, NULL);
+	run_command(cmd, 0);
+	goto out;
+}
+
+typedef int (*host_attach)(struct network *net, const struct agent_config *acfg);
+
+host_attach host_attach_methods[] = {
+	[NET_TYPE_BRIDGED] = hattach_macvlan_to_bridge,
+	NULL,
+};
+
+static int attach_host_network_to_bridge(struct network *net, const struct agent_config *acfg)
+{
+	return host_attach_methods[net->conf->type](net, acfg);
+}
 
 int establish_networks_on_host(const char *container, const char *tennant,
 			       const struct agent_config *acfg)
@@ -369,16 +429,14 @@ int establish_networks_on_host(const char *container, const char *tennant,
 			free_tbl(netinfo);
 			goto out_free;
 		}
-#if 0
+
 		rc = attach_host_network_to_bridge(new, acfg);
-#endif
 		if (rc) {
 			LOG(ERROR, "Failed to attach physical network to bridge %s\n", new->bridge);
 			free_tbl(netinfo);
 			goto out_remove_bridge;
 		}
 		free_tbl(netinfo);
-		link_network_bridge(new);
 
 	}
 
@@ -388,7 +446,6 @@ out:
 	return rc;
 out_remove_bridge:
 	remove_network_bridge(new);
-	free_network_entry(new);
 	goto out_free;
 }
 

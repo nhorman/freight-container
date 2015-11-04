@@ -42,6 +42,7 @@ struct db_config {
 
 struct node_config {
 	char *container_root;
+	char *host_ifc;
 };
 
 struct master_config {
