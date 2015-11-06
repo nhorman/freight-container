@@ -190,14 +190,14 @@ out:
 	return rc;
 }
 
-static const char* get_network_bridge(const char *network, const char *tennant)
+static struct network* get_network_entry(const char *network, const char *tennant)
 {
 	struct network *idx = active_networks;
 
 	while (idx != NULL) {
 		if (!strcmp(network, idx->network) && 
 		    !strcmp(tennant, idx->tennant))
-			return idx->bridge;
+			return idx;
 	}
 
 	return NULL;
@@ -273,6 +273,13 @@ out:
 	return rc;
 }
 
+static int interface_exists(char *ifc)
+{
+	char *cmd = strjoina("ip link show ", ifc, NULL);
+
+	return !run_command(cmd, 0);
+}
+
 static void remove_network_bridge(struct network *ptr)
 {
 
@@ -295,27 +302,39 @@ static void remove_network_bridge(struct network *ptr)
 static struct network* add_network_bridge(const char *network, const char *tennant,
 					  const char *cfstring,  const struct agent_config *acfg)
 {
-	struct network *new;
-	int rc;
+	struct network *new, *old;
+	int rc = 0;
 
-	new = alloc_network_entry(network, tennant);
+	old = get_network_entry(network, tennant);
+
+	if (old)
+		new = old;
+	else
+		new = alloc_network_entry(network, tennant);
 
 	if (!new)
 		goto out;
 
-	rc = parse_network_configuration(cfstring, new, acfg);
+	if (!old) {
+		rc = parse_network_configuration(cfstring, new, acfg);
+		if (rc)
+			goto out_free;
+	}
+
+	if (!interface_exists(new->bridge))
+		rc = create_bridge_from_entry(new, acfg);
+	else
+		LOG(INFO, "Bridge %s already exists\n", new->bridge);
+
 	if (rc)
 		goto out_free;
 
-	rc = create_bridge_from_entry(new, acfg);
-
-	if (rc)
-		goto out_free;
-
-	link_network_bridge(new);	
+	if (!old)
+		link_network_bridge(new);	
 
 out:
 	return new;
+
 out_free:
 	free_network_entry(new);
 	new = NULL;
@@ -326,10 +345,15 @@ static int hattach_macvlan_to_bridge(struct network *net, const struct agent_con
 {
 	char *cmd;
 	int rc = 0;
+	char *ifc = strjoina("mvl-", net->tennant, "-", net->network, NULL);
 
+	/* First check if the interface already exists */
+	if (interface_exists(ifc))
+		goto out;
+	
 	/* Create the macvlan interface */
-	cmd = strjoin("ip link add link ", acfg->node.host_ifc, " name mvl-",
-		      net->tennant,"-",net->network, " type macvlan", NULL);
+	cmd = strjoin("ip link add link ", acfg->node.host_ifc, " name ",
+		      ifc, " type macvlan", NULL);
 
 	rc = run_command(cmd, 0);
 	if (rc) {
@@ -340,7 +364,7 @@ static int hattach_macvlan_to_bridge(struct network *net, const struct agent_con
 
 	/* Set the interface into promisc mode */
 	free(cmd);
-	cmd = strjoin("ip link set dev mvl-", net->tennant, "-", net->network," promisc on", NULL);
+	cmd = strjoin("ip link set dev ", ifc, " promisc on", NULL);
 	rc = run_command(cmd, 0);
 	if (rc) {
 		LOG(ERROR, "Unable to set macvlan mvl-%s-%s into promisc mode\n",
@@ -350,12 +374,11 @@ static int hattach_macvlan_to_bridge(struct network *net, const struct agent_con
 
 	/* And attach it to the bridge */
 	free(cmd);
-	cmd = strjoin("ip link set dev mvl-", net->tennant, "-", net->network, 
-		      " master ", net->bridge, NULL);
+	cmd = strjoin("ip link set dev ", ifc, " master ", net->bridge, NULL); 
 	rc = run_command(cmd, 0);
 	if (rc) {
-		LOG(ERROR, "Unable to attach mvl-%s-%s to bridge %s\n",
-			net->tennant, net->network, net->bridge);
+		LOG(ERROR, "Unable to attach %s to bridge %s\n",
+			ifc, net->bridge);
 		goto out_destroy;
 	}
 	free(cmd);
@@ -363,7 +386,7 @@ out:
 	return rc;
 out_destroy:
 	free(cmd);
-	cmd = strjoin("ip link del dev mvl-", net->tennant, "-", net->network, NULL);
+	cmd = strjoin("ip link del dev ", ifc, NULL);
 	run_command(cmd, 0);
 	goto out;
 }
@@ -379,6 +402,7 @@ static int attach_host_network_to_bridge(struct network *net, const struct agent
 {
 	return host_attach_methods[net->conf->type](net, acfg);
 }
+
 
 int establish_networks_on_host(const char *container, const char *tennant,
 			       const struct agent_config *acfg)
@@ -416,7 +440,7 @@ int establish_networks_on_host(const char *container, const char *tennant,
 		/*
 		 * if we already have the network, just go on
 		 */
-		if (get_network_bridge(netname, tennant)) {
+		if (get_network_entry(netname, tennant)) {
 			free_tbl(netinfo);
 			continue;
 		}
