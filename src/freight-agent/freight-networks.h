@@ -33,6 +33,8 @@
 extern int establish_networks_on_host(const char *container, const char *tennant,
 				      const struct agent_config *acfg);
 
+extern void cleanup_networks_on_host(const struct agent_config *acfg);
+
 /*
  * Look up the local bridge instance name of a network for a given tennatn
  */

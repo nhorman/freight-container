@@ -603,7 +603,7 @@ int exec_container(const char *rpm, const char *name, const char *tenant,
 }
 
 static int create_table_worker(const struct agent_config *config,
-			       void (*work)(const struct agent_config *))
+			       void (*work)(const struct agent_config *),int *status)
 {
 	pid_t rc;
 	struct agent_config *acfg = (struct agent_config *)config;
@@ -617,7 +617,11 @@ static int create_table_worker(const struct agent_config *config,
 		/*
 		 * We're the parent
 		 */
-		return 0;
+		if (status) {
+			waitpid(rc, status, 0);
+			return WEXITSTATUS(*status);
+		} else
+			return 0;
 	}
 
 	/*
@@ -762,7 +766,7 @@ static void handle_new_containers(const struct agent_config *acfg)
 	/*
 	 * Note: Need to fork here so that each tennant can do installs in parallel
 	 */
-	if (create_table_worker(acfg, create_containers_from_table)) {
+	if (create_table_worker(acfg, create_containers_from_table, NULL)) {
 		LOG(WARNING, "Unable to fork container install process\n");
 		change_container_state_batch(lookup_tbl(containers, 0, COL_TENNANT),
 					     "installing", "failed", acfg);
@@ -775,6 +779,7 @@ out:
 static void handle_exiting_containers(const struct agent_config *acfg)
 {
 	struct tbl *containers;
+	int status;
 
 	containers = get_containers_for_host(acfg->cmdline.hostname, "exiting", acfg);
 
@@ -788,12 +793,18 @@ static void handle_exiting_containers(const struct agent_config *acfg)
 	/*
 	 * Note: Need to fork here so that each tennant can do installs in parallel
 	 */
-	if (create_table_worker(acfg, poweroff_containers_from_table)) {
-		LOG(WARNING, "Unable to fork container install process\n");
+	if (create_table_worker(acfg, poweroff_containers_from_table, &status)) {
+		LOG(WARNING, "Unable to fork container poweroff process\n");
 		change_container_state_batch(lookup_tbl(containers, 0, COL_TENNANT),
 					     "exiting", "failed", acfg);
 		return;
 	}
+
+	/*
+	 * because we use status above, we block until all containers are done powering off
+	 * and we can safely cleanup host netowrks
+	 */
+	cleanup_networks_on_host(acfg);
 
 out:
 	free_tbl(containers);

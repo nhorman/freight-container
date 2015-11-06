@@ -68,6 +68,21 @@ struct network {
 
 struct network *active_networks = NULL;
 
+
+static int interface_exists(char *ifc)
+{
+	char *cmd = strjoina("ip link show ", ifc, NULL);
+
+	return !run_command(cmd, 0);
+}
+
+static void delete_interface(const char *ifc)
+{
+	char *cmd = strjoina("ip link del dev ", ifc, NULL);
+
+	run_command(cmd, 0);
+}
+
 static int parse_network_type(config_t *config, struct netconf *conf)
 {
 	config_setting_t *network = config_lookup(config, "network");
@@ -273,72 +288,12 @@ out:
 	return rc;
 }
 
-static int interface_exists(char *ifc)
+static void hdetach_macvlan_from_bridge(struct network *net, const struct agent_config *acfg)
 {
-	char *cmd = strjoina("ip link show ", ifc, NULL);
+	char *ifc;
 
-	return !run_command(cmd, 0);
-}
-
-static void remove_network_bridge(struct network *ptr)
-{
-
-	char *cmd;
-	int rc;
-
-	cmd = strjoina("ip link delete dev ", ptr->bridge);
-
-	rc = run_command(cmd, 0);
-
-	if (rc) {
-		LOG(ERROR, "Unable to delete bridge %s\n", ptr->bridge);
-	}
-
-	unlink_network_bridge(ptr);
-	free_network_entry(ptr);
-	return;
-}
-
-static struct network* add_network_bridge(const char *network, const char *tennant,
-					  const char *cfstring,  const struct agent_config *acfg)
-{
-	struct network *new, *old;
-	int rc = 0;
-
-	old = get_network_entry(network, tennant);
-
-	if (old)
-		new = old;
-	else
-		new = alloc_network_entry(network, tennant);
-
-	if (!new)
-		goto out;
-
-	if (!old) {
-		rc = parse_network_configuration(cfstring, new, acfg);
-		if (rc)
-			goto out_free;
-	}
-
-	if (!interface_exists(new->bridge))
-		rc = create_bridge_from_entry(new, acfg);
-	else
-		LOG(INFO, "Bridge %s already exists\n", new->bridge);
-
-	if (rc)
-		goto out_free;
-
-	if (!old)
-		link_network_bridge(new);	
-
-out:
-	return new;
-
-out_free:
-	free_network_entry(new);
-	new = NULL;
-	goto out;
+	ifc = strjoina("mvl-", net->tennant, "-", net->network, NULL);
+	delete_interface(ifc);
 }
 
 static int hattach_macvlan_to_bridge(struct network *net, const struct agent_config *acfg)
@@ -391,18 +346,91 @@ out_destroy:
 	goto out;
 }
 
-typedef int (*host_attach)(struct network *net, const struct agent_config *acfg);
 
-host_attach host_attach_methods[] = {
-	[NET_TYPE_BRIDGED] = hattach_macvlan_to_bridge,
-	NULL,
+struct host_net_methods {
+	int (*host_attach)(struct network *net, const struct agent_config *acfg);
+	void (*host_detach)(struct network *net, const struct agent_config *acfg);
+};
+
+static struct host_net_methods host_attach_methods[] = {
+	[NET_TYPE_BRIDGED] = {hattach_macvlan_to_bridge, hdetach_macvlan_from_bridge},
+	{NULL, NULL}
 };
 
 static int attach_host_network_to_bridge(struct network *net, const struct agent_config *acfg)
 {
-	return host_attach_methods[net->conf->type](net, acfg);
+	return host_attach_methods[net->conf->type].host_attach(net, acfg);
 }
 
+static void detach_host_network_from_bridge(struct network *net, const struct agent_config *acfg)
+{
+	host_attach_methods[net->conf->type].host_detach(net, acfg);
+}
+
+static struct network* add_network_bridge(const char *network, const char *tennant,
+					  const char *cfstring,  const struct agent_config *acfg)
+{
+	struct network *new, *old;
+	int rc = 0;
+
+	old = get_network_entry(network, tennant);
+
+	if (old)
+		new = old;
+	else
+		new = alloc_network_entry(network, tennant);
+
+	if (!new)
+		goto out;
+
+	if (!old) {
+		rc = parse_network_configuration(cfstring, new, acfg);
+		if (rc)
+			goto out_free;
+	}
+
+	if (!interface_exists(new->bridge))
+		rc = create_bridge_from_entry(new, acfg);
+	else
+		LOG(INFO, "Bridge %s already exists\n", new->bridge);
+
+	if (rc)
+		goto out_free;
+
+	if (!old)
+		link_network_bridge(new);	
+
+out:
+	return new;
+
+out_free:
+	free_network_entry(new);
+	new = NULL;
+	goto out;
+}
+
+static void remove_network_bridge(struct network *net, const struct agent_config *acfg)
+{
+	/*
+	 * Unlink it from the list
+	 */
+	unlink_network_bridge(net);
+
+	/*
+	 * Then remove the host interface from the bridge
+	 */
+	detach_host_network_from_bridge(net, acfg);
+
+	/*
+	 * Then remove the bridge itself
+	 */
+	delete_interface(net->bridge);
+
+	/*
+	 * And free the net entry
+	 */
+	free_network_entry(net);
+}
 
 int establish_networks_on_host(const char *container, const char *tennant,
 			       const struct agent_config *acfg)
@@ -469,8 +497,18 @@ out_free:
 out:	
 	return rc;
 out_remove_bridge:
-	remove_network_bridge(new);
+	remove_network_bridge(new, acfg);
 	goto out_free;
+}
+
+extern void cleanup_networks_on_host(const struct agent_config *acfg)
+{
+	struct network *net;
+
+	for (net = active_networks; net; net = net->next) {
+		if (!net->clients)
+			remove_network_bridge(net, acfg);
+	}
 }
 
 
