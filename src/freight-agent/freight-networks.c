@@ -61,6 +61,7 @@ struct network {
 	char *tennant;
 	char *network;
 	char *bridge;
+	char *physifc;
 	struct netconf *conf;
 	int clients;
 	struct network *next;
@@ -68,6 +69,30 @@ struct network {
 
 struct network *active_networks = NULL;
 
+static unsigned int bridgenum = 0;
+static unsigned int physnum = 0;
+static unsigned int containernum = 0;
+
+static char* generate_bridgename()
+{
+	char idx[11];
+	snprintf(idx, 11, "%u", bridgenum++);
+	return strjoin("frbr", idx, NULL);
+}
+
+static char* generate_physname()
+{
+	char idx[11];
+	snprintf(idx, 11, "%u", physnum++);
+	return strjoin("frpy", idx, NULL);
+}
+
+static char* generate_containername()
+{
+	char idx[11];
+	snprintf(idx, 11, "%u", containernum++);
+	return strjoin("frc", idx, NULL);
+}
 
 static int interface_exists(char *ifc)
 {
@@ -233,8 +258,7 @@ static struct network* alloc_network_entry(const char *network, const char *tenn
 	
 	new->tennant = strdup(tennant);
 	new->network = strdup(network);
-	new->bridge = calloc(1,strlen(tennant)+strlen(network)+2);
-	sprintf(new->bridge, "%s-%s", tennant, network);
+	new->bridge = generate_bridgename();
 	return new;
 	
 }
@@ -290,21 +314,20 @@ out:
 
 static void hdetach_macvlan_from_bridge(struct network *net, const struct agent_config *acfg)
 {
-	char *ifc;
-
-	ifc = strjoina("mvl-", net->tennant, "-", net->network, NULL);
-	delete_interface(ifc);
+	delete_interface(net->physifc);
 }
 
 static int hattach_macvlan_to_bridge(struct network *net, const struct agent_config *acfg)
 {
 	char *cmd;
 	int rc = 0;
-	char *ifc = strjoina("mvl-", net->tennant, "-", net->network, NULL);
+	char *ifc = generate_physname();
 
 	/* First check if the interface already exists */
 	if (interface_exists(ifc))
 		goto out;
+
+	net->physifc = ifc;
 	
 	/* Create the macvlan interface */
 	cmd = strjoin("ip link add link ", acfg->node.host_ifc, " name ",
@@ -501,20 +524,150 @@ out_remove_bridge:
 	goto out_free;
 }
 
-extern void cleanup_networks_on_host(const struct agent_config *acfg)
+extern void cleanup_networks_on_host(const char *container, const char *tennant,
+				     const struct agent_config *acfg)
 {
 	struct network *net;
+	const struct ifc_list *list;
+
+	/*
+	 * First build an interface list for the container and remove those
+	 */
+	list = build_interface_list_for_container(container, tennant, acfg);
+	detach_and_destroy_container_interfaces(list, acfg);
 
 	for (net = active_networks; net; net = net->next) {
-		if (!net->clients)
+		if (!net->clients) {
+			LOG(INFO, "REMOVING BRIDGE %s\n", net->bridge);
 			remove_network_bridge(net, acfg);
+		}
 	}
 }
 
 
-const char *get_bridge_for_container(const char *network, const char *tennant,
-				     const struct agent_config *acfg)
+const struct ifc_list* build_interface_list_for_container(const char *container, const char *tennant, const struct agent_config *acfg)
 {
-	return NULL;
+	struct tbl *networks;
+	char *filter;
+	size_t size;
+	struct network *net;
+	const char *netname;
+	char *bridge_veth, *container_veth;
+	char *basename;
+	int i;
+
+	struct ifc_list *list = NULL;
+
+	filter = strjoina("tennant='", tennant, "' AND name='",
+			  container,"'",NULL);
+
+	networks = get_raw_table(TABLE_NETMAP, filter, acfg);
+
+
+	if (!networks->rows)
+		goto out_free;
+
+	size = sizeof(struct ifc_list) + (sizeof(struct ifc_info)*networks->rows);
+	list =  calloc(1, size);
+	list->count = networks->rows;
+
+	for (i=0; i < networks->rows; i++) {
+		netname = lookup_tbl(networks, i, COL_CNAME);
+		net = get_network_entry(netname, tennant);
+		if (!net) {
+			LOG(ERROR, "net %s hasn't been established!\n", netname);
+			continue;
+		}
+		basename = generate_containername();
+		bridge_veth = strjoin(basename, "b", NULL);
+		container_veth = strjoin(basename,"c", NULL);
+		free(basename);
+
+		list->ifc[i].container_veth = container_veth;
+		list->ifc[i].bridge_veth = bridge_veth;
+		list->ifc[i].ifcdata = net;
+		net->clients++;
+
+	}
+out_free:
+	free_tbl(networks);
+	return list;	
 }
+
+int detach_and_destroy_container_interfaces(const struct ifc_list *list, const struct agent_config *acfg)
+{
+	int i;
+	struct network *net;
+
+	for (i = 0; i < list->count; i++) {
+		net = list->ifc[i].ifcdata;
+		delete_interface(list->ifc[i].container_veth);
+		net->clients--;
+	}
+
+	return 0;
+}
+
+
+int create_and_bridge_interface_list(const struct ifc_list *list, const struct agent_config *acfg)
+{
+	int i, rc;
+	char *cmd;
+	struct network *net;
+
+	for (i=0; i < list->count; i++) {
+
+		LOG(DEBUG, "addressing entry %d/%d\n", i, (int)list->count);
+
+		net = list->ifc[i].ifcdata;
+
+		/*
+		 * Allocate the device pair
+		 */
+		LOG(DEBUG, "Creating veth pair\n");
+		cmd = strjoin("ip link add dev ", list->ifc[i].container_veth, " type veth ",
+			      "peer name ", list->ifc[i].bridge_veth, NULL);
+
+		rc = run_command(cmd, 1);
+
+		free(cmd);
+		if (rc) {
+			LOG(ERROR, "Could not create veth pair %s:%s\n", list->ifc[i].container_veth,
+				list->ifc[i].bridge_veth);
+			continue;
+		}
+
+		((struct ifc_list *)list)->ifc[i].state = IFC_CREATED;
+
+		/*
+		 * Then attach the bridge veth to the bridge
+		 */
+		cmd = strjoin("ip link set dev ", list->ifc[i].bridge_veth, " master ", net->bridge, NULL);
+		LOG(DEBUG, "Attaching to bridge\n");
+		rc = run_command(cmd, 0);
+		free(cmd);
+		if (rc) {
+			LOG(ERROR, "Could not attach %s to bridge %s\n", list->ifc[i].bridge_veth, net->bridge);
+			delete_interface(list->ifc[i].bridge_veth);
+			continue;
+		}
+		net->clients++;
+		((struct ifc_list *)list)->ifc[i].state = IFC_ATTACHED;
+	}
+
+	LOG(DEBUG, "Done\n");
+	return 0;
+}
+
+
+void free_interface_list(const struct ifc_list *list)
+{
+	int i;
+	for (i=0; i < list->count; i++) {
+		free((void *)list->ifc[i].container_veth);
+		free((void *)list->ifc[i].bridge_veth);
+	}
+	free((void *)list);
+}
+
 

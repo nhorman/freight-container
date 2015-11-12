@@ -33,12 +33,30 @@
 extern int establish_networks_on_host(const char *container, const char *tennant,
 				      const struct agent_config *acfg);
 
-extern void cleanup_networks_on_host(const struct agent_config *acfg);
+extern void cleanup_networks_on_host(const char *container, const char *tennatn,
+				     const struct agent_config *acfg);
 
-/*
- * Look up the local bridge instance name of a network for a given tennatn
- */
-extern const char *get_bridge_for_container(const char *network, const char *tennant,
-					    const struct agent_config *acfg);
+enum ifc_state {
+	IFC_NONE = 0,
+	IFC_CREATED,
+	IFC_ATTACHED
+};
+
+struct ifc_info {
+	const char *container_veth;
+	const char *bridge_veth;
+	void *ifcdata;
+	enum ifc_state state;
+};
+
+struct ifc_list {
+	size_t count;
+	struct ifc_info ifc[0];
+};
+
+extern const struct ifc_list* build_interface_list_for_container(const char *container, const char *tennant, const struct agent_config *acfg);
+extern int create_and_bridge_interface_list(const struct ifc_list *list, const struct agent_config *acfg);
+extern int detach_and_destroy_container_interfaces(const struct ifc_list *list, const struct agent_config *acfg);
+extern void free_interface_list(const struct ifc_list *list);
 
 #endif

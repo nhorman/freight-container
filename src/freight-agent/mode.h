@@ -24,6 +24,7 @@
 #define _MODE_H_
 #include <freight-config.h>
 #include <freight-db.h>
+#include <freight-networks.h>
 
 int init_container_root(const struct agent_config *acfg);
 
@@ -44,7 +45,7 @@ void list_containers(char *scope, const char *tennant,
 		     struct agent_config *config);
 
 int exec_container(const char *rpm, const char *name,
-		   const char *tennant,
+		   const char *tennant, const struct ifc_list *ifcs,
 		   int should_fork, const struct agent_config *acfg);
 
 int poweroff_container(const char *iname, const char *cname, const char *tennant,
@@ -57,6 +58,6 @@ int poweroff_container(const char *iname, const char *cname, const char *tennant
 #define local_install_container(r, c) install_container(r, "local", c)
 #define local_uninstall_container(r, c) uninstall_container(r, "local", c)
 #define local_list_containers(s, c) list_containers(s, "local", c)
-#define local_exec_container(r, n, c) exec_container(r, n, "local", 0, c)
+#define local_exec_container(r, n, c) exec_container(r, n, "local", NULL, 0, c)
 
 #endif

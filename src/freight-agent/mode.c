@@ -38,6 +38,7 @@
 
 #define BTRFS_SUPER_MAGIC     0x9123683E
 
+#define FORK_TABLE_WORKER 1
 
 struct container_options {
 	char *user;
@@ -512,7 +513,7 @@ int poweroff_container(const char *iname, const char *cname, const char *tennant
 }
 
 int exec_container(const char *rpm, const char *name, const char *tenant,
-                   int should_fork, const struct agent_config *acfg)
+                   const struct ifc_list *ifcs, int should_fork, const struct agent_config *acfg)
 {
 	pid_t pid;
 	int eoc;
@@ -603,11 +604,14 @@ int exec_container(const char *rpm, const char *name, const char *tenant,
 }
 
 static int create_table_worker(const struct agent_config *config,
-			       void (*work)(const struct agent_config *),int *status)
+			       void (*work)(const void *data, const struct agent_config *),
+			       const void *data, int *status)
 {
+#if FORK_TABLE_WORKER
 	pid_t rc;
+#endif
 	struct agent_config *acfg = (struct agent_config *)config;
-
+#if FORK_TABLE_WORKER
 	rc = fork();
 
 	if (rc < 0)
@@ -623,7 +627,6 @@ static int create_table_worker(const struct agent_config *config,
 		} else
 			return 0;
 	}
-
 	/*
 	 * We're the child
 	 */
@@ -647,10 +650,12 @@ static int create_table_worker(const struct agent_config *config,
 		LOG(WARNING, "Could not establish new database connection\n");
 		goto out;
 	}
-
-	work(acfg);
+#endif
+	work(data,acfg);
+#if FORK_TABLE_WORKER 
 	db_disconnect(acfg);
 out:
+#endif
 	exit(0);
 }
 
@@ -660,12 +665,13 @@ static enum event_rc handle_node_update(const enum listen_channel chnl, const ch
 	return EVENT_CONSUMED;
 }
 
-static void create_containers_from_table(const struct agent_config *acfg)
+static void create_containers_from_table(const void *data, const struct agent_config *acfg)
 
 {
 	int i;
 	int rc;
 	char *tennant, *iname, *cname;
+	const struct ifc_list *ifcs;
 	struct tbl *containers = containers = get_containers_for_host(acfg->cmdline.hostname, "start-requested", acfg);
 
 	/*
@@ -683,8 +689,9 @@ static void create_containers_from_table(const struct agent_config *acfg)
 		tennant = lookup_tbl(containers, i, COL_TENNANT);
 		iname = lookup_tbl(containers, i, COL_INAME);
 		cname = lookup_tbl(containers, i, COL_CNAME);
+		ifcs = build_interface_list_for_container(iname, tennant, acfg);
 
-		LOG(INFO, "Creatig container %s of type %s for tennant %s\n",
+		LOG(INFO, "Creating container %s of type %s for tennant %s\n",
 			iname, cname, tennant);
 
 		if (install_and_update_container(cname, tennant, acfg)) {
@@ -694,10 +701,14 @@ static void create_containers_from_table(const struct agent_config *acfg)
 			continue;
 		}
 
+		create_and_bridge_interface_list(ifcs, acfg);
+
 		/*
 		 * They're installed, now we just need to exec each container
 		 */
-		rc = exec_container(cname, iname, tennant,
+		LOG(INFO, "Booting container %s for tennant %s\n", iname, tennant);
+
+		rc = exec_container(cname, iname, tennant, ifcs,
 				    1, acfg);
 		if (rc) {
 			LOG(WARNING, "Failed to exec container %s: %s\n",
@@ -707,13 +718,15 @@ static void create_containers_from_table(const struct agent_config *acfg)
 			LOG(INFO, "Started container %s\n", iname);
 			change_container_state(tennant, iname, "installing", "running", acfg);
 		}
+
+		free_interface_list(ifcs);
         }
 
 out:
 	free_tbl(containers);
 }
 
-static void poweroff_containers_from_table(const struct agent_config *acfg)
+static void poweroff_containers_from_table(const void *data, const struct agent_config *acfg)
 {
 	int i;
 	char *tennant, *iname, *cname;
@@ -763,10 +776,8 @@ static void handle_new_containers(const struct agent_config *acfg)
 		}
 	}	
 
-	/*
-	 * Note: Need to fork here so that each tennant can do installs in parallel
-	 */
-	if (create_table_worker(acfg, create_containers_from_table, NULL)) {
+
+	if (create_table_worker(acfg, create_containers_from_table, NULL, NULL)) {
 		LOG(WARNING, "Unable to fork container install process\n");
 		change_container_state_batch(lookup_tbl(containers, 0, COL_TENNANT),
 					     "installing", "failed", acfg);
@@ -780,6 +791,7 @@ static void handle_exiting_containers(const struct agent_config *acfg)
 {
 	struct tbl *containers;
 	int status;
+	int i;
 
 	containers = get_containers_for_host(acfg->cmdline.hostname, "exiting", acfg);
 
@@ -793,7 +805,7 @@ static void handle_exiting_containers(const struct agent_config *acfg)
 	/*
 	 * Note: Need to fork here so that each tennant can do installs in parallel
 	 */
-	if (create_table_worker(acfg, poweroff_containers_from_table, &status)) {
+	if (create_table_worker(acfg, poweroff_containers_from_table, NULL, &status)) {
 		LOG(WARNING, "Unable to fork container poweroff process\n");
 		change_container_state_batch(lookup_tbl(containers, 0, COL_TENNANT),
 					     "exiting", "failed", acfg);
@@ -804,7 +816,10 @@ static void handle_exiting_containers(const struct agent_config *acfg)
 	 * because we use status above, we block until all containers are done powering off
 	 * and we can safely cleanup host netowrks
 	 */
-	cleanup_networks_on_host(acfg);
+	for (i = 0; i < containers->rows; i++)
+		cleanup_networks_on_host(lookup_tbl(containers, i, COL_INAME),
+					 lookup_tbl(containers, i, COL_TENNANT),
+					acfg);
 
 out:
 	free_tbl(containers);
