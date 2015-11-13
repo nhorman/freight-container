@@ -516,6 +516,7 @@ int exec_container(const char *rpm, const char *name, const char *tenant,
                    const struct ifc_list *ifcs, int should_fork, const struct agent_config *acfg)
 {
 	pid_t pid;
+	int i;
 	int eoc;
 	struct container_options copts;
 	char *config_path;
@@ -563,6 +564,8 @@ int exec_container(const char *rpm, const char *name, const char *tenant,
  	 */
 	eoc = 6; /*systemd-nspawn -D <dir> -b -M <name> */
 
+	eoc += ifcs->count;
+
 	if (copts.user)
 		eoc += 2; /* -u <user> */
 
@@ -592,6 +595,10 @@ int exec_container(const char *rpm, const char *name, const char *tenant,
 		execarray[eoc++] = "-u"; /* -u */
 		execarray[eoc++] = copts.user; /* <user> */
 	}
+
+	for (i = 0; i < ifcs->count; i++)
+		execarray[eoc++] = strjoina("--network-interface=", ifcs->ifc[i].container_veth);
+
 	execarray[eoc++] = NULL;
 
 	if (should_fork)
