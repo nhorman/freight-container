@@ -30,7 +30,7 @@ bin_PROGRAMS = freight-agent freightctl freightproxy
 freight_agent_SOURCES = main.c freight-config.c\
 			postgres-db.c mode.c nodb.c\
 			freight-db.c xmlrpc_client.c\
-			freight-networks.c \
+			freight-networks.c freight-net-addrs.c \
 			../freight-common.c
 
 freightctl_SOURCES = freightctl_main.c \

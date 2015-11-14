@@ -59,4 +59,8 @@ extern int create_and_bridge_interface_list(const struct ifc_list *list, const s
 extern int detach_and_destroy_container_interfaces(const struct ifc_list *list, const struct agent_config *acfg);
 extern void free_interface_list(const struct ifc_list *list);
 
+
+extern int get_address_for_interfaces(struct ifc_list *list, const char *container, const struct agent_config *acfg);
+extern void release_address_for_interfaces(struct ifc_list *list, const struct agent_config *acfg);
+
 #endif

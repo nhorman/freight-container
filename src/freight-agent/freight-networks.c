@@ -25,47 +25,7 @@
 #include <freight-networks.h>
 #include <freight-common.h>
 #include <libconfig.h>
-
-enum network_type {
-	NET_TYPE_BRIDGED = 0,
-};
-
-enum aquire_type {
-	AQUIRE_NONE = 0,
-	AQUIRE_DHCP,
-	AQUIRE_DHCPV6,
-	AQUIRE_SLAAC,
-	AQUIRE_STATIC,
-};
-
-struct static_entry {
-	char *cname;
-	char *ipv4_address;
-	char *ipv6_address;
-};
-
-struct address_config {
-	enum aquire_type ipv4;
-	enum aquire_type ipv6;
-};
-	
-struct netconf {
-	enum network_type type;
-	struct address_config aconf;
-	/* network type config should go here */
-	unsigned int static_entries;
-	struct static_entry entries[0];
-};
-
-struct network {
-	char *tennant;
-	char *network;
-	char *bridge;
-	char *physifc;
-	struct netconf *conf;
-	int clients;
-	struct network *next;
-};
+#include <freight-networks-private.h>
 
 struct network *active_networks = NULL;
 
