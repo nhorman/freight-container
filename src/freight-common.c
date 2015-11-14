@@ -95,10 +95,6 @@ char *strjoin(const char *a, ...) {
         return x;
 }
 
-inline size_t s_max(size_t a, size_t b) {
-	return a > b ? a : b;
-}
-
 bool streq(const char *a, const char *b) {
 	return strcmp(a, b) == 0;
 }
