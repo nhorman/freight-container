@@ -11,6 +11,8 @@ repositories = (
 );
 
 manifest = (
-	"systemd"
+	"systemd",
+	"NetworkManager",
+	"iproute"
 );
 
