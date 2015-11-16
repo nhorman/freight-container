@@ -366,7 +366,7 @@ int init_container_root(const struct agent_config *acfg)
 	LOG(INFO, "Install support utilities.  This could take a minute..");
 	sprintf(cbuf, "yum --installroot=%s/common "
 		      "--nogpgcheck --releasever=21 -y "
-		      "install sh btrfs-progs\n", croot); 
+		      "install bash btrfs-progs\n", croot); 
 	rc = run_command(cbuf, acfg->cmdline.verbose);
 	if (rc) {
 		LOG(ERROR, "Failed to install support utilities\n");
