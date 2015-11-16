@@ -6,7 +6,7 @@ packaging = {
 	summary = "child example container";
 	license = "GPLv2";
 	author = "Neil Horman <root@localhost.com>";
-	parent_container = "/home/nhorman/test-1.0-1.x86_64.rpm";
+	parent_container = "/root/test-1.0-1.x86_64.rpm";
 	post_script = "./examples/test-manifest/post_install_child";
 };
 
