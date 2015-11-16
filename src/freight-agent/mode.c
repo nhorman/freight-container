@@ -145,7 +145,7 @@ void list_containers(char *scope, const char *tenant,
 		run_command("machinectl list", 1);
 	else {
 		char *status = streq(scope, "local") ? "installed" : "all";
-		char *cmd = strjoina("yum --installroot=", acfg->node.container_root, 
+		char *cmd = strjoina("dnf --installroot=", acfg->node.container_root, 
 				"/", tenant, " local ", status, NULL);
 
 		run_command(cmd, 1); 
@@ -167,7 +167,7 @@ int install_container(const char *rpm, const char *tenant,
 		goto out;
 	}
 
-	yumcmd = strjoina("yum --installroot=", troot, " -y --nogpgcheck install ", rpm, NULL);
+	yumcmd = strjoina("dnf --installroot=", troot, " -y --nogpgcheck install ", rpm, NULL);
 	rc = run_command(yumcmd, acfg->cmdline.verbose);
 
 out:
@@ -189,7 +189,7 @@ int install_and_update_container(const char *rpm, const char *tenant,
 
 	troot = strjoina(acfg->node.container_root, "/", tenant, NULL);
 
-	yumcmd = strjoina("yum --installroot=", troot, " -y --nogpgcheck update ", rpm, NULL);
+	yumcmd = strjoina("dnf --installroot=", troot, " -y --nogpgcheck update ", rpm, NULL);
 	rc = run_command(yumcmd, acfg->cmdline.verbose);
 	return rc;
 
@@ -207,7 +207,7 @@ int uninstall_container(const char *rpm, const char *tenant,
 	if (stat(croot, &buf) == -ENOENT)
 		goto out;
 
-	yumcmd = strjoina("yum --installroot=", acfg->node.container_root, "/", tenant, " -y erase ", rpm, NULL);
+	yumcmd = strjoina("dnf --installroot=", acfg->node.container_root, "/", tenant, " -y erase ", rpm, NULL);
 
 	rc = run_command(yumcmd, acfg->cmdline.verbose);
 out:
@@ -364,7 +364,7 @@ int init_container_root(const struct agent_config *acfg)
 	}
 
 	LOG(INFO, "Install support utilities.  This could take a minute..");
-	sprintf(cbuf, "yum --installroot=%s/common "
+	sprintf(cbuf, "dnf --installroot=%s/common "
 		      "--nogpgcheck --releasever=21 -y "
 		      "install bash btrfs-progs\n", croot); 
 	rc = run_command(cbuf, acfg->cmdline.verbose);
@@ -373,7 +373,7 @@ int init_container_root(const struct agent_config *acfg)
 		goto out;
 	}
 
-	sprintf(cbuf, "yum --installroot=%s/common "
+	sprintf(cbuf, "dnf --installroot=%s/common "
 		      "clean all\n", croot);
 	run_command(cbuf, acfg->cmdline.verbose);
 
