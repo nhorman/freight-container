@@ -10,13 +10,13 @@
  *MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  *GNU General Public License for more details.
  *
- *File: yum.c
+ *File: dnf.c
  *
  *Author:Neil Horman
  *
  *Date: 4/9/2015
  *
- *Description: yum package management implementation
+ *Description: dnf package management implementation
  *********************************************************/
 #include <stdlib.h>
 #include <stdio.h>
@@ -259,7 +259,7 @@ static int spec_install_primary_container(FILE * repof, const struct manifest *m
 	fprintf(repof, "btrfs subvolume create containers/%%{name}/containerfs\n");
 
 	fprintf(repof, "tar -C ./containers/%s/containerfs/ -x -v -f %%{SOURCE0}\n", manifest->package.name);
-	fprintf(repof, "yum -y --installroot=${RPM_BUILD_ROOT}/containers/%s/containerfs/ "
+	fprintf(repof, "dnf -y --installroot=${RPM_BUILD_ROOT}/containers/%s/containerfs/ "
 		       " --nogpgcheck --releasever=%s install %s\n",
 		manifest->package.name, manifest->yum.releasever, rpmlist); 
 	free(rpmlist);
@@ -272,7 +272,7 @@ static int spec_install_primary_container(FILE * repof, const struct manifest *m
 		/*
  		 * Need to ensure that we have shadowutils installed
  		 */
-		fprintf(repof, "yum -y --installroot=${RPM_BUILD_ROOT}/containers/"
+		fprintf(repof, "dnf -y --installroot=${RPM_BUILD_ROOT}/containers/"
 			"%s/containerfs/ --nogpgcheck install shadow-utils\n",
 			manifest->package.name); 
 		fprintf(repof, "chroot ${RPM_BUILD_ROOT}"
@@ -289,7 +289,7 @@ static int spec_install_primary_container(FILE * repof, const struct manifest *m
 	/*
  	 * This needs to hapen last so we can clean out the yum cache
  	 */
-	fprintf(repof, "yum --installroot=${RPM_BUILD_ROOT}/containers/%s/containerfs/ clean all\n",
+	fprintf(repof, "dnf --installroot=${RPM_BUILD_ROOT}/containers/%s/containerfs/ clean all\n",
 		manifest->package.name);
 
 
@@ -393,7 +393,7 @@ static int spec_install_derivative_container(FILE * repof, const struct manifest
  	 * If rpmlist is not empty, install those rpms now
  	 */
 	if (rpmlist)
-		fprintf(repof, "yum -y --installroot=${RPM_BUILD_ROOT}/"
+		fprintf(repof, "dnf -y --installroot=${RPM_BUILD_ROOT}/"
 			       "containers/%s/containerfs/ --releasever=%s "
 			       "--nogpgcheck install %s\n",
 				manifest->package.name,
@@ -491,7 +491,7 @@ static int build_spec_file(const struct manifest *manifest)
 	/*
  	 * buildrequires include yum as we're going to install a tree with it 
  	 */
-	fprintf(repof, "BuildRequires: yum\n");
+	fprintf(repof, "BuildRequires: dnf\n");
 	fprintf(repof, "BuildRequires: btrfs-progs\n");
 
 	fprintf(repof, "\n\n");
@@ -766,7 +766,7 @@ int yum_inspect(const struct manifest *mfst, const char *rpm)
 		goto out;
 	}
 
-	rpmcmd = strjoina("yum --installroot=", workdir, "/instrospect -y --nogpgcheck ",
+	rpmcmd = strjoina("dnf --installroot=", workdir, "/instrospect -y --nogpgcheck ",
 			  "--releasever=", mfst->yum.releasever, " install", rpm, "\n", NULL);
 	LOG(INFO, "Unpacking container\n");
 	rc = run_command(rpmcmd, mfst->opts.verbose);
@@ -776,7 +776,7 @@ int yum_inspect(const struct manifest *mfst, const char *rpm)
 	}
 
 	LOG(INFO, "Container name is %s\n", container_name);
-	rpmcmd = strjoina("yum --installroot ", workdir, "/introspect/containers/", container_name, 
+	rpmcmd = strjoina("dnf --installroot ", workdir, "/introspect/containers/", container_name, 
 			  "/containerfs/ --nogpgcheck check-update", NULL);
 	LOG(INFO, "Looking for packages Requiring update:\n");
 	rc = run_command(rpmcmd, 1);

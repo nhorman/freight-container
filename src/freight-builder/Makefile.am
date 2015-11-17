@@ -5,5 +5,5 @@ AM_LDFLAGS = ${libconfig_LIBS}
 
 bin_PROGRAMS = freight-builder
 
-freight_builder_SOURCES = main.c manifest.c manifest.h package.h package.c yum.c ../freight-common.c
+freight_builder_SOURCES = main.c manifest.c manifest.h package.h package.c dnf.c ../freight-common.c
 
