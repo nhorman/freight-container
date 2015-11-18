@@ -40,7 +40,7 @@ void release_configuration(struct agent_config *config)
 	free(config->db.user);
 	free(config->db.password);
 	free(config->node.container_root);
-	free(config->node.host_ifc);
+	free(config->node.host_bridge);
 	free(config->proxy.logpath);
 }
 
@@ -131,9 +131,9 @@ static int parse_node_config(config_t *cfg, struct node_config *node)
 	if (rc == -ENOENT) 
 		LOG(ERROR, "node config must contain a valid container_root");
 
-	rc = parse_entry(node_cfg, &node->host_ifc, "host_ifc");
+	rc = parse_entry(node_cfg, &node->host_bridge, "host_bridge");
 	if (rc == -ENOENT)
-		LOG(ERROR, "node config must contain a valid host_ifc\n");
+		LOG(ERROR, "node config must contain a valid host_bridgec\n");
 	
 out:
 	return rc;

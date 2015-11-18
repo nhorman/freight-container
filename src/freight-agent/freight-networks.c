@@ -30,8 +30,12 @@
 struct network *active_networks = NULL;
 
 static unsigned int bridgenum = 0;
+#if 0
 static unsigned int physnum = 0;
+
+#endif
 static unsigned int containernum = 0;
+static unsigned int connectornum = 0;
 
 static char* generate_bridgename()
 {
@@ -39,19 +43,27 @@ static char* generate_bridgename()
 	snprintf(idx, 11, "%u", bridgenum++);
 	return strjoin("frbr", idx, NULL);
 }
-
+#if 0
 static char* generate_physname()
 {
 	char idx[11];
 	snprintf(idx, 11, "%u", physnum++);
 	return strjoin("frpy", idx, NULL);
 }
+#endif
 
 static char* generate_containername()
 {
 	char idx[11];
 	snprintf(idx, 11, "%u", containernum++);
 	return strjoin("frc", idx, NULL);
+}
+
+static char *generate_connectorname()
+{
+	char idx[11];
+	snprintf(idx, 11, "%u", connectornum++);
+	return strjoin("frb2b", idx, NULL);
 }
 
 static int interface_exists(char *ifc)
@@ -272,61 +284,55 @@ out:
 	return rc;
 }
 
-static void hdetach_macvlan_from_bridge(struct network *net, const struct agent_config *acfg)
+static void hdetach_pbridge_from_bridge(struct network *net, const struct agent_config *acfg)
 {
-	delete_interface(net->physifc);
+	char *ifc = strjoina(net->physifc, "a");
+	delete_interface(ifc);
 }
 
-static int hattach_macvlan_to_bridge(struct network *net, const struct agent_config *acfg)
+static int hattach_pbridge_to_bridge(struct network *net, const struct agent_config *acfg)
 {
 	char *cmd;
 	int rc = 0;
-	char *ifc = generate_physname();
+	char *neta, *netb;
+	char *ifc = generate_connectorname();
 
-	/* First check if the interface already exists */
-	if (interface_exists(ifc))
-		goto out;
 
 	net->physifc = ifc;
-	
-	/* Create the macvlan interface */
-	cmd = strjoin("ip link add link ", acfg->node.host_ifc, " name ",
-		      ifc, " type macvlan", NULL);
+	neta = strjoina(ifc, "a");
+	netb = strjoina(ifc, "b");
 
+	cmd = strjoin("ip link add dev ", neta, " type veth ",
+                              "peer name ", netb, NULL);
 	rc = run_command(cmd, 0);
+	free(cmd);
 	if (rc) {
-		LOG(ERROR, "Unable to create a macvlan interface mvl-%s-%s : %s\n",
-			net->tennant, net->network, strerror(rc));
+		LOG(ERROR, "Unable to create %s veth pair\n", ifc);
 		goto out;
 	}
 
-	/* Set the interface into promisc mode */
-	free(cmd);
-	cmd = strjoin("ip link set dev ", ifc, " promisc on", NULL);
+	cmd = strjoin("ip link set dev ", neta, " master ", acfg->node.host_bridge, NULL);
 	rc = run_command(cmd, 0);
+	free(cmd);
 	if (rc) {
-		LOG(ERROR, "Unable to set macvlan mvl-%s-%s into promisc mode\n",
-			net->tennant, net->network);
+		LOG(ERROR, "Unable to attach %s to public bridge\n", ifc);
 		goto out_destroy;
 	}
 
-	/* And attach it to the bridge */
-	free(cmd);
-	cmd = strjoin("ip link set dev ", ifc, " master ", net->bridge, NULL); 
+	cmd = strjoin("ip link set dev ", netb, " master ", net->bridge, NULL);
 	rc = run_command(cmd, 0);
+	free(cmd);
 	if (rc) {
-		LOG(ERROR, "Unable to attach %s to bridge %s\n",
-			ifc, net->bridge);
+		LOG(ERROR, "Unable to attach %s to tennant bridge %s\n", ifc, net->bridge);
 		goto out_destroy;
 	}
-	free(cmd);
+
 out:
 	return rc;
 out_destroy:
-	free(cmd);
-	cmd = strjoin("ip link del dev ", ifc, NULL);
-	run_command(cmd, 0);
+	delete_interface(neta);
 	goto out;
+	
 }
 
 
@@ -336,7 +342,7 @@ struct host_net_methods {
 };
 
 static struct host_net_methods host_attach_methods[] = {
-	[NET_TYPE_BRIDGED] = {hattach_macvlan_to_bridge, hdetach_macvlan_from_bridge},
+	[NET_TYPE_BRIDGED] = {hattach_pbridge_to_bridge, hdetach_pbridge_from_bridge},
 	{NULL, NULL}
 };
 
