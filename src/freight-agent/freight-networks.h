@@ -63,4 +63,6 @@ extern void free_interface_list(const struct ifc_list *list);
 extern int get_address_for_interfaces(struct ifc_list *list, const char *container, const struct agent_config *acfg);
 extern void release_address_for_interfaces(struct ifc_list *list, const struct agent_config *acfg);
 
+extern int setup_networks_in_container(const char *cname, const char *iname, const char *tennant, const struct ifc_list *list, const struct agent_config *acfg);
+
 #endif

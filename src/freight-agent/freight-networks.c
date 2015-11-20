@@ -127,15 +127,16 @@ static int parse_address_config(config_t *config, struct netconf *conf)
 		goto out;
 	}
 
+	LOG(DEBUG, "IPV4 AQUISITON TYPE IS %d\n", conf->aconf.ipv4);
 	type = config_setting_get_member(acfg, "ipv6_aquisition");
 	if (type) {
 		typestr = config_setting_get_string(type);	
 		if (!strcmp(typestr, "dhcpv6"))
-			conf->aconf.ipv4 = AQUIRE_DHCPV6;
+			conf->aconf.ipv6 = AQUIRE_DHCPV6;
 		else if (!strcmp(typestr, "static"))
-			conf->aconf.ipv4 = AQUIRE_STATIC;
+			conf->aconf.ipv6 = AQUIRE_STATIC;
 		else if (!strcmp(typestr, "slaac"))
-			conf->aconf.ipv4 = AQUIRE_SLAAC;
+			conf->aconf.ipv6 = AQUIRE_SLAAC;
 		else {
 			rc = -EINVAL;
 			goto out;
@@ -210,6 +211,8 @@ static struct network* get_network_entry(const char *network, const char *tennan
 		if (!strcmp(network, idx->network) && 
 		    !strcmp(tennant, idx->tennant))
 			return idx;
+
+		idx++;
 	}
 
 	return NULL;
@@ -280,6 +283,9 @@ static int create_bridge_from_entry(struct network *net, const struct agent_conf
 		goto out;
 	}
 
+	cmd = strjoina("ip link set dev ", net->bridge, " up", NULL);
+	run_command(cmd, 0);
+
 out:
 	return rc;
 }
@@ -327,6 +333,13 @@ static int hattach_pbridge_to_bridge(struct network *net, const struct agent_con
 		goto out_destroy;
 	}
 
+	cmd = strjoin("ip link set dev ", neta, " up", NULL);
+	run_command(cmd, 0);
+	free(cmd);
+
+	cmd = strjoin("ip link set dev ", netb, " up", NULL);
+	run_command(cmd, 0);
+	free(cmd);
 out:
 	return rc;
 out_destroy:
@@ -619,6 +632,10 @@ int create_and_bridge_interface_list(const struct ifc_list *list, const struct a
 		}
 		net->clients++;
 		((struct ifc_list *)list)->ifc[i].state = IFC_ATTACHED;
+
+		cmd = strjoin("ip link set dev ", list->ifc[i].bridge_veth, " up", NULL);
+		run_command(cmd, 0);
+		free(cmd);
 	}
 
 	LOG(DEBUG, "Done\n");
@@ -636,4 +653,67 @@ void free_interface_list(const struct ifc_list *list)
 	free((void *)list);
 }
 
+
+int setup_networks_in_container(const char *cname, const char *iname, const char *tennant, const struct ifc_list *list, const struct agent_config *acfg)
+{
+	char *path, *cmd;;
+	int i;
+	FILE *fptr;
+	struct network *net;
+	/*
+	 * For each interface we need to create a ifcfg file in the container
+	 */
+
+	for (i = 0; i < list->count; i++) {
+		net = list->ifc[i].ifcdata;
+		path = strjoin(acfg->node.container_root, "/", tennant, "/containers/",
+			       cname, "/", iname, "/etc/sysconfig/network-scripts/ifcfg-",
+			       list->ifc[i].container_veth, NULL);
+
+		LOG(DEBUG, "opening %s\n", path);
+
+		/*
+		 * Open the file and write out the configuration
+		 */
+		fptr = fopen(path, "w+");
+		if (!fptr) {
+			LOG(ERROR, "Could not configure interface %s in container %s: %s\n",
+				list->ifc[i].container_veth, iname, strerror(errno));
+			free(path);
+			continue;
+		}
+
+		fprintf(fptr, "NAME=%s\n",list->ifc[i].container_veth);
+
+		/*
+		 * Note: Need to check here to support static entries
+		 */
+		switch (net->conf->aconf.ipv4) {
+		case AQUIRE_DHCP:
+			fprintf(fptr, "BOOTPROTO=dhcp\n");
+			break;
+		default:
+			LOG(WARNING, "ipv4 acquire type is unknown: %d\n",
+				net->conf->aconf.ipv4);
+			break;
+		}
+
+		fprintf(fptr, "ONBOOT=\"yes\"\n");
+		fprintf(fptr, "TYPE=\"Ethernet\"\n");
+		fprintf(fptr, "NM_CONTROLLED=\"yes\"\n");
+
+		fclose(fptr);
+
+		/*
+		 * sneaky hack to insert the hwaddr
+		 */
+		cmd = strjoin("echo HWADDR=`ip link show ", list->ifc[i].container_veth,
+			      " | awk '/link/ {print $2}'` >> ", path, NULL);
+		run_command(cmd,1);
+
+		free(cmd);
+		free(path);
+	}
+	return 0;	
+}
 

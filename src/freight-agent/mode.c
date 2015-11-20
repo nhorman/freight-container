@@ -584,7 +584,12 @@ int exec_container(const char *rpm, const char *name, const char *tenant,
 
 	btrfscmd = strjoina("btrfs subvolume snapshot ", config_path, " ", instance_path, NULL);
 	run_command(btrfscmd, 0);
-	
+
+	/*
+	 * After we create the snapshot, setup the networks in the container
+	 */	
+	setup_networks_in_container(rpm, name, tenant, ifcs, acfg);
+
 	eoc = 0;
 	execarray[eoc++] = "systemd-nspawn"; /* argv[0] */
 	execarray[eoc++] = "-D"; /* -D */
