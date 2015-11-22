@@ -255,18 +255,31 @@ static void link_network_bridge(struct network *ptr)
 
 static void unlink_network_bridge(struct network *ptr)
 {
-	struct network *idx = active_networks;
 	struct network *tmp = active_networks;
 
-	while (idx) {
-		if (idx == ptr) {
-			idx->next = ptr->next;
-			ptr->next = NULL;
-		}
-		idx = idx->next;	
-		if (idx && (tmp->next != idx))
-			tmp = tmp->next;
-	}
+	/*
+	 * Remove the network from the list by pointing
+	 * active networks to the next entry
+	 */
+	active_networks = ptr->next;
+
+	/*
+	 * Then advance to the end of the list
+	 * and add active_networks (tmp) to the end of the 
+	 * the new list
+	 */
+	while (ptr->next)
+		ptr = ptr->next;
+	ptr->next = tmp;
+
+	/*
+	 * Then follow the list to where this pointer
+	 * initially was, and terminate the list there
+	 */
+	while(ptr->next != ptr)
+		ptr = ptr->next;
+	ptr->next = NULL;
+
 }
 
 static int create_bridge_from_entry(struct network *net, const struct agent_config *acfg)
