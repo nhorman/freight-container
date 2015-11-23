@@ -617,8 +617,8 @@ int create_and_bridge_interface_list(const struct ifc_list *list, const struct a
 		 * Allocate the device pair
 		 */
 		LOG(DEBUG, "Creating veth pair\n");
-		cmd = strjoin("ip link add dev ", list->ifc[i].container_veth, " type veth ",
-			      "peer name ", list->ifc[i].bridge_veth, NULL);
+		cmd = strjoin("ip link add dev ", list->ifc[i].bridge_veth, " type veth ",
+			      "peer name ", list->ifc[i].container_veth, NULL);
 
 		rc = run_command(cmd, 1);
 
