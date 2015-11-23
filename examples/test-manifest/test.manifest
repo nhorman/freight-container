@@ -8,7 +8,6 @@ manifest = (
 	"passwd",
 	"policycoreutils",
 	"selinux-policy-targeted",
-	"NetworkManager-config-server",
 	"httpd"
 );
 

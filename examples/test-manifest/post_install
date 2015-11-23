@@ -1,5 +1,21 @@
 #!/bin/sh
 
+# Hack to get around sysfs oddities
+# sysfs is mounted but reflects the init namespace
+# We also need sysfs to reflect the container namespace
+
+# To do the above, crate a new mount point
+mkdir $FREIGHT_CONTAINERFS/csys
+
+# Add it in to the fstab of the container
+echo "nodev       /csys         sysfs    defaults        0 0" >> $FREIGHT_CONTAINERFS/etc/fstab
+
+# Then we need to modify the network-function script to use this location
+sed -i -e"s/\/sys\//\/csys\//g" $FREIGHT_CONTAINERFS/etc/sysconfig/network-scripts/network-functions
+
+# We also need to modify the script to remove the @dev garbage which is meaningless in a container
+sed -i -e"s/\(.*ip -o link |.*\)/\1 | sed -e\"s\/@.*\/\/\"/" $FREIGHT_CONTAINERFS/etc/sysconfig/network-scripts/network-functions
+
 cat >> $FREIGHT_CONTAINERFS/post_install << EOF
 
 setfiles /etc/selinux/targeted/contexts/files/file_contexts /

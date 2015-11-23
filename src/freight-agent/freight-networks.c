@@ -713,7 +713,7 @@ int setup_networks_in_container(const char *cname, const char *iname, const char
 
 		fprintf(fptr, "ONBOOT=\"yes\"\n");
 		fprintf(fptr, "TYPE=\"Ethernet\"\n");
-		fprintf(fptr, "NM_CONTROLLED=\"yes\"\n");
+		fprintf(fptr, "NM_CONTROLLED=\"no\"\n");
 
 		fclose(fptr);
 

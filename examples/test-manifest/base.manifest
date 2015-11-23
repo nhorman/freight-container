@@ -12,7 +12,9 @@ repositories = (
 
 manifest = (
 	"systemd",
-	"NetworkManager",
-	"iproute"
+	"iproute",
+	"initscripts",
+	"dhclient",
+	"vim"
 );
 
