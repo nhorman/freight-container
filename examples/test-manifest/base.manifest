@@ -10,6 +10,7 @@ repositories = (
 	}
 );
 
+# The base manifest includes common stuff we want all containers to have
 manifest = (
 	"systemd",
 	"iproute",

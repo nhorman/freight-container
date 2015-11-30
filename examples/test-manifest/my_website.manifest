@@ -1,13 +1,13 @@
 
 packaging = {
-	name = "child";
+	name = "my_website";
 	version = "1.0";
 	release = "1";
-	summary = "child example container";
+	summary = "customized website container";
 	license = "GPLv2";
 	author = "Neil Horman <root@localhost.com>";
-	parent_container = "/root/test-1.0-1.x86_64.rpm";
-	post_script = "./examples/test-manifest/post_install_child";
+	parent_container = "/root/httpd_container-1.0-1.x86_64.rpm";
+	post_script = "./examples/test-manifest/post_install";
 };
 
 

@@ -1,9 +1,10 @@
 
 
+# Pull in the base manifest
 inherit = "./examples/test-manifest/base.manifest";
 
-# just use the repositories from the base manifest
 
+# Add the stuff we need to set up a web server
 manifest = (
 	"passwd",
 	"policycoreutils",
@@ -12,13 +13,12 @@ manifest = (
 );
 
 packaging = {
-	name = "test";
+	name = "httpd_container";
 	version = "1.0";
 	release = "1";
 	summary = "example container";
 	license = "GPLv2";
 	author = "Neil Horman <root@localhost.com>";
-	post_script = "./examples/test-manifest/post_install";
 };
 
 yum_opts = {
