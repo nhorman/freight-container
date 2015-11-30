@@ -201,19 +201,10 @@ static void run_post_script_in_spec(FILE *repof, const struct manifest *manifest
 		       "containers/%s/containerfs/\n",
 		       manifest->package.name);
 	fprintf(repof, "echo executing post script\n");
-	fprintf(repof, "cp %%{SOURCE1} ${RPM_BUILD_ROOT}"
-		       "/containers/%s/\n",
-		       manifest->package.name);
-	fprintf(repof, "chmod 755 ${RPM_BUILD_ROOT}"
-		       "/containers/%s/post_script\n",
-		       manifest->package.name);
-	fprintf(repof, "cd containers/%s/\n"
-		       "./post_script\n"
-		       "cd ../../\n",
-			manifest->package.name);
-	fprintf(repof, "rm -f ${RPM_BUILD_ROOT}/containers/%s/"
-		       "post_script\n",
-			       manifest->package.name);
+	fprintf(repof, "chmod 755 %%{SOURCE1}\n");
+	fprintf(repof, "script -f -c %%{SOURCE1}\n");
+
+
 }
 
 static void gather_files_for_spec(FILE *repof, const struct manifest *manifest)

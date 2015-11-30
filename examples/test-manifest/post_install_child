@@ -1,3 +1,0 @@
-#!/bin/sh
-
-echo "post_install_child script"
