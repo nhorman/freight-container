@@ -197,12 +197,15 @@ static int yum_init(const struct manifest *manifest)
 static void run_post_script_in_spec(FILE *repof, const struct manifest *manifest)
 {
 
+	fprintf(repof, "wait\n");
 	fprintf(repof, "export FREIGHT_CONTAINERFS=${RPM_BUILD_ROOT}/"
 		       "containers/%s/containerfs/\n",
 		       manifest->package.name);
 	fprintf(repof, "echo executing post script\n");
 	fprintf(repof, "chmod 755 %%{SOURCE1}\n");
-	fprintf(repof, "script -f -c %%{SOURCE1}\n");
+	fprintf(repof, "%%{SOURCE1}\n");
+	fprintf(repof, "wait\n");
+	fprintf(repof, "rm -f ./typescript\n");
 
 
 }
@@ -396,7 +399,8 @@ static int spec_install_derivative_container(FILE * repof, const struct manifest
  	 * Note that we have to have a post_script here, and check for it 
  	 * at the start of this function
  	 */
-	run_post_script_in_spec(repof, manifest);
+	if (manifest->package.post_script)
+		run_post_script_in_spec(repof, manifest);
 
 
 	fprintf(repof, "cp %%{SOURCE2} ${RPM_BUILD_ROOT}/containers/%s/\n",
