@@ -141,7 +141,6 @@ static inline int run_command(char *cmd, int print)
 	int rc;
 	FILE *yum_out;
 	char buf[128];
-	size_t count;
 	
 	yum_out = popen(cmd, "r");
 	if (yum_out == NULL) {
@@ -150,12 +149,11 @@ static inline int run_command(char *cmd, int print)
 		return rc;
 	}
 
-	while(!feof(yum_out) && !ferror(yum_out)) {
-		count = fread(buf, 1, 128, yum_out);
+	while (fgets(buf, 128, yum_out)) {
 		if (print)
-			fwrite(buf, count, 1, stderr);
+			fputs(buf, stderr);
 	}
-
+ 
 	rc = pclose(yum_out);
 
 	if (rc == -1) {
