@@ -458,6 +458,8 @@ static int build_spec_file(const struct manifest *manifest)
 	fprintf(repof, "Release: %s\n", manifest->package.release);
 	fprintf(repof, "License: %s\n", manifest->package.license);
 	fprintf(repof, "Group: Containers/Freight\n");
+	fprintf(repof, "Prefix: /containers\n");
+
 	/*
  	 * We don't want these rpms to provide anything that the host system
  	 * might want
@@ -518,17 +520,26 @@ static int build_spec_file(const struct manifest *manifest)
  	 * /bin/sh
  	 */
 	fprintf(repof, "%%post\n"
-		       "btrfs receive -m / "
-		       "-f containers/%%{name}/btrfs.img "
-		       "containers/%%{name}/\n"
-		       "btrfs property set -ts "
-		       "containers/%%{name}/containerfs ro false\n");
+		       "if [ \"$RPM_INSTALL_PREFIX0\" == \"%%{prefix}\" ]\n"
+		       "then\n"
+		       "	btrfs receive -m / "
+		       "	-f $RPM_INSTALL_PREFIX0/%%{name}/btrfs.img "
+		       "	$RPM_INSTALL_PREFIX0/%%{name}/\n"
+		       "	btrfs property set -ts "
+		       "	$RPM_INSTALL_PREFIX0/%%{name}/containerfs ro false\n"
+		       "else\n"
+		       "	btrfs receive "
+		       "	-f $RPM_INSTALL_PREFIX0/%%{name}/btrfs.img "
+		       "	$RPM_INSTALL_PREFIX0/%%{name}/\n"
+		       "	btrfs property set -ts "
+		       "	$RPM_INSTALL_PREFIX0/%%{name}/containerfs ro false\n"
+		       "fi\n");
 
 	fprintf(repof, "\n\n");
 
 	fprintf(repof, "%%preun\n"
 		       "btrfs subvolume delete "
-		       "containers/%%{name}/containerfs\n");
+		       "$RPM_INSTALL_PREFIX0/%%{name}/containerfs\n");
 
 	/*
  	 * Spec %files section
