@@ -38,6 +38,7 @@ struct option lopts[] = {
 	{"check", 1, NULL, 'c'},
 	{"verbose", 0, NULL, 'v'},
 	{"workdir", 1, NULL, 'w'},
+	{"pcache", 1, NULL, 'p'},
 	{ 0, 0, 0, 0}
 };
 #endif
@@ -51,6 +52,7 @@ static void usage(char **argv)
 			"<[-m | --manifest]  config> "
 			"<-c | --check=<container rpm>> "
 			"[-w | --workdir <dir>] "
+			"[-p | --pcache <dir>] "
 			"[-v] | [--verbose]\n", argv[0]);
 #else
 	LOG(INFO,  "%s [-h] [-k] [-s] [-v] "
@@ -58,7 +60,7 @@ static void usage(char **argv)
 #endif
 }
 
-#define OPTSTRING "h,m:ko:sc:vw:"
+#define OPTSTRING "h,m:ko:p:sc:vw:"
 
 int main(int argc, char **argv)
 {
@@ -73,6 +75,7 @@ int main(int argc, char **argv)
 	char *container_rpm = NULL;
 	int verbose = 0;
 	char *workdir = NULL;
+	char *pcachedir = NULL;
 
 	/*
  	 * Parse command line options
@@ -100,6 +103,9 @@ int main(int argc, char **argv)
 			break;
 		case 'o':
 			output = optarg;
+			break;
+		case 'p':
+			pcachedir = optarg;
 			break;
 		case 's':
 			source_only = 1;
@@ -137,6 +143,7 @@ int main(int argc, char **argv)
 	manifest.opts.output_path = output;
 	manifest.opts.verbose = verbose;
 	manifest.opts.workdir = workdir;
+	manifest.opts.pcachedir = pcachedir;
 
 	/*
  	 * Setup the builder working env

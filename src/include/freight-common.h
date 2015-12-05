@@ -135,26 +135,31 @@ static inline void recursive_dir_cleanup(const char *path)
 	return;
 }
 
+static inline FILE* _run_command(char *cmd)
+{
+	return popen(cmd, "r");
+}
 
+	
 static inline int run_command(char *cmd, int print)
 {
 	int rc;
-	FILE *yum_out;
+	FILE *cmd_out;
 	char buf[128];
 	
-	yum_out = popen(cmd, "r");
-	if (yum_out == NULL) {
+	cmd_out = _run_command(cmd); 
+	if (cmd_out == NULL) {
 		rc = errno;
 		LOG(ERROR, "Unable to exec yum for install: %s\n", strerror(rc));
 		return rc;
 	}
 
-	while (fgets(buf, 128, yum_out)) {
+	while (fgets(buf, 128, cmd_out)) {
 		if (print)
 			fputs(buf, stderr);
 	}
  
-	rc = pclose(yum_out);
+	rc = pclose(cmd_out);
 
 	if (rc == -1) {
 		rc = errno;
@@ -163,6 +168,5 @@ static inline int run_command(char *cmd, int print)
 
 	return rc;
 }
-
 
 #endif

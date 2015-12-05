@@ -33,6 +33,11 @@ Specify the manifest file to convert into a container image
 .B -o | --output path/to/output/dir
 Write the resultant source and binary rpms to this directory
 .TP
+.B -p | --pcache /path/to/rpm/dir
+Set the parent cache directory.  Any rpms in this directory will be installed in
+the working directory prior to building a container.  Used to ensure parent
+containers are available to snapshot from
+.TP
 .B -c | --container <path/to/container/rpm>
 Instead of building an rpm, introspect an rpm to see if any packages need
 updates within the container
@@ -126,8 +131,9 @@ the script environment
 .B parent_container
 .PP
 This optional setting allows for the creation of derivative containers.  That is
-to say, the resultant container will only contain the changes made via the
-post_script option from the container specified via parent_container.
+to say, the resultant container will be a delta from specified parent container
+rpm.  This allows for very small container images, but requires that the parent
+container be installed when building.  Used in conjunction with --pcache option 
 
 .B yum_opts
 .PP
