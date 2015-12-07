@@ -19,3 +19,16 @@ manifest = (
 	"vim"
 );
 
+packaging = {
+	name = "base";
+	version = "1.0";
+	release = "1";
+	summary = "container with base systemd functionality";
+	license = "GPLv2";
+	author = "Neil Horman <root@localhost.com>";
+};
+
+yum_opts = {
+        releasever = "21";
+};
+
