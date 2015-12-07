@@ -178,7 +178,8 @@ out_cleanup:
  	 * Then cleanup the working space
  	 */
 	if (!keep)
-		cleanup_pkg_mgmt(build_env);
+		cleanup_pkg_mgmt(build_env, &manifest);
+		
 out_release:
 	release_manifest(&manifest);
 out:

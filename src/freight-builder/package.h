@@ -36,7 +36,7 @@ enum pkg_mgmt_type {
 
 struct pkg_ops {
 	int (*init)(const struct manifest *manifest);
-	void (*cleanup)();
+	void (*cleanup)(const struct manifest *manifest);
 	int (*build_srpm)(const struct manifest *manifest);
 	int (*build_rpm)(const struct manifest *manifest);
 	int (*introspect_container)(const struct manifest *mfst, const char *crpm);
@@ -45,9 +45,9 @@ struct pkg_ops {
 struct pkg_ops *init_pkg_mgmt(enum pkg_mgmt_type ptype,
 				struct manifest *manifest);
 
-static inline void cleanup_pkg_mgmt(struct pkg_ops *ops)
+static inline void cleanup_pkg_mgmt(struct pkg_ops *ops, const struct manifest *manifest)
 {
-	ops->cleanup();
+	ops->cleanup(manifest);
 }
 
 static inline int build_srpm_from_manifest(struct pkg_ops *ops,

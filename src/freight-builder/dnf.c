@@ -50,9 +50,17 @@ struct rpm_nvr {
 
 static char *workdir;
 
-static void yum_cleanup()
+static void yum_cleanup(const struct manifest *manifest)
 {
+	char *srpm;
+	char *output_path = manifest->opts.output_path ?: workdir;
+
 	recursive_dir_cleanup(workdir);
+
+	srpm = strjoina(output_path, "/", manifest->package.name,
+			"-", manifest->package.version, "-",
+			manifest->package.release,".src.rpm", NULL);
+	unlink(srpm);
 	return;
 }
 
@@ -722,7 +730,7 @@ static int stage_workdir(const struct manifest *manifest)
 	return 0;
 
 cleanup_tmpdir:
-	yum_cleanup();
+	yum_cleanup(manifest);
 	return -EINVAL;
 }
 
