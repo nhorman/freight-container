@@ -409,10 +409,10 @@ static int spec_install_derivative_container(FILE * repof, const struct manifest
  	 */
 	if (rpmlist)
 		fprintf(repof, "dnf -y --installroot=${RPM_BUILD_ROOT}/"
-			       "containers/%s/containerfs/ --releasever=%s "
+			       "containers/%s/containerfs/ "
 			       "--nogpgcheck install %s\n",
 				manifest->package.name,
-				manifest->yum.releasever, rpmlist); 
+				rpmlist); 
 	free(rpmlist);
 
 	/*
