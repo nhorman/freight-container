@@ -371,11 +371,6 @@ static int spec_install_derivative_container(FILE * repof, const struct manifest
  	 */
 	rpmlist = build_rpm_list(manifest);
 
-	if (!manifest->package.post_script) {
-		LOG(ERROR, "Derivative containers must specify a post_script option\n");
-		goto out;
-	}
-
 	fprintf(repof, "%%install\n");
 	fprintf(repof, "cd ${RPM_BUILD_ROOT}\n");
 
@@ -453,7 +448,7 @@ static int spec_install_derivative_container(FILE * repof, const struct manifest
 
 	gather_files_for_spec(repof, manifest);
 	rc = 0;
-out:
+
 	return rc;
 }
 
