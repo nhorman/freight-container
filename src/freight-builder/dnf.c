@@ -39,6 +39,8 @@
 static char *worktemplate;
 #define BTRFS_SUPER_MAGIC     0x9123683E
 
+int stage_parent_cache(const struct manifest *manifest);
+
 struct rpm_nvr {
 	char *name;
 	char *version;
@@ -48,9 +50,17 @@ struct rpm_nvr {
 
 static char *workdir;
 
-static void yum_cleanup()
+static void yum_cleanup(const struct manifest *manifest)
 {
+	char *srpm;
+	char *output_path = manifest->opts.output_path ?: workdir;
+
 	recursive_dir_cleanup(workdir);
+
+	srpm = strjoina(output_path, "/", manifest->package.name,
+			"-", manifest->package.version, "-",
+			manifest->package.release,".src.rpm", NULL);
+	unlink(srpm);
 	return;
 }
 
@@ -85,29 +95,62 @@ static char *build_rpm_list(const struct manifest *manifest)
 
 static struct rpm_nvr *get_nvr_from_rpm(const char *rpm)
 {
-	struct rpm_nvr *nvr = calloc(sizeof(struct rpm_nvr) + strlen(rpm), 1);
-	char *bname = basename(rpm);
-	char *tmp;
+	char name[128];
+	char version[128];
+	char release[128];
+	char *cmd;
+	FILE *cmout;
+	size_t slen = 0;
+	struct rpm_nvr *nvr = NULL;
+	int rc;
 
-	if (!nvr)
+	memset(name, 0, 128);
+	memset(version, 0, 128);
+	memset(release, 0, 128);
+
+
+
+	cmd = strjoin("rpm --dbpath=", workdir, "/tmprpm -q ",
+		      "--queryformat \"%{name}\" ", rpm, NULL);
+
+	cmout = _run_command(cmd);
+	fgets(name, 128, cmout);
+	rc = pclose(cmout);
+	free(cmd);
+	if (rc == -1)
 		return NULL;
+	slen += strlen(name) + 1;
+
+	cmd = strjoin("rpm --dbpath=", workdir, "/tmprpm -q ",
+		      "--queryformat \"%{version}\" ", rpm, NULL);
+
+	cmout = _run_command(cmd);
+	fgets(version, 128, cmout);
+	rc = pclose(cmout);
+	free(cmd);
+	if (rc == -1)
+		return NULL;
+	slen += strlen(version) + 1;
+
+	cmd = strjoin("rpm --dbpath=", workdir, "/tmprpm -q ",
+		      "--queryformat \"%{release}\" ", rpm, NULL);
+
+	cmout = _run_command(cmd);
+	fgets(release, 128, cmout);
+	rc = pclose(cmout);
+	free(cmd);
+	if (rc == -1)
+		return NULL;
+	slen += strlen(release) + 1;
+
+	nvr = malloc(sizeof(struct rpm_nvr) + slen);
 
 	nvr->name = nvr->stringdata;
-	strncpy(nvr->name, bname, strlen(bname));
-	tmp = index(nvr->name, '-');
-	*tmp = '\0';
-	tmp++;
-	nvr->version = tmp;
-	tmp = index(nvr->version, '-');
-	*tmp = '\0';
-	tmp++;
-	nvr->release = tmp;
-	/* Go back twice from the end to find the full release */
-	tmp = rindex(nvr->release, '.');
-	*tmp = '\0';
-	tmp = rindex(nvr->release, '.');
-	*tmp = '\0';
-
+	strcpy(nvr->name, name);
+	nvr->version = nvr->name + strlen(nvr->name) + 2;
+	strcpy(nvr->version, version);
+	nvr->release = nvr->version + strlen(nvr->version) + 2;
+	strcpy(nvr->release, release);
 	return nvr;
 }
 
@@ -328,7 +371,7 @@ static int spec_install_derivative_container(FILE * repof, const struct manifest
 {
 	char *rpmlist;
 	int rc = -EINVAL;
-
+	struct rpm_nvr *parent;
 
 	/*
  	 * Note that its ok for rpmlist to be NULL here, as installing rpms is
@@ -336,34 +379,10 @@ static int spec_install_derivative_container(FILE * repof, const struct manifest
  	 */
 	rpmlist = build_rpm_list(manifest);
 
-	if (!manifest->package.post_script) {
-		LOG(ERROR, "Derivative containers must specify a post_script option\n");
-		goto out;
-	}
-
 	fprintf(repof, "%%install\n");
 	fprintf(repof, "cd ${RPM_BUILD_ROOT}\n");
 
 
-	/*
- 	 * Make an area to install our parent container
- 	 */
-	fprintf(repof, "mkdir -p parent\n");
-
-	/*
- 	 * Then extract our parent container
- 	 */
-	fprintf(repof, "rpm2cpio %s | cpio -i --to-stdout *btrfs.img "
-		       " > ${RPM_BUILD_ROOT}/parent/btrfs.img\n",
-		       manifest->package.parent_container);
-
-	/*
- 	 * Turn the parent back into a subvolume
- 	 */
-	fprintf(repof, "btrfs receive -f ./parent/btrfs.img "
-		       "./parent/\n");
-
-	
 	/*
  	 * Then create a snapshot of it to edit
  	 */
@@ -372,8 +391,10 @@ static int spec_install_derivative_container(FILE * repof, const struct manifest
 	/*
  	 * Create our derivative snapshot
  	 */
-	fprintf(repof, "btrfs subvolume snapshot ./parent/containerfs "
-		       "containers/%%{name}/containerfs\n"); 
+	parent = get_nvr_from_rpm(manifest->package.parent_container);
+	fprintf(repof, "btrfs subvolume snapshot ../../parents/%s/containerfs "
+		       "containers/%%{name}/containerfs\n",
+		       parent->name); 
 
 
 	/*
@@ -388,10 +409,10 @@ static int spec_install_derivative_container(FILE * repof, const struct manifest
  	 */
 	if (rpmlist)
 		fprintf(repof, "dnf -y --installroot=${RPM_BUILD_ROOT}/"
-			       "containers/%s/containerfs/ --releasever=%s "
+			       "containers/%s/containerfs/ "
 			       "--nogpgcheck install %s\n",
 				manifest->package.name,
-				manifest->yum.releasever, rpmlist); 
+				rpmlist); 
 	free(rpmlist);
 
 	/*
@@ -412,24 +433,30 @@ static int spec_install_derivative_container(FILE * repof, const struct manifest
 	fprintf(repof, "btrfs property set -ts containers/%%{name}/containerfs "
 		       "ro true\n");
 
+	fprintf(repof, "btrfs property set -ts ../../parents/%s/containerfs "
+		       "ro true\n", parent->name);
 	/*
  	 * Now send the read-only snapshot to a file specifying the parent 
  	 * so that we get an incremental image 
  	 */
-	fprintf(repof, "btrfs send -p ./parent/containerfs "
+	fprintf(repof, "btrfs send -p ../../parents/%s/containerfs "
 		       "-f containers/%%{name}/btrfs.img "
-		       "containers/%%{name}/containerfs\n");
+		       "containers/%%{name}/containerfs\n",
+		       parent->name);
 
+	free(parent);
 	/*
  	 * Now we have to destroy the mounted subvolumes
  	 */
-	fprintf(repof, "btrfs subvolume delete ./parent/containerfs\n");
 	fprintf(repof, "btrfs subvolume delete ./containers/%%{name}/containerfs\n");
-	fprintf(repof, "rm -rf ./parent\n");
+	fprintf(repof, "for i in `ls ../../parents/`\n");
+	fprintf(repof, "do\n");
+	fprintf(repof, "	btrfs sub del ../../parents/$i/containerfs\n");
+	fprintf(repof, "done\n");
 
 	gather_files_for_spec(repof, manifest);
 	rc = 0;
-out:
+
 	return rc;
 }
 
@@ -458,6 +485,10 @@ static int build_spec_file(const struct manifest *manifest)
 	fprintf(repof, "Release: %s\n", manifest->package.release);
 	fprintf(repof, "License: %s\n", manifest->package.license);
 	fprintf(repof, "Group: Containers/Freight\n");
+	fprintf(repof, "Prefix: /containers\n");
+	if (manifest->opts.pcachedir)
+		fprintf(repof, "%%define pcachedir %s\n", manifest->opts.pcachedir);
+
 	/*
  	 * We don't want these rpms to provide anything that the host system
  	 * might want
@@ -518,17 +549,26 @@ static int build_spec_file(const struct manifest *manifest)
  	 * /bin/sh
  	 */
 	fprintf(repof, "%%post\n"
-		       "btrfs receive -m / "
-		       "-f containers/%%{name}/btrfs.img "
-		       "containers/%%{name}/\n"
-		       "btrfs property set -ts "
-		       "containers/%%{name}/containerfs ro false\n");
+		       "if [ \"$RPM_INSTALL_PREFIX0\" == \"%%{prefix}\" ]\n"
+		       "then\n"
+		       "	btrfs receive -m / "
+		       "	-f $RPM_INSTALL_PREFIX0/%%{name}/btrfs.img "
+		       "	$RPM_INSTALL_PREFIX0/%%{name}/\n"
+		       "	btrfs property set -ts "
+		       "	$RPM_INSTALL_PREFIX0/%%{name}/containerfs ro false\n"
+		       "else\n"
+		       "	btrfs receive "
+		       "	-f $RPM_INSTALL_PREFIX0/%%{name}/btrfs.img "
+		       "	$RPM_INSTALL_PREFIX0/%%{name}/\n"
+		       "	btrfs property set -ts "
+		       "	$RPM_INSTALL_PREFIX0/%%{name}/containerfs ro false\n"
+		       "fi\n");
 
 	fprintf(repof, "\n\n");
 
 	fprintf(repof, "%%preun\n"
 		       "btrfs subvolume delete "
-		       "containers/%%{name}/containerfs\n");
+		       "$RPM_INSTALL_PREFIX0/%%{name}/containerfs\n");
 
 	/*
  	 * Spec %files section
@@ -572,6 +612,11 @@ static int stage_workdir(const struct manifest *manifest)
 
 	LOG(INFO, "Initalizing work directory %s\n", workdir);
 
+	if (stage_parent_cache(manifest)) {
+		LOG(ERROR, "Cannot install parent containers\n");
+		goto cleanup_tmpdir;
+	}
+	
 	if (build_path("containers")) {
 		LOG(ERROR, "Cannot create containers directory: %s\n",
 			strerror(errno));
@@ -685,8 +730,34 @@ static int stage_workdir(const struct manifest *manifest)
 	return 0;
 
 cleanup_tmpdir:
-	yum_cleanup();
+	yum_cleanup(manifest);
 	return -EINVAL;
+}
+
+int stage_parent_cache(const struct manifest *manifest)
+{
+	char *cmd;
+
+	if (!manifest->opts.pcachedir)
+		return 0;
+
+	LOG(INFO, "Installing parent containers\n");
+
+	build_path("parents/");
+	build_path("tmprpm/");
+
+	cmd = strjoin("cp -r /var/lib/rpm/* ", workdir, "/tmprpm\n", NULL);
+	run_command(cmd, manifest->opts.verbose);
+	free(cmd);
+
+	cmd = strjoin("rpm --prefix=", workdir, "/parents/ --dbpath=", workdir, "/tmprpm/",
+		     " -ivh ", manifest->opts.pcachedir, "/*.rpm\n", NULL);
+
+	run_command(cmd, manifest->opts.verbose);
+
+	free(cmd);
+
+	return 0;
 }
 
 /*
@@ -697,6 +768,7 @@ static int yum_build_srpm(const struct manifest *manifest)
 {
 	int rc = -EINVAL;
 	char *cmd;
+
 
 	LOG(INFO, "SRPM manifest name is %s\n", manifest->package.name);
 	rc = stage_workdir(manifest);

@@ -1,12 +1,7 @@
 
 
-# Pull in the base manifest
-inherit = "./examples/test-manifest/base.manifest";
-
-
 # Add the stuff we need to set up a web server
 manifest = (
-	"passwd",
 	"policycoreutils",
 	"selinux-policy-targeted",
 	"httpd"
@@ -16,9 +11,10 @@ packaging = {
 	name = "httpd_container";
 	version = "1.0";
 	release = "1";
-	summary = "example container";
+	summary = "Adds a webserver to the base container";
 	license = "GPLv2";
 	author = "Neil Horman <root@localhost.com>";
+	parent_container = "base-1.0-1";
 };
 
 yum_opts = {

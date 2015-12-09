@@ -6,7 +6,7 @@ packaging = {
 	summary = "customized website container";
 	license = "GPLv2";
 	author = "Neil Horman <root@localhost.com>";
-	parent_container = "/root/httpd_container-1.0-1.x86_64.rpm";
+	parent_container = "httpd_container-1.0-1";
 	post_script = "./examples/test-manifest/post_install";
 };
 
