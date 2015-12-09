@@ -2,7 +2,6 @@
 
 # Add the stuff we need to set up a web server
 manifest = (
-	"passwd",
 	"policycoreutils",
 	"selinux-policy-targeted",
 	"httpd"

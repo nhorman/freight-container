@@ -16,7 +16,8 @@ manifest = (
 	"iproute",
 	"initscripts",
 	"dhclient",
-	"vim"
+	"vim",
+	"passwd"
 );
 
 packaging = {
