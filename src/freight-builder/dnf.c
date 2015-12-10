@@ -820,8 +820,8 @@ out:
 int yum_inspect(const struct manifest *mfst, const char *rpm)
 {
 	int rc = -EINVAL;
-	char *rpmcmd;
-	char *container_name = basename(rpm);
+	char *rpmcmd = NULL;
+	char *container_name = mfst->package.name;
 
 	if (!container_name) {
 		LOG(ERROR, "Unable to grab file name from path\n");
@@ -832,24 +832,30 @@ int yum_inspect(const struct manifest *mfst, const char *rpm)
 		LOG(ERROR, "unable to create introspect directory\n");
 		goto out;
 	}
+	
+	if (stage_parent_cache(mfst)) {
+		LOG(ERROR, "Unable to install parent containers\n");
+		goto out;
+	}
 
-	rpmcmd = strjoina("dnf --installroot=", workdir, "/instrospect -y --nogpgcheck ",
-			  "--releasever=", mfst->yum.releasever, " install", rpm, "\n", NULL);
+	rpmcmd = strjoin("rpm --prefix=", workdir, "/introspect --dbpath ",
+			 workdir, "/tmprpm/ -ivh ", rpm, NULL);
 	LOG(INFO, "Unpacking container\n");
 	rc = run_command(rpmcmd, mfst->opts.verbose);
+	free(rpmcmd);
 	if (rc) {
 		LOG(ERROR, "Unable to install container rpm\n");
 		goto out;
 	}
 
 	LOG(INFO, "Container name is %s\n", container_name);
-	rpmcmd = strjoina("dnf --installroot ", workdir, "/introspect/containers/", container_name, 
-			  "/containerfs/ --nogpgcheck check-update", NULL);
+	rpmcmd = strjoin("dnf --installroot=", workdir, "/introspect/", container_name, 
+			 "/containerfs/ --nogpgcheck check-update", NULL);
 	LOG(INFO, "Looking for packages Requiring update:\n");
 	rc = run_command(rpmcmd, 1);
 
 	if (rc == 0)
-		LOG(ERROR, "All packages up to date\n");
+		LOG(INFO, "All packages up to date\n");
 	/*
  	 * yum check-update exist with code 100 if there are updated packages
  	 * which is a success exit code to us
@@ -857,6 +863,14 @@ int yum_inspect(const struct manifest *mfst, const char *rpm)
 	if (rc > 1)
 		rc = 0;
 out:
+	free(rpmcmd);
+	rpmcmd = strjoin("sh -c \"for i in ", workdir, "/parents/*; do btrfs sub del ",
+			 "\\$i/containerfs; done\"", NULL);
+	
+	run_command(rpmcmd, mfst->opts.verbose);
+	free(rpmcmd);
+	rpmcmd = strjoin("btrfs sub del ", workdir, "/introspect/", container_name, "/containerfs", NULL);
+	run_command(rpmcmd, mfst->opts.verbose);
 	return rc;
 }
 
