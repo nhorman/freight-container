@@ -37,10 +37,8 @@ struct option lopts[] = {
 	{"help", 0, NULL, 'h'},
 	{"config", 1, NULL, 'c'},
 	{"mode", 1, NULL, 'm'},
-	{"rpm", 1, NULL, 'r'},
 	{"list", 1, NULL, 'l'},
 	{"verbose", 0, NULL, 'v'},
-	{"name", 1, NULL, 'n'},
 	{ 0, 0, 0, 0}
 };
 #endif
@@ -51,13 +49,11 @@ static void usage(char **argv)
 	LOG(INFO, "%s [-h | --help] "
 		"[-c | --config=<config>] "
 		"[-m] | --mode=<mode>] "
-		"[-r | --rpm=<rpm>] "
-		"[-n | --name=<name>] "
 		"[-l | --list=all|local|running] \n", argv[0]);
 #else
 	frpintf(stderr, "%s [-h] [-c <config>] "
-			"[-m <mode> ] [r <rpm>] "
-			"[-n | --name <name>] [-l all|local|running] \n ", argv[0]);
+			"[-m <mode> ] "
+			"[-l all|local|running] \n ", argv[0]);
 #endif
 }
 
@@ -67,18 +63,16 @@ int main(int argc, char **argv)
 	int opt, longind;
 	char *config_file = "/etc/freight-agent/config";
 	char *mode = NULL;
-	char *rpm = NULL;
 	char *list = "all";
-	char *name = NULL;
 	int verbose = 0;	
 	/*
  	 * Parse command line options
  	 */
 
 #ifdef HAVE_GETOPT_LONG
-	while ((opt = getopt_long(argc, argv, "hc:m:r:l:vn:", lopts, &longind)) != -1) {
+	while ((opt = getopt_long(argc, argv, "hc:m:l:v", lopts, &longind)) != -1) {
 #else
-	while ((opt = getopt(argc, argv, "hc:m:r:l:vn:") != -1) {
+	while ((opt = getopt(argc, argv, "hc:m:l:v") != -1) {
 #endif
 		switch(opt) {
 
@@ -94,12 +88,6 @@ int main(int argc, char **argv)
 			break;
 		case 'm':
 			mode = optarg;
-			break;
-		case 'n':
-			name = optarg;
-			break;
-		case 'r':
-			rpm = optarg;
 			break;
 		case 'l':
 			list = optarg;
@@ -141,14 +129,6 @@ int main(int argc, char **argv)
 		config.cmdline.mode = OP_MODE_INIT; 
 	else if (streq(mode, "clean"))
 		config.cmdline.mode = OP_MODE_CLEAN;
-	else if (streq(mode, "install"))
-		config.cmdline.mode = OP_MODE_INSTALL;
-	else if (streq(mode, "uninstall"))
-		config.cmdline.mode = OP_MODE_UNINSTALL;
-	else if (streq(mode, "list"))
-		config.cmdline.mode = OP_MODE_LIST;
-	else if (streq(mode, "exec"))
-		config.cmdline.mode = OP_MODE_EXEC;
 	else {
 		LOG(ERROR, "Invalid mode spcified\n");
 		goto out_release;
@@ -199,49 +179,6 @@ int main(int argc, char **argv)
 			  config.node.container_root);
 		clean_container_root(&config);
 		break;
-	case OP_MODE_INSTALL:
-		if (!rpm) {
-			LOG(ERROR, "Must specify a container name or rpm with "
-				   "-r option in install mode\n");
-			goto out_disconnect;
-		}
-		rc = local_install_container(rpm, &config);
-		if (rc) {
-			LOG(ERROR, "Failed to install container: %s\n",
-				strerror(rc));
-			goto out_disconnect;
-		}
-		break;
-	case OP_MODE_UNINSTALL:
-		if (!rpm) {
-			LOG(ERROR, "Must specify the container name with -r\n");
-			goto out_disconnect;
-		}
-		rc = local_uninstall_container(rpm, &config);
-		if (rc) {
-			LOG(ERROR, "Uninstall of container %s failed: %s\n",
-				rpm, strerror(rc));
-			goto out_disconnect;
-		}
-		break;
-	case OP_MODE_LIST:
-		local_list_containers(list, &config);
-		break;
-	case OP_MODE_EXEC:
-		if (!rpm) {
-			LOG(ERROR, "Must specify the container name with -r\n");
-			goto out_disconnect;
-		}
-		if (!name) {
-			LOG(ERROR, "Must specify a container instance name with -n\n");
-			goto out_disconnect;
-		}
-		rc = local_exec_container(rpm, name, &config);
-		if (rc) {
-			LOG(ERROR, "Exec of container %s failed: %s\n",
-				rpm, strerror(rc));
-			goto out_disconnect;
-		}
 	case OP_MODE_NODE:
 		rc = enter_mode_loop(&config);
 		if (rc) {

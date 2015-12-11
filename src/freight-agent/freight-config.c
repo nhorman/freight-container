@@ -68,8 +68,7 @@ static int parse_db_config(config_t *cfg, struct db_config *db)
 	config_setting_t *tmp;
 
 	if (!db_cfg) {
-		db->dbtype = DB_TYPE_NONE;
-		rc = 0;
+		LOG(ERROR, "Must specify a db configuration\n");
 		goto out;
 	}
 

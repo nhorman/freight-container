@@ -24,8 +24,7 @@
 #define _FREIGHT_CONFIG_H_
 
 enum db_type {
-	DB_TYPE_NONE = 0,
-	DB_TYPE_POSTGRES,
+	DB_TYPE_POSTGRES = 0,
 	DB_TYPE_FREIGHTPROXY,
 };
 
@@ -58,10 +57,6 @@ enum op_mode {
 	OP_MODE_NODE = 0,
 	OP_MODE_INIT,
 	OP_MODE_CLEAN,
-	OP_MODE_INSTALL,
-	OP_MODE_UNINSTALL, 
-	OP_MODE_LIST,
-	OP_MODE_EXEC,
 };
 
 struct cmdline_config {

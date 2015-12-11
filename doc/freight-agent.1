@@ -1,6 +1,6 @@
 .TH freight-agent "1" "Apr 2015" "Neil Horman"
 .SH NAME
-freight-agent \- daemone to download and execute systemd containers 
+freight-agent \- daemon to download and execute systemd containers 
 .SH SYNOPSIS
 \fBfrieght-agent [options]
 .SH DESCRIPTION
@@ -51,20 +51,6 @@ yum and local rpm databases that track which containers are installed, removes
 the installed containers, and destroys the existing config retrieved from the
 database.
 .TP
-.B --mode list
-List the containers that are installed locally or available in the configured
-repositories
-.TP
-.B --mode install
-Install a container name (via yum) or a local rpm to the container working space
-for freight agent
-.TP
-.B --mode uninstal
-Uninstall a container image by name
-.TP
-.B -m exec
-Execute an instance of a container
-
 
 .SH CONFIG FILE FORMAT 
 
@@ -77,7 +63,7 @@ The config file has the following format
 
 # The type of database to connect to
 db = {
-	dbtype = "postgres | nodb | freightproxy";
+	dbtype = "postgres | freightproxy";
 	hostaddr = "hostname of db server";
 	hostport = "optional port of db server
 	dbname = "Name of database on server";
