@@ -23,6 +23,7 @@ AC_CHECK_HEADERS([stdlib.h ftw.h])
 # Checks for library functions.
 PKG_CHECK_MODULES([libpq], [libpq], [], [AC_MSG_ERROR([libpq is required])])
 PKG_CHECK_MODULES([libconfig], [libconfig], [], [AC_MSG_ERROR([libconfig is required])])
+PKG_CHECK_MODULES([libsqlite3], [sqlite3], [], [AC_MSG_ERROR([libsqlite3 is required])])
 PKG_CHECK_MODULES([xmlrpc], [xmlrpc], [], [AC_MSG_ERROR([xmlrpc is required])])
 PKG_CHECK_MODULES([xmlrpc_util], [xmlrpc_util], [], [AC_MSG_ERROR([xmlrpc_util is required])])
 PKG_CHECK_MODULES([xmlrpc_abyss], [xmlrpc_abyss], [], [AC_MSG_ERROR([xmlrpc_abyss is required])])

@@ -82,6 +82,8 @@ static int parse_db_config(config_t *cfg, struct db_config *db)
 		db->dbtype = DB_TYPE_POSTGRES;
 	else if (streq(config_setting_get_string(tmp), "freightproxy"))
 		db->dbtype = DB_TYPE_FREIGHTPROXY;
+	else if (streq(config_setting_get_string(tmp), "sqlite"))
+		db->dbtype = DB_TYPE_SQLITE;
 	else {
 		LOG(ERROR, "Unknown DB type\n");
 		goto out;
@@ -90,10 +92,10 @@ static int parse_db_config(config_t *cfg, struct db_config *db)
 	rc = 0;
 
 	/*
- 	 * hostaddr, dbname, user and pass are all optional based on type
+ 	 * hostaddr, dbname, user and pass are all required based on type
  	 */
 	rc = parse_entry(db_cfg, &db->hostaddr, "hostaddr");
-	if (rc < 0)
+	if ((rc < 0) && (db->dbtype == DB_TYPE_POSTGRES))
 		return rc;
 
 	/* Ignore return code, we use default port numbers */
@@ -104,11 +106,11 @@ static int parse_db_config(config_t *cfg, struct db_config *db)
 		return rc;
 
 	rc = parse_entry(db_cfg, &db->user, "user");
-	if (rc < 0)
+	if ((rc < 0) && (db->dbtype == DB_TYPE_POSTGRES))
 		return rc;
 
 	rc = parse_entry(db_cfg, &db->password, "password");
-	if (rc < 0)
+	if ((rc < 0) && (db->dbtype == DB_TYPE_POSTGRES))
 		return rc;
 
 out:

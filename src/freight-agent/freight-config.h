@@ -26,6 +26,7 @@
 enum db_type {
 	DB_TYPE_POSTGRES = 0,
 	DB_TYPE_FREIGHTPROXY,
+	DB_TYPE_SQLITE,
 };
 
 

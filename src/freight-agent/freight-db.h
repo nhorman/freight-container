@@ -90,6 +90,7 @@ struct db_api {
 };
 
 extern struct db_api postgres_db_api;
+extern struct db_api sqlite_db_api;
 extern struct db_api xmlrpc_api;
 extern struct db_api *api;
 
@@ -104,6 +105,10 @@ static inline struct db_api* get_db_api(struct agent_config *acfg)
 	case DB_TYPE_FREIGHTPROXY:
 		api = &xmlrpc_api;
 		return &xmlrpc_api;
+		break;
+	case DB_TYPE_SQLITE:
+		api = &sqlite_db_api;
+		return &sqlite_db_api;
 		break;
 	default:
 		return NULL;
