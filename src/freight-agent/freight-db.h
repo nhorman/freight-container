@@ -68,6 +68,11 @@ enum listen_channel {
 	CHAN_NODES,
 };
 
+enum notify_type {
+	NOTIFY_HOST = 0,
+	NOTIFY_TENNANT
+};
+
 enum event_rc {
 	EVENT_CONSUMED = 0,
 	EVENT_NOCHAN,
@@ -86,6 +91,10 @@ struct db_api {
 
 	struct tbl* (*get_table)(enum db_table tbl, const char *cols, const char *filter,
 				 const struct agent_config *acfg);
+
+	int (*notify)(enum notify_type type, enum listen_channel chn,
+		      const char *name, const struct agent_config *acfg);
+
 	enum event_rc (*poll_notify)(const struct agent_config *acfg);
 };
 

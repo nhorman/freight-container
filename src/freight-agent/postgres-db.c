@@ -218,6 +218,14 @@ static enum event_rc pg_poll_notify(const struct agent_config *acfg)
 	return rc;
 }
 
+static int pg_notify(enum notify_type type, enum listen_channel chn,
+		     const char *name, const struct agent_config *acfg)
+{
+	char *sql = strjoina("NOTIFY \"", name, "\"", NULL);
+
+	return pg_send_raw_sql(sql, acfg);
+}
+
 struct db_api postgres_db_api = {
 	.init = pg_init,
 	.cleanup = pg_cleanup,
@@ -225,5 +233,6 @@ struct db_api postgres_db_api = {
 	.disconnect = pg_disconnect,
 	.send_raw_sql = pg_send_raw_sql,
 	.get_table = pg_get_table,
+	.notify = pg_notify,
 	.poll_notify = pg_poll_notify,
 };

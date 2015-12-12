@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <sqlite3.h>
 #include <string.h>
+#include <semaphore.h>
 #include <freight-common.h>
 #include <freight-db.h>
 
@@ -160,6 +161,14 @@ out:
 static enum event_rc sq_poll_notify(const struct agent_config *acfg)
 {
 	return EVENT_CONSUMED;
+}
+
+static int sq_notify(enum notify_type type, enum listen_channel chn,
+                     const char *name, const struct agent_config *acfg)
+{
+	char *sql = strjoina("NOTIFY \"", name, "\"", NULL);
+
+	return pg_send_raw_sql(sql, acfg);
 }
 
 struct db_api sqlite_db_api = {

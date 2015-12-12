@@ -701,24 +701,28 @@ int delete_container(const char *iname, const char *tennant,
 int notify_host(const enum listen_channel chn, const char *host,
 		const struct agent_config *acfg)
 {
-	char *sql;
+	char *name;
 
-	if (!api->send_raw_sql)
+	if (!api->notify)
 		return -EOPNOTSUPP;
 
-	sql = strjoina("NOTIFY \"", channel_map[chn], "-", host, "\"");
+	name = strjoina(channel_map[chn], "-", host, NULL);
 
-	return api->send_raw_sql(sql, acfg);
+	return api->notify(NOTIFY_HOST, chn, name, acfg);
+
 } 
 
 int notify_tennant(const enum listen_channel chn, const char *tennant,
 		const struct agent_config *acfg)
 {
-	/*
-	 * The string pattern for hosts and tennants is about the same
-	 * So we can we just reuse notify_host for now
-	 */
-	return notify_host(chn, tennant, acfg);
+	char *name;
+
+	if (!api->notify)
+		return -EOPNOTSUPP;
+
+	name = strjoina(channel_map[chn], "-", tennant, NULL);
+
+	return api->notify(NOTIFY_TENNANT, chn, name, acfg);
 }
 
 struct tbl* get_raw_table(enum db_table table, char *filter, const struct agent_config *acfg)
