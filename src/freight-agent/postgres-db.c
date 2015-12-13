@@ -226,6 +226,14 @@ static int pg_notify(enum notify_type type, enum listen_channel chn,
 	return pg_send_raw_sql(sql, acfg);
 }
 
+
+static int pg_subscribe(const char *lcmd, const char *chnl, const struct agent_config *acfg)
+{
+	char *sql = strjoina(lcmd, " ", chnl, NULL);
+
+        return pg_send_raw_sql(sql, acfg);
+}
+
 struct db_api postgres_db_api = {
 	.init = pg_init,
 	.cleanup = pg_cleanup,
@@ -234,5 +242,6 @@ struct db_api postgres_db_api = {
 	.send_raw_sql = pg_send_raw_sql,
 	.get_table = pg_get_table,
 	.notify = pg_notify,
+	.subscribe = pg_subscribe,
 	.poll_notify = pg_poll_notify,
 };

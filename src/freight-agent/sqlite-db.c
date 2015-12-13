@@ -22,6 +22,8 @@
 #include <stdio.h>
 #include <sqlite3.h>
 #include <string.h>
+#include <fcntl.h>           /* For O_* constants */
+#include <sys/stat.h>        /* For mode constants */
 #include <semaphore.h>
 #include <freight-common.h>
 #include <freight-db.h>
@@ -29,7 +31,22 @@
 
 struct sqlite_info {
 	sqlite3 *conn;
+	sem_t *notify;
 };
+
+static int sq_send_raw_sql(const char *sql,
+			   const struct agent_config *acfg);
+
+static int sq_delete_from_table(enum db_table type, const char *filter, 
+				const struct agent_config *acfg)
+{
+	char *sql;
+	const char *tname = get_tablename(type);
+
+	sql = strjoina("DELETE from ", tname, " WHERE ", filter, NULL);
+
+	return sq_send_raw_sql(sql, acfg);
+}
 
 static int sq_init(struct agent_config *acfg)
 {
@@ -37,6 +54,7 @@ static int sq_init(struct agent_config *acfg)
 	if (!info)
 		return -ENOMEM;
 	acfg->db.db_priv = info;
+	info->notify = sem_open("/freightsem", O_CREAT|O_RDWR, 0);
 	return 0;
 }
 
@@ -44,6 +62,8 @@ static void sq_cleanup(struct agent_config *acfg)
 {
 	struct sqlite_info *info = acfg->db.db_priv;
 
+	sem_close(info->notify);
+	info->notify = NULL;
 	free(info);
 	acfg->db.db_priv = NULL;
 	return;
@@ -58,10 +78,24 @@ static int sq_disconnect(struct agent_config *acfg)
 
 static int sq_connect(struct agent_config *acfg)
 {
+	int rc;
+
 	struct sqlite_info *info = acfg->db.db_priv;
 
-	return sqlite3_open_v2(acfg->db.dbname, &info->conn,
+	rc = sqlite3_open_v2(acfg->db.dbname, &info->conn,
 			       SQLITE_OPEN_READWRITE, NULL);
+
+	if (info->notify == SEM_FAILED) {
+		LOG(ERROR, "Could not create semaphore\n");
+		sqlite3_close_v2(info->conn);
+		rc = -EINVAL;
+	}
+
+	/*
+	 * Empty the event table 
+	 */
+	sq_delete_from_table(TABLE_EVENTS, "rowid > 0", acfg);
+	return rc;
 }
 
 
@@ -122,10 +156,9 @@ static struct tbl* sq_get_table(enum db_table type,
 		goto out;
 	}
 
-
-	rc = sqlite3_step(stmt);
+	sqlite3_step(stmtc);
 	
-	row = sqlite3_column_int(stmt, 0); 
+	row = sqlite3_column_int(stmtc, 0); 
 	col = sqlite3_column_count(stmt); 
 
 	rtable = alloc_tbl(row, col, type);
@@ -138,6 +171,7 @@ static struct tbl* sq_get_table(enum db_table type,
  	 * Column 1 is the repo url
  	 */
 	for (r = 0; r < row; r++) { 
+		sqlite3_step(stmt);
 		for (c = 0; c < col; c++) {
 			tmp = (const char *)sqlite3_column_text(stmt, c);
 			rtable->value[r][c] = strdup(tmp);
@@ -147,7 +181,6 @@ static struct tbl* sq_get_table(enum db_table type,
 				goto out_clear;
 			}
 		}
-		sqlite3_step(stmt);
 	}
 
 
@@ -160,15 +193,52 @@ out:
 
 static enum event_rc sq_poll_notify(const struct agent_config *acfg)
 {
+	struct sqlite_info *info = acfg->db.db_priv;
+	struct tbl *events;
+	enum event_rc ev_rc;
+
+	if (sem_wait(info->notify) < 0)
+	{
+		/*
+		 * getting EINTR is how we end this loop properly
+		 */
+		if (errno != EINTR)
+			LOG(ERROR, "sem_wait() failed: %s\n", strerror(errno));
+		return EVENT_INTR;
+	}
+
+	events = sq_get_table(TABLE_EVENTS, "*", "rowid=1", acfg);
+	sq_delete_from_table(TABLE_EVENTS, "rowid=1", acfg);
+
+	LOG(DEBUG, "GOT AN EVENT NOTIFICATION\n");
+	if (events->rows != 0) {
+		ev_rc = event_dispatch(lookup_tbl(events, 0, COL_NAME),
+				       lookup_tbl(events, 0, COL_URL));
+		if (ev_rc != EVENT_CONSUMED)
+			LOG(ERROR, "EVENT was not properly consumed\n");
+	}
+	
+	free_tbl(events);
+		
 	return EVENT_CONSUMED;
 }
 
 static int sq_notify(enum notify_type type, enum listen_channel chn,
                      const char *name, const struct agent_config *acfg)
 {
-	char *sql = strjoina("NOTIFY \"", name, "\"", NULL);
+	int rc;
+	struct sqlite_info *info = acfg->db.db_priv;
+	char *sql = strjoina("INSERT INTO event_table VALUES (",
+			     "'", name, "','')", NULL);
+	rc = sq_send_raw_sql(sql, acfg);
+	if (rc)
+		return rc;
+	return sem_post(info->notify);
+}
 
-	return pg_send_raw_sql(sql, acfg);
+static int sq_subscribe(const char *lcmd, const char *chnl, const struct agent_config *acfg)
+{
+	return 0;
 }
 
 struct db_api sqlite_db_api = {
@@ -178,5 +248,7 @@ struct db_api sqlite_db_api = {
 	.disconnect = sq_disconnect,
 	.send_raw_sql = sq_send_raw_sql,
 	.get_table = sq_get_table,
+	.notify = sq_notify,
+	.subscribe = sq_subscribe,
 	.poll_notify = sq_poll_notify,
 };

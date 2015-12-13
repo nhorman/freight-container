@@ -3,7 +3,7 @@ ${libpq_CFLAGS} ${libconfig_CFLAGS} \
 ${libsqlite3_CFLAGS} \
 -I$(top_srcdir)/src/include/
 
-AM_LDFLAGS = ${libpq_LIBS} ${libconfig_LIBS} ${libsqlite3_LIBS}
+AM_LDFLAGS = ${libpq_LIBS} ${libconfig_LIBS} ${libsqlite3_LIBS} -lpthread
 
 freightproxy_CFLAGS = ${AM_CFLAGS} \
 		      ${xmlrpc_CFLAGS}\

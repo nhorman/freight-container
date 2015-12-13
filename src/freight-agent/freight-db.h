@@ -37,6 +37,7 @@ enum db_table {
 	TABLE_CONTAINERS,
 	TABLE_NETWORKS,
 	TABLE_NETMAP,
+	TABLE_EVENTS,
 	TABLE_MAX
 };
 
@@ -75,6 +76,7 @@ enum notify_type {
 
 enum event_rc {
 	EVENT_CONSUMED = 0,
+	EVENT_INTR,
 	EVENT_NOCHAN,
 };
 
@@ -91,6 +93,8 @@ struct db_api {
 
 	struct tbl* (*get_table)(enum db_table tbl, const char *cols, const char *filter,
 				 const struct agent_config *acfg);
+
+	int (*subscribe)(const char *lcmd, const char *chnl, const struct agent_config *acfg);
 
 	int (*notify)(enum notify_type type, enum listen_channel chn,
 		      const char *name, const struct agent_config *acfg);

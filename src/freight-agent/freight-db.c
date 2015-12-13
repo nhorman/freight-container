@@ -41,7 +41,8 @@ static char *tablenames[TABLE_MAX] = {
         [TABLE_YUM_CONFIG] = "yum_config",
         [TABLE_CONTAINERS] = "containers",
 	[TABLE_NETWORKS] = "networks",
-	[TABLE_NETMAP] = "net_container_map"
+	[TABLE_NETMAP] = "net_container_map",
+	[TABLE_EVENTS] = "event_table"
 };
 
 /*
@@ -59,7 +60,8 @@ static int db_col_map[TABLE_MAX][COL_MAX] = {
  [TABLE_YUM_CONFIG] =		{ 2, -1, -1,  0,  1, -1, -1, -1, -1},
  [TABLE_CONTAINERS] =		{ 0,  3,  4, -1, -1,  1,  2, -1, -1},
  [TABLE_NETWORKS] =		{ 1, -1,  2,  0, -1, -1, -1, -1,  3},
- [TABLE_NETMAP] =		{ 0, -1, -1, -1, -1,  1,  2, -1, -1} 
+ [TABLE_NETMAP] =		{ 0, -1, -1, -1, -1,  1,  2, -1, -1}, 
+ [TABLE_EVENTS] =		{ -1,-1, -1,  0, -1, -1, -1, -1,  1}
 };
 
 
@@ -77,12 +79,10 @@ static int __chn_subscribe(const struct agent_config *acfg,
 		    const char *chnl)
 
 {
-	char *sql = strjoina(lcmd, " ", chnl, NULL);
-
-	if (!api->send_raw_sql)
+	if (!api->subscribe)
 		return -EOPNOTSUPP;
 
-	return api->send_raw_sql(sql, acfg);
+	return api->subscribe(lcmd, chnl, acfg);
 }
 
 int channel_subscribe(const struct agent_config *acfg,

@@ -95,7 +95,12 @@ CREATE TABLE net_container_map (
 	FOREIGN KEY (tennant, network) references networks(tennant, name)
 );
 
-	
+
+CREATE TABLE event_table (
+	channel varchar(512) NOT NULL,
+	extra   varchar(512)
+);
+
 EOF
 
 
