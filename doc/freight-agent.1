@@ -56,8 +56,11 @@ The config file has the following format
 
 
 # The type of database to connect to
+# postgres is meant for clusters of freight agents on multiple systesm
+# sqlite is meant for local installations 
+# freightproxy is the xmlrpc proxy to a backend postgres db
 db = {
-	dbtype = "postgres | freightproxy";
+	dbtype = "postgres | sqlite | freightproxy";
 	hostaddr = "hostname of db server";
 	hostport = "optional port of db server
 	dbname = "Name of database/database file";
