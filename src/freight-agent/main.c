@@ -134,7 +134,9 @@ int main(int argc, char **argv)
 		goto out_release;
 	}
 
-	if (gethostname(config.cmdline.hostname, 128)) {
+	if (config.node.hostname_override)
+		strncpy(config.cmdline.hostname, config.node.hostname_override, 128);
+	else if (gethostname(config.cmdline.hostname, 128)) {
 		LOG(WARNING, "Unable to get hostname, some operations may not work");
 	}
 

@@ -41,6 +41,7 @@ void release_configuration(struct agent_config *config)
 	free(config->db.password);
 	free(config->node.container_root);
 	free(config->node.host_bridge);
+	free(config->node.hostname_override);
 	free(config->proxy.logpath);
 }
 
@@ -135,6 +136,13 @@ static int parse_node_config(config_t *cfg, struct node_config *node)
 	rc = parse_entry(node_cfg, &node->host_bridge, "host_bridge");
 	if (rc == -ENOENT)
 		LOG(ERROR, "node config must contain a valid host_bridgec\n");
+
+	/*
+	 * Its ok if we don't have a hostname override, we default to the
+	 * system hostname
+	 */
+	parse_entry(node_cfg, &node->hostname_override, "hostname");
+	
 	
 out:
 	return rc;

@@ -43,6 +43,7 @@ struct db_config {
 struct node_config {
 	char *container_root;
 	char *host_bridge;
+	char *hostname_override;
 };
 
 struct master_config {
