@@ -855,9 +855,16 @@ static enum event_rc handle_container_update(const enum listen_channel chnl, con
 
 
 static bool request_shutdown = false;
+static bool request_cleanup = false;
+
 static void sigint_handler(int sig, siginfo_t *info, void *ptr)
 {
 	request_shutdown = true;
+}
+
+static void sigalrm_handler(int sig, siginfo_t *info, void *ptr)
+{
+	request_cleanup = true;
 }
 
 static void poweroff_all_containers(const struct agent_config *acfg)
@@ -895,6 +902,7 @@ int enter_mode_loop(struct agent_config *config)
 	int rc = -EINVAL;
 	struct stat buf;
 	struct sigaction intact;
+	struct sigaction alrmact;
 	
 	/*
  	 * Start by setting up a clean container root
@@ -939,6 +947,12 @@ int enter_mode_loop(struct agent_config *config)
 	intact.sa_flags = SA_SIGINFO;
 	sigaction(SIGINT, &intact, NULL);
 	
+	memset(&alrmact, 0, sizeof(struct sigaction));
+
+	alrmact.sa_sigaction = sigalrm_handler;
+	alrmact.sa_flags = SA_SIGINFO;
+	sigaction(SIGALRM, &alrmact, NULL);
+	alarm(config->node.gc_interval);
 	rc = 0;
 
 	/*
@@ -948,9 +962,14 @@ int enter_mode_loop(struct agent_config *config)
 
 	while (request_shutdown == false) {
 		wait_for_channel_notification(config);
+		if (request_cleanup == true) {
+			request_cleanup = false;
+			alarm(config->node.gc_interval);
+		}
 	}
 
 	LOG(INFO, "Shutting down\n");
+	alarm(0);
 	poweroff_all_containers(config);
 
 	change_host_state(config->cmdline.hostname, "offline", config);

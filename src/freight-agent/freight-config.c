@@ -121,6 +121,7 @@ out:
 static int parse_node_config(config_t *cfg, struct node_config *node)
 {
 	int rc = 0;
+	char *gcval;
 	config_setting_t *node_cfg = config_lookup(cfg, "node");
 
 	/*
@@ -142,7 +143,21 @@ static int parse_node_config(config_t *cfg, struct node_config *node)
 	 * system hostname
 	 */
 	parse_entry(node_cfg, &node->hostname_override, "hostname");
-	
+
+	node->gc_interval = 60; /*default 60 second interval */
+	rc = parse_entry(node_cfg, &gcval, "gc_interval");
+	if (!rc) {
+		node->gc_interval = strtoll(gcval, NULL, 10);
+		free(gcval);
+	}
+
+	node->gc_thresh = 2; /*default 2 scans before cleaning */
+	rc = parse_entry(node_cfg, &gcval, "gc_thresh");
+	if (!rc) {
+		node->gc_thresh = strtoll(gcval, NULL, 10);
+		free(gcval);
+	}
+	rc = 0;
 	
 out:
 	return rc;
