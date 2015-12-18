@@ -31,7 +31,8 @@
 struct db_api *api = NULL;
 
 static const char* channel_map[] = {
-	[CHAN_CONTAINERS] = "containers"
+	[CHAN_CONTAINERS] = "containers",
+	[CHAN_TENNANT_HOSTS] = "tennant_hosts"
 };
 
 static char *tablenames[TABLE_MAX] = {
@@ -81,8 +82,42 @@ static int __chn_subscribe(const struct agent_config *acfg,
 {
 	if (!api->subscribe)
 		return -EOPNOTSUPP;
-
+	LOG(DEBUG, "%s to channel %s\n", lcmd, chnl);
 	return api->subscribe(lcmd, chnl, acfg);
+}
+
+int channel_add_tennant_subscription(const struct agent_config *acfg,
+				     const enum listen_channel chn,
+				     const char *tennant)
+{
+	char *chname;
+	struct channel_callback *idx;
+
+
+	/*
+	 * need to ensure that we already have a subscription
+	 */
+	for (idx = callbacks; idx != NULL; idx = idx->next) {
+		if (idx->chnl == chn)
+			goto update;
+	}
+	return -ENOENT;
+
+update:
+	chname = strjoin("\"", channel_map[chn], "-", tennant, "\"", NULL);
+	
+	return __chn_subscribe(acfg, "LISTEN", chname);
+}
+
+int channel_del_tennant_subscription(const struct agent_config *acfg,
+				     const enum listen_channel chn,
+				     const char *tennant)
+{
+	char *chname;
+
+	chname = strjoin("\"", channel_map[chn], "-", tennant, "\"", NULL);
+	
+	return __chn_subscribe(acfg, "UNLISTEN", chname);
 }
 
 int channel_subscribe(const struct agent_config *acfg,
@@ -365,18 +400,23 @@ int del_host(const char *hostname,
 	return api->send_raw_sql(sql, acfg);
 }
 
-int subscribe_host(const char *tenant,
-		   const char *host,
+int subscribe_host(const char *host,
+		   const char *tennant,
 		   const struct agent_config *acfg)
 {
 	char *sql;
+	int rc;
 
 	if (!api->send_raw_sql)
 		return -EOPNOTSUPP;
 
-	sql = strjoina("INSERT INTO tennant_hosts VALUES('", tenant, "', '", host, "')", NULL);
+	sql = strjoina("INSERT INTO tennant_hosts VALUES('", host, "', '", tennant, "')", NULL);
 
-	return api->send_raw_sql(sql, acfg);
+	rc = api->send_raw_sql(sql, acfg);
+	if (rc)
+		return rc;
+
+	return notify_host(CHAN_TENNANT_HOSTS, host, acfg);
 }
 
 int unsubscribe_host(const char *tenant,
@@ -384,6 +424,7 @@ int unsubscribe_host(const char *tenant,
 		     const struct agent_config *acfg)
 {
 	char *sql;
+	int rc;
 
 	if (!api->send_raw_sql)
 		return -EOPNOTSUPP;
@@ -391,7 +432,11 @@ int unsubscribe_host(const char *tenant,
 	sql = strjoina("DELETE FROM tennant_hosts WHERE hostname = '", 
 			host,"' AND tennant = '", tenant, "'", NULL);
 
-	return api->send_raw_sql(sql, acfg);
+	rc = api->send_raw_sql(sql, acfg);
+	if (rc)
+		return rc;
+
+	return notify_host(CHAN_TENNANT_HOSTS, host, acfg);
 }
 
 

@@ -29,6 +29,7 @@
 #include <sys/stat.h>
 #include <sys/vfs.h>
 #include <sys/mount.h>
+#include <dirent.h>
 #include <fcntl.h>
 #include <libconfig.h>
 #include <mode.h>
@@ -39,6 +40,8 @@
 #define BTRFS_SUPER_MAGIC     0x9123683E
 
 #define FORK_TABLE_WORKER 1
+
+static int delete_all_tennants(const struct agent_config *acfg);
 
 struct container_options {
 	char *user;
@@ -91,43 +94,12 @@ static char *build_path(const char *base, const char *path, char *name)
 	return strjoin(base, path, name, NULL);
 }
 
-static void clean_tennant_root(const char *croot, 
-			       const char *tennant,
-			       const struct agent_config *acfg)
-{
-	char cmd[1024];
-
-	sprintf(cmd, "btrfs subvolume delete %s/%s", croot, tennant);
-
-	run_command(cmd, acfg->cmdline.verbose);
-}
-
 void clean_container_root(const struct agent_config *acfg)
 {
-	char hostname[512];
 	char *cmd;
-	struct tbl *table;
-	int r;
 
-	if (gethostname(hostname, 512)) {
-		LOG(WARNING, "Could not get hostname: %s\n",
-		    strerror(errno));
-                goto clean_common;
-        }
+	delete_all_tennants(acfg);
 
-	table = get_tennants_for_host(hostname, acfg);
-	if (!table) {
-                LOG(WARNING, "Unable to obtain list of tennants\n");
-                goto clean_common;
-        }
-
-	for(r=0; r < table->rows; r++)
-                clean_tennant_root(acfg->node.container_root,
-				   lookup_tbl(table, r, COL_TENNANT), acfg);
-
-	free_tbl(table);
-
-clean_common:
 	cmd = strjoina("btrfs subvolume delete ", acfg->node.container_root,
 		       "/common");
 	run_command(cmd, acfg->cmdline.verbose);
@@ -215,9 +187,9 @@ out:
 	return rc;
 }
 
-static int init_tennant_root(const char *croot,
-			     const char *tenant,
-			     const struct agent_config *acfg)
+static int init_tennant(const char *croot,
+			const char *tenant,
+			const struct agent_config *acfg)
 {
 	char *dirs[]= {
 		"containers",
@@ -228,9 +200,19 @@ static int init_tennant_root(const char *croot,
 	char *repo;
 	int i, rc;
 	FILE *fptr;
+	struct stat buf;
 	struct tbl *yum_config = NULL;
 
 	troot = strjoina(croot, "/", tenant, "/", NULL);
+
+	rc = stat(troot, &buf);
+	if (!rc) {
+		/*
+		 * This is a bit wierd because we expect the directory to not exist
+		 */
+		LOG(INFO, "Tennant %s already setup\n", tenant);
+		return 0;
+	}
 
 	/*
  	 * Sanity check the container root, it can't be the 
@@ -320,14 +302,69 @@ out:
 	return rc;
 }
 
+static int delete_tennant(const char *tennant, const struct agent_config *acfg)
+{
+	char *cmd;
+	char *troot;
+	int rc;
+
+	troot = strjoina(acfg->node.container_root, tennant, NULL);
+#if 0
+	cmd = strjoin("for i in `btrfs sub list -o ", troot, 
+		      "/ | awk ' /", tennant, "/ {print $9}'`; do ",
+		      "btrfs sub del -c ", acfg->node.container_root,
+		      "../$i; done", NULL);
+#endif
+
+	cmd = strjoin("for i in `btrfs sub list -o ", troot, 
+		      "/ | awk ' /", tennant, "/ {print $9}'`; do ",
+		      "echo ", acfg->node.container_root,
+
+		      "../$i; done", NULL);
+	rc = run_command(cmd, acfg->cmdline.verbose);
+
+	if (rc)
+		LOG(ERROR, "Unable to delete tennant %s: %s\n",
+			tennant, strerror(rc));
+	free(cmd);
+	cmd = strjoin("btrfs sub del -c ", troot, NULL);
+	rc = run_command(cmd, acfg->cmdline.verbose);
+	if (rc)
+		LOG(ERROR, "Unable to delete tennant root for %s: %s\n",
+			tennant, strerror(rc));
+	return rc; 
+}
+
+static int delete_all_tennants(const struct agent_config *acfg)
+{
+	DIR *tdir;
+	struct dirent *entry;
+
+	tdir = opendir(acfg->node.container_root);
+	if (!tdir)
+		return 0;
+
+	while ((entry = readdir(tdir)) != NULL) {
+		if (!strcmp(entry->d_name, "common"))
+			continue;
+		if (!strcmp(entry->d_name, "."))
+			continue;
+		if (!strcmp(entry->d_name, ".."))
+			continue;
+		delete_tennant(entry->d_name, acfg);
+	}
+
+	closedir(tdir);
+	return 0;
+}
+
 int init_container_root(const struct agent_config *acfg)
 {
 	const char *croot = acfg->node.container_root;
 	int rc = -EINVAL;
-	struct tbl *table;
-	char hostname[512];
+	struct tbl *table = NULL;
 	char cbuf[1024];
-	int r;
+
 	/*
 	 * Sanity check the container root, it can't be the 
 	 * system root
@@ -378,40 +415,9 @@ int init_container_root(const struct agent_config *acfg)
 		      "clean all\n", croot);
 	run_command(cbuf, acfg->cmdline.verbose);
 
-	/*
- 	 * Now get a list of tennants
- 	 */
-	if (gethostname(hostname, 512)) {
-		LOG(ERROR, "Could not get hostname: %s\n",
-			strerror(errno));
-		goto out;
-	}
-
-	table = get_tennants_for_host(hostname, acfg);
-	if (!table) {
-		LOG(ERROR, "Unable to obtain list of tennants\n");
-		goto out;
-	}
-
-	/*
- 	 * Now init the root space for each tennant
- 	 */
-	for(r = 0; r < table->rows; r++) {
-		rc = init_tennant_root(croot, lookup_tbl(table, r, COL_TENNANT), acfg);
-		if (rc) {
-			LOG(ERROR, "Unable to establish all tennants, cleaning...\n");
-			goto out_clean;
-		}
-	}
-out_free:
 	free_tbl(table);
 out:
 	return rc;
-out_clean:
-	for(r=0; r < table->rows; r++)
-		clean_tennant_root(croot, lookup_tbl(table,r,COL_TENNANT), acfg);
-	goto out_free;
-
 }
 
 static void daemonize(const struct agent_config *acfg)
@@ -672,9 +678,54 @@ out:
 	exit(0);
 }
 
-static enum event_rc handle_node_update(const enum listen_channel chnl, const char *extra,
+static enum event_rc handle_tennant_update(const enum listen_channel chnl, const char *extra,
 					 const struct agent_config *acfg)
 {
+	DIR *tdir;
+	struct dirent *entry;
+	int i, found;;
+
+	struct tbl *tennants = get_tennants_for_host(acfg->cmdline.hostname, acfg);
+
+	/*
+	 * Handle leaving tennants first
+	 */
+	tdir = opendir(acfg->node.container_root);
+
+	while ((entry = readdir(tdir)) != NULL)	{
+		found = 0;
+		if (!strcmp(entry->d_name, "common"))
+			continue;
+		if (!strcmp(entry->d_name, "."))
+			continue;
+		if (!strcmp(entry->d_name, ".."))
+			continue;
+		for (i=0; i < tennants->rows; i++) {
+			if (!strcmp(entry->d_name, lookup_tbl(tennants, i, COL_TENNANT))) {
+				found = 1;
+				break;
+			}
+		}
+
+		if (found)
+			continue;
+		/*
+		 * We have a directory not in our tennant map, delete it
+		 */
+		channel_del_tennant_subscription(acfg, CHAN_TENNANT_HOSTS, entry->d_name);	
+		delete_tennant(entry->d_name, acfg);
+	}
+	closedir(tdir);
+
+	/*
+	 * Now add new tennants
+	 */
+	for (i = 0; i < tennants->rows; i++) {
+		channel_add_tennant_subscription(acfg, CHAN_TENNANT_HOSTS, lookup_tbl(tennants, i, COL_TENNANT));
+		init_tennant(acfg->node.container_root, lookup_tbl(tennants, i, COL_TENNANT), acfg);
+	}
+	free_tbl(tennants);	
+	
 	return EVENT_CONSUMED;
 }
 
@@ -685,7 +736,7 @@ static void create_containers_from_table(const void *data, const struct agent_co
 	int rc;
 	char *tennant, *iname, *cname;
 	const struct ifc_list *ifcs;
-	struct tbl *containers = containers = get_containers_for_host(acfg->cmdline.hostname, "start-requested", acfg);
+	struct tbl *containers = get_containers_for_host(acfg->cmdline.hostname, "start-requested", acfg);
 
 	/*
 	 * Do a batch update of the contanier states so we know they are all installing
@@ -918,6 +969,12 @@ int enter_mode_loop(struct agent_config *config)
 		}
 	}
 
+	/*
+	 * Put us in a known state regarding tennants
+	 */
+	LOG(INFO, "Cleaning tennant state\n");
+	delete_all_tennants(config);
+
 	if (rc == ENOENT) {
 		LOG(ERROR, "please run freight-agent -m init first\n");
 		goto out;
@@ -926,7 +983,7 @@ int enter_mode_loop(struct agent_config *config)
 	/*
 	 * Join the node update channel
 	 */
-	if (channel_subscribe(config, CHAN_NODES, handle_node_update)) {
+	if (channel_subscribe(config, CHAN_TENNANT_HOSTS, handle_tennant_update)) {
 		LOG(ERROR, "Connot subscribe to database node updates\n");
 		rc = EINVAL;
 		goto out;
@@ -976,7 +1033,7 @@ int enter_mode_loop(struct agent_config *config)
 
 	channel_unsubscribe(config, CHAN_CONTAINERS);
 out_nodes:
-	channel_unsubscribe(config, CHAN_NODES);
+	channel_unsubscribe(config, CHAN_TENNANT_HOSTS);
 out:
 	return rc;
 }

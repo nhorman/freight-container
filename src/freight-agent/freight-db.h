@@ -66,7 +66,7 @@ struct tbl {
 
 enum listen_channel {
 	CHAN_CONTAINERS = 0,
-	CHAN_NODES,
+	CHAN_TENNANT_HOSTS,
 };
 
 enum notify_type {
@@ -170,6 +170,14 @@ extern int channel_subscribe(const struct agent_config *acfg,
 extern void channel_unsubscribe(const struct agent_config *acfg,
 				const enum listen_channel chn);
 
+int channel_add_tennant_subscription(const struct agent_config *acfg,
+                                     const enum listen_channel chn,
+                                     const char *tennant);
+
+int channel_del_tennant_subscription(const struct agent_config *acfg,
+                                     const enum listen_channel chn,
+                                     const char *tennant);
+
 extern enum event_rc event_dispatch(const char *chn, const char *extra);
 
 extern const char* get_tablename(enum db_table id);
@@ -200,8 +208,8 @@ extern int add_host(const char *hostname,
 extern int del_host(const char *hostname,
 		    const struct agent_config *acfg);
 
-extern int subscribe_host(const char *tennant,
-			  const char *host,
+extern int subscribe_host(const char *host,
+			  const char *tennant,
 			  const struct agent_config *acfg);
 
 extern int unsubscribe_host(const char *tennant,
