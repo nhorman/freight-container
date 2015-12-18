@@ -298,6 +298,12 @@ static int init_tennant(const char *croot,
 
 		free_tbl(yum_config);
 	}
+
+	/*
+	 * Subscribe to the corresponding channel
+	 */
+	channel_add_tennant_subscription(acfg, CHAN_TENNANT_HOSTS, tenant);
+	channel_add_tennant_subscription(acfg, CHAN_CONTAINERS, tenant);
 out:
 	return rc;
 }
@@ -324,6 +330,12 @@ static int delete_tennant(const char *tennant, const struct agent_config *acfg)
 	if (rc)
 		LOG(ERROR, "Unable to delete tennant root for %s: %s\n",
 			tennant, strerror(rc));
+
+	/*
+	 * Unsubscribe from the corresponding channel
+	 */
+	channel_del_tennant_subscription(acfg, CHAN_TENNANT_HOSTS, tennant);
+	channel_del_tennant_subscription(acfg, CHAN_CONTAINERS, tennant);
 	return rc; 
 }
 
@@ -704,7 +716,6 @@ static enum event_rc handle_tennant_update(const enum listen_channel chnl, const
 		/*
 		 * We have a directory not in our tennant map, delete it
 		 */
-		channel_del_tennant_subscription(acfg, CHAN_TENNANT_HOSTS, entry->d_name);	
 		delete_tennant(entry->d_name, acfg);
 	}
 	closedir(tdir);
@@ -713,7 +724,6 @@ static enum event_rc handle_tennant_update(const enum listen_channel chnl, const
 	 * Now add new tennants
 	 */
 	for (i = 0; i < tennants->rows; i++) {
-		channel_add_tennant_subscription(acfg, CHAN_TENNANT_HOSTS, lookup_tbl(tennants, i, COL_TENNANT));
 		init_tennant(acfg->node.container_root, lookup_tbl(tennants, i, COL_TENNANT), acfg);
 	}
 	free_tbl(tennants);	

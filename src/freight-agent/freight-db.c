@@ -128,8 +128,6 @@ int channel_subscribe(const struct agent_config *acfg,
 	struct channel_callback *tmp;
 	char *chname;
 	int rc;
-	struct tbl *table;
-	int i;
 
 	tmp = callbacks;
 	/*
@@ -154,7 +152,6 @@ int channel_subscribe(const struct agent_config *acfg,
 	tmp->next = callbacks;
 	callbacks = tmp;
 
-	table = get_tennants_for_host(acfg->cmdline.hostname, acfg);
 
 	/*
 	 * We actually want to subscribe to n channels here, <name>-<hostname>
@@ -163,14 +160,6 @@ int channel_subscribe(const struct agent_config *acfg,
 	 */
 	chname = strjoina("\"", channel_map[chn],"-", acfg->cmdline.hostname, "\"", NULL);
 	rc = __chn_subscribe(acfg, "LISTEN", chname);
-
-	for (i=0; i < table->rows; i++) {
-		chname = strjoin("\"", channel_map[chn], "-", lookup_tbl(table, i, COL_TENNANT), "\"", NULL);
-		rc |= __chn_subscribe(acfg, "LISTEN", chname);
-		free(chname);
-	}
-
-	free_tbl(table);
 
 	/*
 	 * once we are subscribed, make a dummy call to the handler for an initial table scan
@@ -187,8 +176,6 @@ void channel_unsubscribe(const struct agent_config *acfg,
 {
 	struct channel_callback *tmp, *prev;
 	char *chname;
-	struct tbl *table;
-	int i;
 
 	tmp = prev = callbacks;
 
@@ -207,15 +194,6 @@ void channel_unsubscribe(const struct agent_config *acfg,
 	chname = strjoina("\"", channel_map[chn],"-", acfg->cmdline.hostname, "\"", NULL);
 	__chn_subscribe(acfg, "UNLISTEN", chname);
 
-	table = get_tennants_for_host(acfg->cmdline.hostname, acfg);
-
-	for (i=0; i < table->rows; i++) {
-		chname = strjoin("\"", channel_map[chn], "-", table->value[i][1], "\"", NULL);
-		__chn_subscribe(acfg, "UNLISTEN", chname);
-		free(chname);
-	}
-
-	free_tbl(table);
 }
 
 enum event_rc event_dispatch(const char *chn, const char *extra)
