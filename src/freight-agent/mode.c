@@ -309,17 +309,9 @@ static int delete_tennant(const char *tennant, const struct agent_config *acfg)
 	int rc;
 
 	troot = strjoina(acfg->node.container_root, tennant, NULL);
-#if 0
 	cmd = strjoin("for i in `btrfs sub list -o ", troot, 
 		      "/ | awk ' /", tennant, "/ {print $9}'`; do ",
 		      "btrfs sub del -c ", acfg->node.container_root,
-		      "../$i; done", NULL);
-#endif
-
-	cmd = strjoin("for i in `btrfs sub list -o ", troot, 
-		      "/ | awk ' /", tennant, "/ {print $9}'`; do ",
-		      "echo ", acfg->node.container_root,
-
 		      "../$i; done", NULL);
 	rc = run_command(cmd, acfg->cmdline.verbose);
 
