@@ -232,6 +232,11 @@ extern struct tbl* get_containers_for_host(const char *host,
 					   const char *state,
 					   const struct agent_config *acfg);
 
+extern struct tbl* get_containers_of_type(const char *cname,
+						 const char *tennant,
+						 const char *host,
+						 const struct agent_config *acfg);
+
 extern int request_create_container(const char *cname,
 				    const char *iname,
 				    const char *chost,

@@ -895,7 +895,6 @@ static enum event_rc handle_container_update(const enum listen_channel chnl, con
 					 const struct agent_config *acfg)
 {
 
-	LOG(DEBUG, "GOT A CHANNEL EVENT\n");
 
 	handle_new_containers(acfg);
 
@@ -944,6 +943,168 @@ static void poweroff_all_containers(const struct agent_config *acfg)
 	}	
 
 	free_tbl(containers);
+}
+
+struct age_marker {
+	const char *cname;
+	const char *tennant;
+	int gen;
+	struct age_marker *next;
+	struct age_marker *prev;
+};
+
+static struct age_marker *age_markers = NULL;
+
+static struct age_marker* find_marker(const char *tennant, const char *cname)
+{
+	struct age_marker *idx = age_markers;
+
+	for(idx = age_markers; idx != NULL; idx = idx->next) {
+		if (!strcmp(tennant, idx->tennant) &&
+		    !strcmp(cname, idx->cname))
+			return idx;
+	}
+	return NULL;
+}
+
+static int container_has_children(const char *cname, const char *tennant,
+				  const struct agent_config *acfg)
+{
+	char *troot;
+	char *cmd;
+	int rc;
+
+	troot = strjoina(acfg->node.container_root, "/", tennant, NULL);
+	cmd = strjoina("chroot ", troot, " rpm -q --whatrequires ", cname, NULL);
+
+	rc = run_command(cmd, acfg->cmdline.verbose);
+	/*
+	 * an rc of 1 means rpm failed because the container had no children
+	 */
+	return !WEXITSTATUS(rc);	 
+}
+
+static void free_age_marker(struct age_marker *cage)
+{
+	if (cage->prev)
+		cage->prev->next = cage->next;
+	if (cage->next)
+		cage->next->prev = cage->prev;
+	free((void *)cage->cname);
+	free((void *)cage->tennant);
+	free(cage);
+}
+
+
+static void remove_tennant_unused_containers(const char *tennant,
+					     const struct agent_config *acfg)
+{
+	char *cmd;
+	char *troot;
+	FILE *cmout;
+	struct tbl *ctbl;
+	char container[128];
+	char *mark;
+	struct age_marker *cage, *tmp;
+
+	troot = strjoina(acfg->node.container_root, "/", tennant, NULL);
+
+	/*
+	 * Find all containers in the Containers/Freight group
+	 */
+	cmd = strjoin("chroot ", troot, " rpm -q --queryformat=\"%{NAME}\\n\" -g Containers/Freight", NULL);
+
+	cmout = _run_command(cmd);
+	while(fgets(container, 128, cmout)) {
+		/*
+		 * find any newlines
+		 */
+		mark = strchr(container, 10);
+		if (mark)
+			*mark = 0;
+		/*
+		 * Means we don't have any containers installed
+		 */
+
+		if (!strncmp(container, "group Containers/Freight", 24))
+			break;
+		ctbl = get_containers_of_type(container, tennant, acfg->cmdline.hostname, acfg);
+		if (!ctbl->rows) {
+			/*
+			 * This contaienr rpm has no instances on this host
+			 */
+			cage = find_marker(tennant, container);
+			if (cage) {
+				cage->gen++;
+				continue;
+			}
+			cage = calloc(1, sizeof(struct age_marker));
+			cage->cname = strdup(container);
+			cage->tennant = strdup(tennant);
+			cage->next = age_markers;
+			cage->prev = NULL;
+			if (age_markers)
+				age_markers->prev = cage;
+			age_markers = cage;
+		} else {
+			/*
+			 * We do have containers of this time, remove any pending age markers
+			 */
+			cage = find_marker(tennant, container);
+			if (cage)
+				free_age_marker(cage);
+		}
+
+		free_tbl(ctbl);
+	}
+
+	fclose(cmout);
+	free(cmd);
+
+	/*
+	 * Now go through the list and look for expired containers
+	 */
+	for (cage = age_markers; cage != NULL; cage = cage->next) {
+		if (strcmp(cage->tennant, tennant))
+			continue;
+
+		if (container_has_children(cage->cname, tennant, acfg))
+			continue;
+
+		if (cage->gen < acfg->node.gc_thresh)
+			continue;
+
+		LOG(INFO, "Container %s in Tennant %s is being scrubbed\n", cage->cname, tennant);
+		cmd = strjoin("chroot ", troot, " rpm -e ", cage->cname, NULL);
+		run_command(cmd, acfg->cmdline.verbose);
+		free(cmd);
+
+		/*
+		 * unlink and free the cage pointer
+		 */
+		tmp = cage;
+		cage = cage->next;
+		free_age_marker(tmp);
+	}
+}
+
+static void clean_unused_containers(const struct agent_config *acfg)
+{
+	struct tbl *tennants;
+	int r;
+
+	tennants = get_tennants_for_host(acfg->cmdline.hostname, acfg);
+
+	if (!tennants->rows)
+		goto out;
+
+	for (r = 0; r <  tennants->rows; r++) {
+		remove_tennant_unused_containers(lookup_tbl(tennants, r, COL_TENNANT), acfg);
+	}
+
+out:
+	free_tbl(tennants);
+	return;
 }
 
 /*
@@ -1023,6 +1184,8 @@ int enter_mode_loop(struct agent_config *config)
 		wait_for_channel_notification(config);
 		if (request_cleanup == true) {
 			request_cleanup = false;
+			LOG(INFO, "Cleaning\n");
+			clean_unused_containers(config);
 			alarm(config->node.gc_interval);
 		}
 	}

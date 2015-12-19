@@ -82,7 +82,6 @@ static int __chn_subscribe(const struct agent_config *acfg,
 {
 	if (!api->subscribe)
 		return -EOPNOTSUPP;
-	LOG(DEBUG, "%s to channel %s\n", lcmd, chnl);
 	return api->subscribe(lcmd, chnl, acfg);
 }
 
@@ -509,6 +508,26 @@ static struct tbl *get_container_info(const char *iname,
 		return NULL;
 
 	filter = strjoina("(iname='", iname, "' AND tennant='", tennant,"')", NULL);
+
+	return api->get_table(TABLE_CONTAINERS, "*", filter, acfg);
+}
+
+struct tbl *get_containers_of_type(const char *cname,
+					  const char *tennant,
+					  const char *host,
+					  const struct agent_config *acfg)
+{
+	char *bfilter, *filter;
+
+	if (!api->get_table)
+		return NULL;
+
+	bfilter = strjoina("(cname='", cname, "' AND tennant='", tennant, NULL);
+
+	if (host)
+		filter = strjoina(bfilter, "' AND hostname='", host, "')", NULL);
+	else 
+		filter = strjoina(bfilter, "')", NULL);
 
 	return api->get_table(TABLE_CONTAINERS, "*", filter, acfg);
 }
