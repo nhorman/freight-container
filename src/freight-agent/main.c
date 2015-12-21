@@ -155,8 +155,10 @@ int main(int argc, char **argv)
 		goto out_release;
 	}
 
-	if (db_connect(&config))
+	if (db_connect(&config)) {
+		LOG(ERROR, "Unable to connect to databse\n");
 		goto out_cleanup_db;
+	}
 	
 
 	/*
