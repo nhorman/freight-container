@@ -246,8 +246,10 @@ int main(int argc, char **argv)
 		goto out_release;
 	}
 
-	if (db_connect(&config))
+	if (db_connect(&config)) {
+		LOG(ERROR, "Could not connect to database\n");
 		goto out_cleanup_db;
+	}
 	
 
 	if (!strcmp(op, "repo")) {
