@@ -25,6 +25,7 @@
 #include <getopt.h>
 #include <string.h>
 #include <config.h>
+#include <freight-common.h>
 #include <freight-log.h>
 #include <freight-config.h>
 #include <freight-db.h>
@@ -184,7 +185,7 @@ int main(int argc, char **argv)
 {
 	int rc = 1;
 	int opt, longind;
-	char *config_file = "/etc/freight-agent/config";
+	char *config_file = NULL;
 	char *op;
 	int verbose = 0;
 
@@ -215,6 +216,8 @@ int main(int argc, char **argv)
 		}
 	}
 
+	if (!config_file)
+		config_file = strjoina(getenv("HOME"), "/.freightctl", NULL);
 	/*
 	 * Read in the configuration file
 	 */
