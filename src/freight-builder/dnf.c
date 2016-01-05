@@ -53,6 +53,7 @@ static char *workdir;
 static void yum_cleanup(const struct manifest *manifest)
 {
 	char *srpm;
+
 	char *output_path = manifest->opts.output_path ?: workdir;
 
 	recursive_dir_cleanup(workdir);
@@ -280,6 +281,7 @@ static void gather_files_for_spec(FILE *repof, const struct manifest *manifest)
 static int spec_install_primary_container(FILE * repof, const struct manifest *manifest)
 {
 	char *rpmlist;
+	char *temp;
 	int rc = -EINVAL;
 
 
@@ -347,15 +349,23 @@ static int spec_install_primary_container(FILE * repof, const struct manifest *m
 		       manifest->package.name, manifest->package.name);
 
 	/*
- 	 * Then delete the real subvolumes
+	 * Delete any subvolumes inside our working space
+	 */
+
+	/*
+ 	 * Then delete the subvolumes inside the working space
  	 */
-	fprintf(repof, "btrfs subvolume delete containers/%s/containerfs\n",
-		       manifest->package.name);
-	fprintf(repof, "btrfs subvolume delete containers/%s/snapshot/containerfs\n",
-		       manifest->package.name);
+	temp = strdup(workdir);
+	fprintf(repof, "for i in `btrfs sub list -a %s | awk ' /%s/ {print length($0) \" \" $9}'",
+		workdir, basename(temp));
+	free(temp);
+	fprintf(repof, " | sed -e\"s/<FS_TREE>//\" | sort -n -r | cut -d ' ' -f 2-`\n");
+	fprintf(repof, "do\n");
+	fprintf(repof, "btrfs sub del -c %s/../$i\n", workdir);
+	fprintf(repof, "done\n");
+
 	fprintf(repof, "rm -rf containers/%s/snapshot\n",
 		       manifest->package.name);
-
 	/*
  	 * After we export the subvolume, we need to interrogate all the files
  	 * So that we can specify a file list in the %files section
@@ -370,6 +380,7 @@ out:
 static int spec_install_derivative_container(FILE * repof, const struct manifest *manifest)
 {
 	char *rpmlist;
+	char *temp;
 	int rc = -EINVAL;
 	struct rpm_nvr *parent;
 
@@ -448,10 +459,15 @@ static int spec_install_derivative_container(FILE * repof, const struct manifest
 	/*
  	 * Now we have to destroy the mounted subvolumes
  	 */
-	fprintf(repof, "btrfs subvolume delete ./containers/%%{name}/containerfs\n");
-	fprintf(repof, "for i in `ls ../../parents/`\n");
+
+
+	temp = strdup(workdir);
+	fprintf(repof, "for i in `btrfs sub list -a %s | awk ' /%s/ {print length($0) \" \" $9}'",
+		workdir, basename(temp));
+	free(temp);
+	fprintf(repof, " | sed -e\"s/<FS_TREE>//\" | sort -n -r | cut -d ' ' -f 2-`\n");
 	fprintf(repof, "do\n");
-	fprintf(repof, "	btrfs sub del ../../parents/$i/containerfs\n");
+	fprintf(repof, "btrfs sub del -c %s/../$i\n", workdir);
 	fprintf(repof, "done\n");
 
 	gather_files_for_spec(repof, manifest);
