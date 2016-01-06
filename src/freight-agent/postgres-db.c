@@ -140,7 +140,10 @@ static struct tbl* pg_get_table(enum db_table type,
 	struct tbl *rtable = NULL;
 
 	table = get_tablename(type);
-	sql = strjoina("SELECT ", cols, " FROM ", table, " WHERE ", filter);
+	if (filter)
+		sql = strjoina("SELECT ", cols, " FROM ", table, " WHERE ", filter, NULL);
+	else
+		sql = strjoina("SELECT ", cols, " FROM ", table, NULL);
 	result = PQexec(info->conn, sql);
 
 	rc = PQresultStatus(result);
