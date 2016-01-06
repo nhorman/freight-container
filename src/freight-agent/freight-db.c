@@ -43,7 +43,8 @@ static char *tablenames[TABLE_MAX] = {
         [TABLE_CONTAINERS] = "containers",
 	[TABLE_NETWORKS] = "networks",
 	[TABLE_NETMAP] = "net_container_map",
-	[TABLE_EVENTS] = "event_table"
+	[TABLE_EVENTS] = "event_table",
+	[TABLE_GCONF] = "global_config"
 };
 
 /*
@@ -51,7 +52,8 @@ static char *tablenames[TABLE_MAX] = {
  * to the numeric columns that each table returns.
  * The array indicies are:
  * TENNANT, HOSTNAME, STATE, NAME, URL, INAME, CNAME, PROXYPASS, TYPE, CONFIG
- * Note, that the net_contaienr_map uses INAME for the container name and CNAME for the network name
+ * Note: the net_contaienr_map uses INAME for the container name and CNAME for the network name
+ * Note: the global_config table uses NAME for the key and CONFIG for the value column
  */
 
 static int db_col_map[TABLE_MAX][COL_MAX] = {
@@ -62,7 +64,8 @@ static int db_col_map[TABLE_MAX][COL_MAX] = {
  [TABLE_CONTAINERS] =		{ 0,  3,  4, -1, -1,  1,  2, -1, -1},
  [TABLE_NETWORKS] =		{ 1, -1,  2,  0, -1, -1, -1, -1,  3},
  [TABLE_NETMAP] =		{ 0, -1, -1, -1, -1,  1,  2, -1, -1}, 
- [TABLE_EVENTS] =		{ -1,-1, -1,  0, -1, -1, -1, -1,  1}
+ [TABLE_EVENTS] =		{ -1,-1, -1,  0, -1, -1, -1, -1,  1},
+ [TABLE_GCONF] =		{ -1,-1, -1,  0, -1, -1, -1, -1,  1}
 };
 
 
@@ -929,3 +932,103 @@ struct tbl * get_network_info(const char *network, const char *tennant, const st
 
 	return networks;
 }
+
+
+struct cfg_key_map {
+	enum config_data_t type;
+	size_t len;
+	char *key_name;
+};
+
+struct cfg_key_map cfg_map[] = {
+	[KEY_BASE_INTERVAL] = { INT_TYPE, 4, "base_interval"},
+	[KEY_HEALTH_CHECK_MLT]   = { INT_TYPE, 4, "healthcheck_multiple"},
+	[KEY_GC_MLT]       = { INT_TYPE, 4, "gc_multiple"}
+};
+
+struct config_setting *alloc_config_setting(enum config_data_k key)
+{
+	struct config_setting *new;
+
+	new = calloc(sizeof(struct config_setting) + cfg_map[key].len, 1);
+
+	if (!new)
+		return NULL;
+
+	new->key = key;
+	new->type = cfg_map[key].type;
+	new->len = cfg_map[key].len;
+
+	switch(cfg_map[key].type) {
+	case INT_TYPE:
+		new->val.intval = (int *)new->extra_storage;
+		break;
+	default:
+		LOG(ERROR, "Unknown data type\n");
+		free(new);
+		return NULL;
+	}
+
+	return new;	
+}
+
+void free_config_setting(struct config_setting *cfg)
+{
+	free(cfg);
+}
+
+struct config_setting *get_global_config_setting(enum config_data_k key, const struct agent_config *acfg)
+{
+	struct config_setting *cfg = alloc_config_setting(key);
+	struct tbl *table;
+	char *filter;
+
+	filter = strjoina("key='", cfg_map[key].key_name, "'", NULL);
+
+	table = api->get_table(TABLE_GCONF, "*", filter, acfg);
+
+	if (!table->rows) {
+		LOG(ERROR, "No config setting found for %s\n", cfg_map[key].key_name);
+		goto out;
+	}
+
+	switch(cfg->type) {
+	case INT_TYPE:
+		*cfg->val.intval = strtol(lookup_tbl(table, 0, COL_CONFIG), NULL, 0);
+		break;
+	default:
+		LOG(ERROR, "Unknown data type\n");
+		free(cfg);
+		return NULL;
+	}
+
+out:
+	free_tbl(table);
+	return cfg;
+}
+
+int set_global_config_setting(struct config_setting *set, const struct agent_config *acfg)
+{
+	char *sql;
+	char *value;
+
+	switch(set->type) {
+	case INT_TYPE:
+		asprintf(&value, "%d", *(int *)set->val.intval);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	sql = strjoina("UPDATE global_config SET value='", value, "' WHERE key='", cfg_map[set->key].key_name, "'", NULL);
+	free(value);
+
+	return api->send_raw_sql(sql, acfg); 
+}
+
+
+struct tbl* get_global_config(const struct agent_config *acfg)
+{
+	return api->get_table(TABLE_GCONF, "*", NULL, acfg);
+}
+

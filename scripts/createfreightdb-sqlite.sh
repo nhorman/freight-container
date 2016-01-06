@@ -45,6 +45,15 @@ INSERT INTO nstate values('staged');
 INSERT INTO nstate values('active');
 INSERT INTO nstate values('failed');
 
+CREATE TABLE global_config (
+	key     varchar(512) NOT NULL PRIMARY KEY,
+	value   varchar NOT NULL
+);
+
+INSERT INTO global_config VALUES('base_interval' '30');
+INSERT INTO global_config VALUES('healthcheck_multiple' '1');
+INSERT INTO global_config VALUES('gc_multiple', 2);
+
 
 CREATE TABLE tennants (
 	tennant	varchar(512) NOT NULL PRIMARY KEY,

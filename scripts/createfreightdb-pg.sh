@@ -103,6 +103,15 @@ CREATE TYPE status as ENUM ('offline', 'operating', 'unreachable');
 CREATE TYPE cstate as ENUM ('staged', 'start-requested', 'failed', 'installing', 'running', 'exiting');
 CREATE TYPE nstate as ENUM ('staged', 'active', 'failed');
 
+CREATE TABLE global_config (
+	key	varchar(512) NOT NULL PRIMARY KEY,
+	value   varchar NOT NULL
+);
+
+INSERT INTO global_config VALUES('base_interval' '30');
+INSERT INTO global_config VALUES('healthcheck_multiple' '1');
+INSERT INTO global_config VALUES('gc_multiple', 2);
+
 CREATE TABLE tennants (
 	tennant	varchar(512) NOT NULL PRIMARY KEY,
 	proxypass varchar(512),

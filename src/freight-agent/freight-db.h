@@ -26,6 +26,32 @@
 #include <errno.h>
 #include <freight-config.h>
 
+
+/*
+ * Global config data structures
+ */
+enum config_data_t {
+	INT_TYPE
+};
+
+enum config_data_k {
+	KEY_BASE_INTERVAL = 0,
+	KEY_HEALTH_CHECK_MLT,
+	KEY_GC_MLT
+};
+
+union config_data_u {
+	int *intval;
+};
+
+struct config_setting {
+	enum config_data_k key;
+	enum config_data_t type;
+	union config_data_u val;
+	size_t len;
+	char extra_storage[0];
+};
+
 /*
  * enum of table types in the db
  */
@@ -38,6 +64,7 @@ enum db_table {
 	TABLE_NETWORKS,
 	TABLE_NETMAP,
 	TABLE_EVENTS,
+	TABLE_GCONF,
 	TABLE_MAX
 };
 
@@ -294,5 +321,16 @@ extern int network_attach(const char *container, const char *network, const char
 extern int network_detach(const char *container, const char *network, const char *tennant, const struct agent_config *acfg);
 
 extern struct tbl * get_network_info(const char *network, const char *tennant, const struct agent_config *acfg);
+
+extern struct config_setting *alloc_config_setting(enum config_data_k key);
+
+extern void free_config_setting(struct config_setting *cfg);
+
+extern struct config_setting *get_global_config_setting(enum config_data_k key, const struct agent_config *acfg);
+
+extern int set_global_config_setting(struct config_setting *setting, const struct agent_config *acfg);
+
+extern struct tbl* get_global_config(const struct agent_config *acfg); 
+
 
 #endif
