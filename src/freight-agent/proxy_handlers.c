@@ -234,3 +234,32 @@ xmlrpc_value* xmlrpc_detach_network(xmlrpc_env * const envp, xmlrpc_value * cons
 
 	return xmlrpc_int_new(envp, rc);	
 }
+
+xmlrpc_value* xmlrpc_update_config(xmlrpc_env * const envp, xmlrpc_value * const params, void * serverinfo, void *callinfo)
+{
+	char *key, *value;
+	const struct agent_config *acfg = serverinfo;
+	struct config_setting *cfg;
+	int rc = -EINVAL;
+
+
+	xmlrpc_decompose_value(envp, params, "(ss)", &key, &value);
+
+	cfg = alloc_config_setting(key);
+	if (!cfg) {
+		goto out;
+	}
+
+	switch(cfg->type) {
+	case INT_TYPE:
+		*cfg->val.intval = strtol(value, NULL, 10);
+		break;
+	default:
+		goto out;
+	}
+	rc = set_global_config_setting(cfg, acfg);
+
+out:
+	free_config_setting(cfg);
+	return xmlrpc_int_new(envp, rc);	
+}

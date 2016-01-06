@@ -514,7 +514,15 @@ static struct xmlrpc_method_info3 methods[] = {
 		65535,
 		"i:ss",
 		"Detach a container from a network"
-	}
+	},
+	{
+		"update.config",
+		&xmlrpc_update_config,
+		NULL,
+		65535,
+		"i:ss",
+		"Set a config option in the global config table"
+	},
 };
 
 int main(int argc, char **argv)

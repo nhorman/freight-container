@@ -516,6 +516,43 @@ static xmlrpc_value* get_network_container_params(const char *sql, const struct 
 	return params;
 }
 
+static xmlrpc_value* get_update_config_params(const char *sql, const struct agent_config *acfg)
+{
+	struct xmlrpc_info *info = acfg->db.db_priv;
+	xmlrpc_value *params;
+	xmlrpc_value *p;
+	char *tmp;
+	char *value;
+	char stor;
+
+
+	params = xmlrpc_array_new(&info->env);
+
+	/* get CONTAINER param */
+	value = strstr(tmp, "'");
+	value += 1;
+	tmp = strstr(value, "'");
+	stor = *tmp;
+	*tmp = 0;
+	p = xmlrpc_string_new(&info->env, value);
+	xmlrpc_array_append_item(&info->env, params, p);
+	*tmp = stor;
+	xmlrpc_DECREF(p);
+
+	/* get VALUE param */
+	value = strstr(tmp+1, "'");
+	value += 1;
+	tmp = strstr(value, "'");
+	stor = *tmp;
+	*tmp = 0;
+	p = xmlrpc_string_new(&info->env, value);
+	xmlrpc_array_append_item(&info->env, params, p);
+	*tmp = stor;
+	xmlrpc_DECREF(p);
+
+	return params;
+}
+
 static int parse_int_result(xmlrpc_value *result, const struct agent_config *acfg)
 {
 	int rc;
@@ -559,6 +596,7 @@ static struct xmlrpc_ops delete_ops[] = {
 static struct xmlrpc_ops update_ops[] = {
 	{"containers", "boot.container", get_boot_container_params, parse_int_result},
 	{"containers", "poweroff.container", get_poweroff_container_params, parse_int_result},
+	{"global_config", "update.config", get_update_config_params, parse_int_result},
 	{NULL, NULL, NULL, NULL},
 };
 
