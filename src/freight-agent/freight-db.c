@@ -362,7 +362,7 @@ int add_host(const char *hostname,
 	if (!api->send_raw_sql)
 		return -EOPNOTSUPP;
 
-	sql = strjoina("INSERT INTO nodes VALUES ('", hostname, "', 'offline', 0, datetime('now', 'localhost'))", NULL);
+	sql = strjoina("INSERT INTO nodes VALUES ('", hostname, "', 'offline', 0, null)", NULL);
 
 	return api->send_raw_sql(sql, acfg);
 }
