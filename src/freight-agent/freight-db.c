@@ -946,7 +946,7 @@ struct cfg_key_map cfg_map[] = {
 	[KEY_GC_MLT]       = { INT_TYPE, 4, "gc_multiple"}
 };
 
-struct config_setting *alloc_config_setting(enum config_data_k key)
+static struct config_setting *_alloc_config_setting(enum config_data_k key)
 {
 	struct config_setting *new;
 
@@ -972,6 +972,17 @@ struct config_setting *alloc_config_setting(enum config_data_k key)
 	return new;	
 }
 
+struct config_setting *alloc_config_setting(char *key_name)
+{
+	int i;
+
+	for(i=0; i < KEY_MAX; i++) {
+		if (!strcmp(cfg_map[i].key_name, key_name))
+			return _alloc_config_setting(i);
+	}
+	return NULL;
+}
+
 void free_config_setting(struct config_setting *cfg)
 {
 	free(cfg);
@@ -979,7 +990,7 @@ void free_config_setting(struct config_setting *cfg)
 
 struct config_setting *get_global_config_setting(enum config_data_k key, const struct agent_config *acfg)
 {
-	struct config_setting *cfg = alloc_config_setting(key);
+	struct config_setting *cfg = _alloc_config_setting(key);
 	struct tbl *table;
 	char *filter;
 

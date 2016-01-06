@@ -78,6 +78,24 @@ Attaches the refereced container to the referenced network
 .B network [detach] <container> <network>
 Detaches the referenced container from the referenced network
 
+.B config [show]
+Dump out all the common node global config values
+
+.B config [set] <key> <value>
+Set the value of a given key in the global config table
+
+.SH GLOBAL CONFIGURATION KEYS
+The global config table has a predefined list of keys that are used to configure all nodes
+.TS
+allbox;
+cb	cb
+.
+KEY	VALUE
+BASE_INTERVAL	The interval between alarm wakeups on a given node
+HEALCHECK_MULTIPLE	The number of BASE_INTERVAL periods after which the node updates its status to the cluster
+GC_MULTIPLE	The number of BASE_INTERVAL periods after which unused containers are reclaimed on the system
+.TE
+
 .SH CONTAINER LIFE CYCLE
 A container in freight as manged by freightctl exists in the following state table
 

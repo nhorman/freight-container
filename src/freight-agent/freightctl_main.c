@@ -33,6 +33,58 @@
 struct agent_config config;
 
 
+static int config_op(char **argv, int argc,
+		     const struct agent_config *acfg)
+{
+	int rc = -EINVAL;
+	struct tbl *cfgs;
+	struct config_setting *cfg = NULL;
+	int i;
+
+	if (argc < 1)
+		goto out;
+
+	if (!strcmp(argv[0], "show")) {
+		cfgs = get_global_config(acfg);
+		printf("%-20s%-20s\n", "KEY", "VALUE");
+		printf("____________________|____________________\n");
+		for (i = 0; i < cfgs->rows; i++) {
+			printf("%-20s|%-20s\n", (char *)lookup_tbl(cfgs, i, COL_NAME),
+					    (char *)lookup_tbl(cfgs, i, COL_CONFIG));
+		}
+		free_tbl(cfgs);
+		rc = 0;
+		goto out;
+
+	} else if (!strcmp(argv[0], "set")) {
+		if (argc < 3)
+			return -EINVAL;
+		cfg = alloc_config_setting(argv[1]);
+		if (!cfg) {
+			LOG(ERROR, "No such key: %s\n", argv[1]);
+			goto out;
+		}
+
+		switch(cfg->type) {
+		case INT_TYPE:
+			*cfg->val.intval = strtol(argv[2], NULL, 10);
+			break;
+		default:
+			LOG(ERROR, "Unknown type!\n");
+			goto out;
+		}
+
+		if (set_global_config_setting(cfg, acfg)) {
+			LOG(ERROR, "Unable to set config key\n");
+			goto out;
+		}
+		rc = 0;
+	}
+		
+out:
+	free_config_setting(cfg);
+	return rc;
+}
 
 /*
  * The repo operation takes 5 arguments
@@ -271,6 +323,11 @@ int main(int argc, char **argv)
 		rc = network_op(&argv[optind+1], argc-optind, &config, api);
 		if (rc)
 			LOG(ERROR, "Could not preform network op: %s\n",
+				strerror(rc));
+	} else if (!strcmp(op, "config")) {
+		rc = config_op(&argv[optind+1], argc-optind, &config);
+		if (rc)
+			LOG(ERROR, "Could not preform config op: %s\n",
 				strerror(rc));
 	} else {
 		LOG(ERROR, "Unknown operation\n");

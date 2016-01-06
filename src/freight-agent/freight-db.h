@@ -37,7 +37,8 @@ enum config_data_t {
 enum config_data_k {
 	KEY_BASE_INTERVAL = 0,
 	KEY_HEALTH_CHECK_MLT,
-	KEY_GC_MLT
+	KEY_GC_MLT,
+	KEY_MAX
 };
 
 union config_data_u {
@@ -322,7 +323,7 @@ extern int network_detach(const char *container, const char *network, const char
 
 extern struct tbl * get_network_info(const char *network, const char *tennant, const struct agent_config *acfg);
 
-extern struct config_setting *alloc_config_setting(enum config_data_k key);
+extern struct config_setting *alloc_config_setting(char *key_name);
 
 extern void free_config_setting(struct config_setting *cfg);
 

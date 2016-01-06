@@ -77,7 +77,6 @@ GRANT UPDATE ON containers to $TENNANT;
 GRANT DELETE ON containers to $TENNANT;
 GRANT ALL ON networks to $TENNANT;
 GRANT ALL ON net_container_map to $TENNANT;
-
 EOF
 
 if [ $? -ne 0 ]
