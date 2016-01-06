@@ -54,8 +54,18 @@ CREATE TABLE tennants (
 
 CREATE TABLE nodes (
 	hostname	varchar(256) PRIMARY KEY,
-	state 		varchar(512) references status(status)
+	state 		varchar(512) references status(status),
+	load		integer,
+	modified	timestamp
 );
+
+CREATE TRIGGER [update_modified_time]
+AFTER UPDATE
+ON nodes
+FOR EACH ROW
+BEGIN
+	UPDATE nodes SET modified=datetime('now', 'localtime') WHERE hostname = old.hostname;
+END;
 
 CREATE TABLE tennant_hosts (
 	hostname	varchar(512) NOT NULL references nodes(hostname),

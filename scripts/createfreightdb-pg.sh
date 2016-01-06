@@ -91,6 +91,14 @@ export PGPASSWORD=$ADMINPASS
 psql -h 127.0.0.1 -w $DBNAME $ADMINUSER << EOF
 \x
 
+CREATE OR REPLACE FUNCTION update_modified_column()
+RETURNS TRIGGER AS \$\$
+BEGIN
+	NEW.modified = now();
+	return NEW;
+END;
+\$\$ LANGUAGE plpgsql;
+
 CREATE TYPE status as ENUM ('offline', 'operating', 'unreachable');
 CREATE TYPE cstate as ENUM ('staged', 'start-requested', 'failed', 'installing', 'running', 'exiting');
 CREATE TYPE nstate as ENUM ('staged', 'active', 'failed');
@@ -103,8 +111,13 @@ CREATE TABLE tennants (
 
 CREATE TABLE nodes (
 	hostname	varchar(256) PRIMARY KEY,
-	state		status NOT NULL
+	state		status NOT NULL,
+	load		integer,
+	modified	timestamp
 );
+
+CREATE TRIGGER update_node_modtime BEFORE UPDATE ON nodes
+ FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
 
 CREATE TABLE tennant_hosts (
 	hostname	varchar(512) NOT NULL references nodes(hostname),
