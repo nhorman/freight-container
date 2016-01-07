@@ -34,6 +34,8 @@
 
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof((x)[0]))
 
+#define FREIGHT_DB_VERSION 2
+
 #define __cleanup(x) __attribute__ ((cleanup(x)))
 #define __free       __cleanup(freep)
 

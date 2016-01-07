@@ -33,7 +33,7 @@ freight_agent_SOURCES = main.c freight-config.c\
 			postgres-db.c sqlite-db.c mode.c \
 			freight-db.c xmlrpc_client.c\
 			freight-networks.c freight-net-addrs.c \
-			../freight-common.c
+			global-config.c ../freight-common.c
 
 freightctl_SOURCES = freightctl_main.c \
 		freight-config.c postgres-db.c\
@@ -42,5 +42,6 @@ freightctl_SOURCES = freightctl_main.c \
 
 freightproxy_SOURCES = freightproxy_main.c freight-config.c \
 		       freight-db.c ../freight-common.c postgres-db.c \
-		       sqlite-db.c proxy_handlers.c xmlrpc_client.c
+		       sqlite-db.c proxy_handlers.c xmlrpc_client.c \
+		       global-config.c
 
