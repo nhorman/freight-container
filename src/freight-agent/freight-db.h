@@ -82,6 +82,7 @@ enum table_col {
 	COL_CNAME,
 	COL_PROXYPASS,
 	COL_CONFIG,
+	COL_PROXYADMIN,
 	COL_MAX
 };
 
@@ -220,6 +221,8 @@ extern int is_tbl_empty(struct tbl *table);
 extern void *lookup_tbl(struct tbl *table, int row, enum table_col col);
 
 extern char* get_tennant_proxy_pass(const char *user, const struct agent_config *acfg);
+
+extern int get_tennant_proxy_admin(const char *user, const struct agent_config *acfg);
 
 extern int add_repo(const char *name,
 		    const char *url,

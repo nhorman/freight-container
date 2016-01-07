@@ -58,10 +58,9 @@ xmlrpc_value* get_table(xmlrpc_env * const envp, xmlrpc_value * const params, vo
 	if (!tid)
 		return xmlrpc_nil_new(envp);
 
-	if (tid == TABLE_GCONF) {
-		LOG(INFO, "NEED TO LOOKUP ADMIN RIGHTS HERE\n");
+	if (tid == TABLE_GCONF)
 		filter = NULL;
-	} else
+	else 
 		filter = strjoina("tennant='",cinfo->tennant,"'",NULL);
 
 	table = get_raw_table(tid, filter, acfg);
@@ -244,9 +243,14 @@ xmlrpc_value* xmlrpc_update_config(xmlrpc_env * const envp, xmlrpc_value * const
 {
 	char *key, *value;
 	const struct agent_config *acfg = serverinfo;
-	struct config_setting *cfg;
+	struct config_setting *cfg = NULL;
+	const struct call_info *cinfo = callinfo;
 	int rc = -EINVAL;
 
+	if (!get_tennant_proxy_admin(cinfo->tennant, acfg)) {
+		rc = -EPERM;
+		goto out;
+	}
 
 	xmlrpc_decompose_value(envp, params, "(ss)", &value, &key);
 
@@ -260,11 +264,12 @@ xmlrpc_value* xmlrpc_update_config(xmlrpc_env * const envp, xmlrpc_value * const
 		*cfg->val.intval = strtol(value, NULL, 10);
 		break;
 	default:
-		goto out;
+		goto out_free;
 	}
 	rc = set_global_config_setting(cfg, acfg);
 
-out:
+out_free:
 	free_config_setting(cfg);
+out:
 	return xmlrpc_int_new(envp, rc);	
 }

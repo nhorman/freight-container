@@ -57,15 +57,15 @@ static char *tablenames[TABLE_MAX] = {
  */
 
 static int db_col_map[TABLE_MAX][COL_MAX] = {
- [TABLE_TENNANTS] =		{ 0, -1, -1, -1, -1, -1, -1,  1, -1},
- [TABLE_NODES] =		{-1,  0,  1, -1, -1, -1, -1, -1, -1},
- [TABLE_TENNANT_HOSTS] = 	{ 1,  0, -1, -1, -1, -1, -1, -1, -1},
- [TABLE_YUM_CONFIG] =		{ 2, -1, -1,  0,  1, -1, -1, -1, -1},
- [TABLE_CONTAINERS] =		{ 0,  3,  4, -1, -1,  1,  2, -1, -1},
- [TABLE_NETWORKS] =		{ 1, -1,  2,  0, -1, -1, -1, -1,  3},
- [TABLE_NETMAP] =		{ 0, -1, -1, -1, -1,  1,  2, -1, -1}, 
- [TABLE_EVENTS] =		{ -1,-1, -1,  0, -1, -1, -1, -1,  1},
- [TABLE_GCONF] =		{ -1,-1, -1,  0, -1, -1, -1, -1,  1}
+ [TABLE_TENNANTS] =		{ 0, -1, -1, -1, -1, -1, -1,  1, -1, 2},
+ [TABLE_NODES] =		{-1,  0,  1, -1, -1, -1, -1, -1, -1, -1},
+ [TABLE_TENNANT_HOSTS] = 	{ 1,  0, -1, -1, -1, -1, -1, -1, -1, -1},
+ [TABLE_YUM_CONFIG] =		{ 2, -1, -1,  0,  1, -1, -1, -1, -1, -1},
+ [TABLE_CONTAINERS] =		{ 0,  3,  4, -1, -1,  1,  2, -1, -1, -1},
+ [TABLE_NETWORKS] =		{ 1, -1,  2,  0, -1, -1, -1, -1,  3, -1},
+ [TABLE_NETMAP] =		{ 0, -1, -1, -1, -1,  1,  2, -1, -1, -1}, 
+ [TABLE_EVENTS] =		{ -1,-1, -1,  0, -1, -1, -1, -1,  1, -1},
+ [TABLE_GCONF] =		{ -1,-1, -1,  0, -1, -1, -1, -1,  1, -1}
 };
 
 
@@ -323,6 +323,34 @@ out:
 	return pass;
 }
 
+int get_tennant_proxy_admin(const char *user, const struct agent_config *acfg)
+{
+	struct tbl *table;
+	char *filter;
+	char *admin = NULL;
+	int rc = 0;
+
+	if (!api->get_table)
+		return 0;
+
+	filter = strjoina("tennant = '", user, "'", NULL);
+
+	table = api->get_table(TABLE_TENNANTS, "*", filter, acfg);
+
+	if (!table->rows)
+		goto out;
+
+	admin = lookup_tbl(table, 0, COL_PROXYADMIN);
+
+	if (!admin)
+		goto out;
+
+	if (!strncasecmp(admin, "t", 1))
+		rc = 1;
+out:
+	free_tbl(table);
+	return rc;
+}
 int add_repo(const char *name, const char *url,
 	     const char *tennant,
 	     const struct agent_config *acfg)
