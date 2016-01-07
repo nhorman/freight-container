@@ -969,6 +969,7 @@ struct cfg_key_map {
 };
 
 struct cfg_key_map cfg_map[] = {
+	[KEY_DB_VERSION] = { INT_TYPE, 4, "db_version" },
 	[KEY_BASE_INTERVAL] = { INT_TYPE, 4, "base_interval"},
 	[KEY_HEALTH_CHECK_MLT]   = { INT_TYPE, 4, "healthcheck_multiple"},
 	[KEY_GC_MLT]       = { INT_TYPE, 4, "gc_multiple"}

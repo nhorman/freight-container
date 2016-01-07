@@ -35,7 +35,8 @@ enum config_data_t {
 };
 
 enum config_data_k {
-	KEY_BASE_INTERVAL = 0,
+	KEY_DB_VERSION = 0,
+	KEY_BASE_INTERVAL,
 	KEY_HEALTH_CHECK_MLT,
 	KEY_GC_MLT,
 	KEY_MAX

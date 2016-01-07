@@ -50,6 +50,7 @@ CREATE TABLE global_config (
 	value   varchar NOT NULL
 );
 
+INSERT INTO global_config VALUES('db_version', '2');
 INSERT INTO global_config VALUES('base_interval', '30');
 INSERT INTO global_config VALUES('healthcheck_multiple', '1');
 INSERT INTO global_config VALUES('gc_multiple', '2');
