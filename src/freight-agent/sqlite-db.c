@@ -150,7 +150,10 @@ static struct tbl* sq_get_table(enum db_table type,
 	if (rc != SQLITE_OK)
 		goto out;
 
-	sql = strjoin("SELECT COUNT(*) FROM ", table, " WHERE " , filter, NULL);
+	if (filter)
+		sql = strjoin("SELECT COUNT(*) FROM ", table, " WHERE " , filter, NULL);
+	else
+		sql = strjoin("SELECT COUNT(*) FROM ", table, NULL);
 
 	rc = sqlite3_prepare_v2(info->conn, sql, strlen(sql),
 				&stmtc, NULL);

@@ -58,7 +58,12 @@ xmlrpc_value* get_table(xmlrpc_env * const envp, xmlrpc_value * const params, vo
 	if (!tid)
 		return xmlrpc_nil_new(envp);
 
-	filter = strjoina("tennant='",cinfo->tennant,"'",NULL);
+	if (tid == TABLE_GCONF) {
+		LOG(INFO, "NEED TO LOOKUP ADMIN RIGHTS HERE\n");
+		filter = NULL;
+	} else
+		filter = strjoina("tennant='",cinfo->tennant,"'",NULL);
+
 	table = get_raw_table(tid, filter, acfg);
 
 	if (!table)
@@ -243,7 +248,7 @@ xmlrpc_value* xmlrpc_update_config(xmlrpc_env * const envp, xmlrpc_value * const
 	int rc = -EINVAL;
 
 
-	xmlrpc_decompose_value(envp, params, "(ss)", &key, &value);
+	xmlrpc_decompose_value(envp, params, "(ss)", &value, &key);
 
 	cfg = alloc_config_setting(key);
 	if (!cfg) {

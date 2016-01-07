@@ -126,7 +126,7 @@ struct tbl* xmlrpc_get_table(enum db_table type, const char *cols, const char *f
 	 * Now we find out how many rows and colums this table has
 	 */
 	r = xmlrpc_array_size(&info->env, result);
-	if (!r)
+	if (r < 0)
 		c = 0;
 	else {
 		xmlrpc_array_read_item(&info->env, result, 0, &tmpr);
@@ -528,8 +528,8 @@ static xmlrpc_value* get_update_config_params(const char *sql, const struct agen
 
 	params = xmlrpc_array_new(&info->env);
 
-	/* get CONTAINER param */
-	value = strstr(tmp, "'");
+	/* get KEY param */
+	value = strstr(sql, "'");
 	value += 1;
 	tmp = strstr(value, "'");
 	stor = *tmp;

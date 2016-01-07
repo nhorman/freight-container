@@ -48,7 +48,7 @@ static int config_op(char **argv, int argc,
 		cfgs = get_global_config(acfg);
 		printf("%-20s%-20s\n", "KEY", "VALUE");
 		printf("____________________|____________________\n");
-		for (i = 0; i < cfgs->rows; i++) {
+		for (i = 0; cfgs && i < cfgs->rows; i++) {
 			printf("%-20s|%-20s\n", (char *)lookup_tbl(cfgs, i, COL_NAME),
 					    (char *)lookup_tbl(cfgs, i, COL_CONFIG));
 		}
