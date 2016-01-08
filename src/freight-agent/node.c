@@ -921,7 +921,7 @@ static enum event_rc handle_container_update(const enum listen_channel chnl, con
 
 
 static bool request_shutdown = false;
-static bool request_cleanup = false;
+static bool alarm_expired = false;
 
 static void sigint_handler(int sig, siginfo_t *info, void *ptr)
 {
@@ -930,7 +930,7 @@ static void sigint_handler(int sig, siginfo_t *info, void *ptr)
 
 static void sigalrm_handler(int sig, siginfo_t *info, void *ptr)
 {
-	request_cleanup = true;
+	alarm_expired = true;
 }
 
 static void poweroff_all_containers(const struct agent_config *acfg)
@@ -1122,6 +1122,33 @@ out:
 }
 
 /*
+ * Periodic function to update this nodes load in the database
+ */
+static void update_node_health(const struct agent_config *acfg)
+{
+	struct node_health_metrics health;
+	float load;
+	FILE *lfptr = fopen("/proc/loadavg", "r");
+
+	if (!lfptr) {
+		LOG(ERROR, "Can't open /proc/loadavg\n");
+		return;
+	}
+
+	if (fscanf(lfptr, "%f", &load) != 1) {
+		fclose(lfptr);
+		LOG(ERROR, "Can't read /proc/loadavg\n");
+		return;
+	}
+
+	health.load = round(load);	
+
+	if(update_node_metrics(&health, acfg))
+		LOG(WARNING, "Unable to update node health in db\n");
+		
+}
+
+/*
  * This is our mode entry function, we setup freight-agent to act as a container
  * node here and listen for db events from this point
  */
@@ -1131,6 +1158,7 @@ int enter_mode_loop(struct agent_config *config)
 	struct stat buf;
 	struct sigaction intact;
 	struct sigaction alrmact;
+	unsigned int health_count = 0;
 	
 	/*
  	 * Start by setting up a clean container root
@@ -1205,10 +1233,14 @@ int enter_mode_loop(struct agent_config *config)
 
 	while (request_shutdown == false) {
 		wait_for_channel_notification(config);
-		if (request_cleanup == true) {
-			request_cleanup = false;
-			LOG(INFO, "Cleaning\n");
+		if (alarm_expired == true) {
+			alarm_expired = false;
+			health_count++;
 			clean_unused_containers(config);
+			if (health_count >= gcfg.healthcheck_multiple) {
+				health_count = 0;
+				update_node_health(config);
+			}
 			alarm(gcfg.base_interval);
 		}
 	}

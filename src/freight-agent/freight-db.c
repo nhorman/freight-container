@@ -1099,3 +1099,15 @@ struct tbl* get_global_config(const struct agent_config *acfg)
 	return get_raw_table(TABLE_GCONF, NULL, acfg);
 }
 
+int update_node_metrics(const struct node_health_metrics *metrics, const struct agent_config *acfg)
+{
+	char *sql;
+	char *loadstr;
+
+	asprintf(&loadstr, "%d\n", metrics->load);
+
+	sql = strjoina("UPDATE nodes SET load=", loadstr, " WHERE hostname='", acfg->cmdline.hostname,"'", NULL);
+	free(loadstr);
+
+	return api->send_raw_sql(sql, acfg);
+}

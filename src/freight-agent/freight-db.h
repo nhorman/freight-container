@@ -54,6 +54,10 @@ struct config_setting {
 	char extra_storage[0];
 };
 
+struct node_health_metrics {
+	unsigned int load;
+};
+
 /*
  * enum of table types in the db
  */
@@ -340,6 +344,8 @@ extern struct config_setting *get_global_config_setting(enum config_data_k key, 
 extern int set_global_config_setting(struct config_setting *setting, const struct agent_config *acfg);
 
 extern struct tbl* get_global_config(const struct agent_config *acfg); 
+
+extern int update_node_metrics(const struct node_health_metrics *metrics, const struct agent_config *acfg);
 
 
 #endif

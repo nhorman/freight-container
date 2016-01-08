@@ -39,6 +39,8 @@
 #define __cleanup(x) __attribute__ ((cleanup(x)))
 #define __free       __cleanup(freep)
 
+#define round(x) ((x)>=0?(long)((x)+0.5):(long)((x)-0.5))
+
 static inline void freep(void *c) {
 	free(*(void **) c);
 }
