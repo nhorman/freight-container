@@ -1085,7 +1085,7 @@ static void remove_tennant_unused_containers(const char *tennant,
 		if (container_has_children(cage->cname, tennant, acfg))
 			continue;
 
-		if (cage->gen < acfg->node.gc_thresh)
+		if (cage->gen < gcfg.gc_multiple)
 			continue;
 
 		LOG(INFO, "Container %s in Tennant %s is being scrubbed\n", cage->cname, tennant);
@@ -1195,7 +1195,7 @@ int enter_mode_loop(struct agent_config *config)
 	alrmact.sa_sigaction = sigalrm_handler;
 	alrmact.sa_flags = SA_SIGINFO;
 	sigaction(SIGALRM, &alrmact, NULL);
-	alarm(config->node.gc_interval);
+	alarm(gcfg.base_interval);
 	rc = 0;
 
 	/*
@@ -1209,7 +1209,7 @@ int enter_mode_loop(struct agent_config *config)
 			request_cleanup = false;
 			LOG(INFO, "Cleaning\n");
 			clean_unused_containers(config);
-			alarm(config->node.gc_interval);
+			alarm(gcfg.base_interval);
 		}
 	}
 

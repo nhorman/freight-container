@@ -44,8 +44,6 @@ struct node_config {
 	char *container_root;
 	char *host_bridge;
 	char *hostname_override;
-	int gc_interval;
-	int gc_thresh;
 };
 
 struct master_config {
