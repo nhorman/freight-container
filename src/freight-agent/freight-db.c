@@ -32,7 +32,8 @@ struct db_api *api = NULL;
 
 static const char* channel_map[] = {
 	[CHAN_CONTAINERS] = "containers",
-	[CHAN_TENNANT_HOSTS] = "tennant_hosts"
+	[CHAN_TENNANT_HOSTS] = "tennant_hosts",
+	[CHAN_GLOBAL_CONFIG] = "global_config"
 };
 
 static char *tablenames[TABLE_MAX] = {
@@ -1069,6 +1070,6 @@ int set_global_config_setting(struct config_setting *set, const struct agent_con
 
 struct tbl* get_global_config(const struct agent_config *acfg)
 {
-	return api->get_table(TABLE_GCONF, "*", NULL, acfg);
+	return get_raw_table(TABLE_GCONF, NULL, acfg);
 }
 

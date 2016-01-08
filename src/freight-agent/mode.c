@@ -35,11 +35,14 @@
 #include <mode.h>
 #include <freight-networks.h>
 #include <freight-log.h>
+#include <global-config.h>
 #include <freight-common.h>
 
 #define BTRFS_SUPER_MAGIC     0x9123683E
 
 #define FORK_TABLE_WORKER 1
+
+static struct global_cfg gcfg;
 
 static int delete_all_tennants(const struct agent_config *acfg);
 
@@ -682,6 +685,17 @@ out:
 	exit(0);
 }
 
+static enum event_rc handle_global_config_update(const enum listen_channel chnl, const char *extra,
+					 const struct agent_config *acfg)
+{
+	if (refresh_global_config(&gcfg, acfg)) {
+		LOG(ERROR, "Unable to update global config\n");
+		return EVENT_FAILED;
+	}
+
+	return EVENT_CONSUMED;
+}
+
 static enum event_rc handle_tennant_update(const enum listen_channel chnl, const char *extra,
 					 const struct agent_config *acfg)
 {
@@ -1161,6 +1175,15 @@ int enter_mode_loop(struct agent_config *config)
 		goto out_nodes;
 	}
 
+	/*
+	 * Join the global config update channel
+	 */
+	if (channel_subscribe(config, CHAN_GLOBAL_CONFIG, handle_global_config_update)) {
+		LOG(ERROR, "CAnnot subscribe to global config table\n");
+		rc = -EINVAL;
+		goto out_containers;
+	}
+
 	memset(&intact, 0, sizeof(struct sigaction));
 
 	intact.sa_sigaction = sigint_handler;
@@ -1196,6 +1219,8 @@ int enter_mode_loop(struct agent_config *config)
 
 	change_host_state(config->cmdline.hostname, "offline", config);
 
+	channel_unsubscribe(config, CHAN_GLOBAL_CONFIG);
+out_containers:
 	channel_unsubscribe(config, CHAN_CONTAINERS);
 out_nodes:
 	channel_unsubscribe(config, CHAN_TENNANT_HOSTS);

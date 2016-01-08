@@ -32,10 +32,14 @@ int refresh_global_config(struct global_cfg *cfg, const struct agent_config *acf
 	struct tbl *config = get_global_config(acfg);
 
 	rc = -ENOENT;
-	if (!config)
-		return -EFAULT;
-	if (!config->rows)
+	if (!config) {
+		LOG(ERROR, "Global config not found\n");
+		return -ENOENT;
+	}
+	if (!config->rows) {
+		LOG(ERROR, "Global config is empty\n");
 		goto out;
+	}
 
 	memset(cfg, 0, sizeof(struct global_cfg));
 	for (i=0; i < config->rows; i++) {
@@ -60,9 +64,13 @@ int refresh_global_config(struct global_cfg *cfg, const struct agent_config *acf
 	/*
 	 * check here for version mismatches
 	 */
-	if (cfg->db_version != FREIGHT_DB_VERSION)
+	if (cfg->db_version != FREIGHT_DB_VERSION) {
+		LOG(ERROR, "Database version mismatch!  DB ver: %d, agent ver %d\n",
+			cfg->db_version, FREIGHT_DB_VERSION);
 		rc = -E2BIG;
+	}
 
+	rc = 0;
 out:
 	free_tbl(config);
 	return rc;

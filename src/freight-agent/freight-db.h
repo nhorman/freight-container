@@ -97,6 +97,7 @@ struct tbl {
 enum listen_channel {
 	CHAN_CONTAINERS = 0,
 	CHAN_TENNANT_HOSTS,
+	CHAN_GLOBAL_CONFIG,
 };
 
 enum notify_type {
@@ -108,6 +109,7 @@ enum event_rc {
 	EVENT_CONSUMED = 0,
 	EVENT_INTR,
 	EVENT_NOCHAN,
+	EVENT_FAILED,
 };
 
 struct db_api {
