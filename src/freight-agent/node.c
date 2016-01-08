@@ -10,7 +10,7 @@
  * *MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * *GNU General Public License for more details.
  * *
- * *File: mode.c
+ * *File: node.c
  * *
  * *Author:Neil Horman
  * *
@@ -32,7 +32,7 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <libconfig.h>
-#include <mode.h>
+#include <node.h>
 #include <freight-networks.h>
 #include <freight-log.h>
 #include <global-config.h>

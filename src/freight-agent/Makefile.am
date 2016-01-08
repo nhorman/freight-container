@@ -30,7 +30,7 @@ freight_agent_LDFLAGS = ${AM_LDFLAGS} ${xmlrpc_client_LIBS}\
 bin_PROGRAMS = freight-agent freightctl freightproxy
 
 freight_agent_SOURCES = main.c freight-config.c\
-			postgres-db.c sqlite-db.c mode.c \
+			postgres-db.c sqlite-db.c node.c \
 			freight-db.c xmlrpc_client.c\
 			freight-networks.c freight-net-addrs.c \
 			global-config.c ../freight-common.c

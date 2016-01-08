@@ -28,7 +28,7 @@
 #include <freight-common.h>
 #include <freight-config.h>
 #include <freight-db.h>
-#include <mode.h>
+#include <node.h>
 
 struct agent_config config;
 
