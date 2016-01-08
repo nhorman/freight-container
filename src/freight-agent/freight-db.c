@@ -129,7 +129,7 @@ int channel_subscribe(const struct agent_config *acfg,
 {
 
 	struct channel_callback *tmp;
-	char *chname;
+	char *chname, *achname;
 	int rc;
 
 	tmp = callbacks;
@@ -157,12 +157,19 @@ int channel_subscribe(const struct agent_config *acfg,
 
 
 	/*
-	 * We actually want to subscribe to n channels here, <name>-<hostname>
-	 * channel, and the <name>-<tennant> channel, for each tennant that this
-	 * node is subscribed to.
+	 * We actually want to subscribe to 2 channels here, <name>-<hostname>
+	 * channel, and the <name>-all channel, if a signaler wants to reach all hosts 
 	 */
 	chname = strjoina("\"", channel_map[chn],"-", acfg->cmdline.hostname, "\"", NULL);
 	rc = __chn_subscribe(acfg, "LISTEN", chname);
+
+	if (!rc) {
+		achname = strjoina("\"", channel_map[chn], "-all\"", NULL);
+		rc = __chn_subscribe(acfg, "LESTEN", achname);
+	}
+
+	if (rc)
+		__chn_subscribe(acfg, "UNLISTEN", chname);
 
 	/*
 	 * once we are subscribed, make a dummy call to the handler for an initial table scan
@@ -178,7 +185,7 @@ void channel_unsubscribe(const struct agent_config *acfg,
 			 const enum listen_channel chn)
 {
 	struct channel_callback *tmp, *prev;
-	char *chname;
+	char *chname, *achname;
 
 	tmp = prev = callbacks;
 
@@ -197,6 +204,8 @@ void channel_unsubscribe(const struct agent_config *acfg,
 	chname = strjoina("\"", channel_map[chn],"-", acfg->cmdline.hostname, "\"", NULL);
 	__chn_subscribe(acfg, "UNLISTEN", chname);
 
+	achname = strjoina("\"", channel_map[chn], "-all\"", NULL);
+	__chn_subscribe(acfg, "UNLISTEN", achname);
 }
 
 enum event_rc event_dispatch(const char *chn, const char *extra)
@@ -799,6 +808,18 @@ int notify_tennant(const enum listen_channel chn, const char *tennant,
 	return api->notify(NOTIFY_TENNANT, chn, name, acfg);
 }
 
+int notify_all(const enum listen_channel chn, const struct agent_config *acfg)
+{
+	char *name;
+
+	if (!api->notify)
+		return -EOPNOTSUPP;
+	name = strjoina(channel_map[chn], "-all", NULL);
+
+	return api->notify(NOTIFY_ALL, chn, name, acfg);
+}
+
+	
 struct tbl* get_raw_table(enum db_table table, char *filter, const struct agent_config *acfg)
 {
 	if (!api->get_table)
@@ -1052,6 +1073,7 @@ int set_global_config_setting(struct config_setting *set, const struct agent_con
 {
 	char *sql;
 	char *value;
+	int rc;
 
 	switch(set->type) {
 	case INT_TYPE:
@@ -1064,7 +1086,11 @@ int set_global_config_setting(struct config_setting *set, const struct agent_con
 	sql = strjoina("UPDATE global_config SET value='", value, "' WHERE key='", cfg_map[set->key].key_name, "'", NULL);
 	free(value);
 
-	return api->send_raw_sql(sql, acfg); 
+	rc = api->send_raw_sql(sql, acfg); 
+	if (!rc)
+		rc = notify_all(CHAN_GLOBAL_CONFIG, acfg);
+
+	return rc;
 }
 
 

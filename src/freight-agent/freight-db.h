@@ -102,7 +102,8 @@ enum listen_channel {
 
 enum notify_type {
 	NOTIFY_HOST = 0,
-	NOTIFY_TENNANT
+	NOTIFY_TENNANT,
+	NOTIFY_ALL
 };
 
 enum event_rc {
@@ -312,6 +313,7 @@ extern int notify_host(const enum listen_channel chn, const char *host,
 
 extern int notify_tennant(const enum listen_channel chn, const char *tennant, 
 			const struct agent_config *acfg);
+extern int notify_all(const enum listen_channel chn, const struct agent_config *acfg);
 
 extern struct tbl* get_raw_table(enum db_table table, char *filter, const struct agent_config *acfg);
 
