@@ -267,6 +267,15 @@ static xmlrpc_value* get_container_create_params(const char *sql, const struct a
 
 	/* HOST PARAM */
 	value = strstr(tmp+1, "'");
+	if (value == NULL) {
+		/*
+		 * This is an optional parameter
+		 * Just add a marker string for the server
+		 */
+		p = xmlrpc_string_new(&info->env, "scheduler-chosen");
+		xmlrpc_array_append_item(&info->env, params, p);
+		goto done;
+	}
 	value += 1;
 	tmp = strstr(value, "'");
 	stor = *tmp;
@@ -274,6 +283,7 @@ static xmlrpc_value* get_container_create_params(const char *sql, const struct a
 	p = xmlrpc_string_new(&info->env, value);
 	xmlrpc_array_append_item(&info->env, params, p);
 	*tmp = stor;
+done:
 	xmlrpc_DECREF(p);
 
 	return params;

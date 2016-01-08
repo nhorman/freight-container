@@ -168,7 +168,7 @@ int channel_subscribe(const struct agent_config *acfg,
 
 	if (!rc) {
 		achname = strjoina("\"", channel_map[chn], "-all\"", NULL);
-		rc = __chn_subscribe(acfg, "LESTEN", achname);
+		rc = __chn_subscribe(acfg, "LISTEN", achname);
 	}
 
 	if (rc)
@@ -590,12 +590,21 @@ int request_create_container(const char *cname,
 	if (!api->send_raw_sql)
 		return -EOPNOTSUPP;
 
-	sql = strjoina("INSERT INTO containers VALUES(",
-		       "'", tennant, "',",
-		       "'", iname, "',",
-		       "'", cname, "',",
-		       "'", chost, "',",
-		       "'staged')", NULL);
+	if (chost)
+		sql = strjoina("INSERT INTO containers VALUES(",
+			       "'", tennant, "',",
+			       "'", iname, "',",
+			       "'", cname, "',",
+			       "'", chost, "',",
+			       "'staged')", NULL);
+	else
+		sql = strjoina("INSERT INTO containers VALUES(",
+			       "'", tennant, "',",
+			       "'", iname, "',",
+			       "'", cname, "',",
+			       " null, ",
+			       "'staged')", NULL);
+	
 
 	rc = api->send_raw_sql(sql, acfg);
 
@@ -608,12 +617,9 @@ int request_create_container(const char *cname,
 	 * master to pick a host for us
 	 */
 	if (chost)
-		if (!strcmp(chost, "all"))
-			rc = notify_tennant(CHAN_CONTAINERS, tennant, acfg);
-		else
-			rc = notify_host(CHAN_CONTAINERS, chost, acfg);
+		rc = notify_host(CHAN_CONTAINERS, chost, acfg);
 	else
-		LOG(INFO, "NEED TO IMPLEMENT MASTER FUNCTIONALITY HERE\n");
+		rc = notify_all(CHAN_CONTAINERS_SCHED, acfg);
 
 	return rc;
 

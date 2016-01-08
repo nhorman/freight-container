@@ -145,7 +145,7 @@ CREATE TABLE containers (
 	tennant         varchar(512) NOT NULL references tennants(tennant),
 	iname           varchar(512) NOT NULL,
 	cname           varchar(512) NOT NULL,
-	hostname        varchar(512) NOT NULL references nodes(hostname),
+	hostname        varchar(512) references nodes(hostname),
 	state		cstate NOT NULL,
 	PRIMARY KEY (tennant, iname)
 );

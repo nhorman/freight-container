@@ -154,12 +154,18 @@ static int container_op(char **argv, int argc,
 		const struct db_api *api)
 {
 	int rc = -EINVAL;
+	char *host;
 
 	if (!strcmp(argv[0], "create")) {
-		if (argc < 4)
+		if (argc < 3)
 			goto out;
-		LOG(INFO, "Issuing create container %s on %s\n", argv[2], argv[3]);
-		rc = request_create_container(argv[1], argv[2], argv[3], acfg->db.user, acfg);
+		if (argc > 3)
+			host = argv[3];
+		else
+			host = NULL;
+
+		LOG(INFO, "Issuing create container %s on %s\n", argv[2], host ? host : "any");
+		rc = request_create_container(argv[1], argv[2], host, acfg->db.user, acfg);
 	} else if (!strcmp(argv[0], "delete")) {
 		int force = 0;
 		if (argc < 3)

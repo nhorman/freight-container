@@ -55,7 +55,7 @@ static enum event_rc handle_global_config_update(const enum listen_channel chnl,
 static enum event_rc handle_container_update(const enum listen_channel chnl, const char *extra,
 					 const struct agent_config *acfg)
 {
-
+	LOG(INFO, "SCHEDULING CONTAINER ON A HOST\n");
 	return EVENT_CONSUMED;
 }
 

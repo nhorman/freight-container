@@ -128,6 +128,13 @@ xmlrpc_value* xmlrpc_create_container(xmlrpc_env * const envp, xmlrpc_value * co
 
 	xmlrpc_decompose_value(envp, params, "(sss)", &iname, &cname, &host);
 
+	/*
+	 * scheduler chosen is the marker string xmlrpc uses to indicate we should 
+	 * let the freight scheduler pick a host to run the container on
+	 */
+	if (!strcmp(host, "scheduler-chosen"))
+		host = NULL;
+
 	rc = request_create_container(cname, iname, host, cinfo->tennant, acfg);
 
 	return xmlrpc_int_new(envp, rc);	

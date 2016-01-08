@@ -40,10 +40,9 @@ Adds or removes a repository from the database for a given tennant
 Request the creation of a container <cname> with instance name <iname> on host <chost>.
 Note that chost is optional, if left blank the freight-master process will be
 notified to schedule a host on behalf of the tennant.  chost may also be the
-reserved keyword all, which will cause all hosts belonging to the tennant to be
-notified, and the first to respond will create the container.  Note that created
-containers are created in the STAGED state, it is stared by issuing the boot
-command below
+omitted, which will cause a scheduler node to select the host (see man freight-agent) 
+Note that created containers are created in the STAGED state.  They are started
+by issuing the boot command below 
 
 .B container boot <iname>
 Requests that the container named by <iname> be started.  Only containers in the
