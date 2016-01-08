@@ -100,6 +100,7 @@ struct tbl {
 
 enum listen_channel {
 	CHAN_CONTAINERS = 0,
+	CHAN_CONTAINERS_SCHED,
 	CHAN_TENNANT_HOSTS,
 	CHAN_GLOBAL_CONFIG,
 };

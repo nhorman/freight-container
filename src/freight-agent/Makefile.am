@@ -33,7 +33,8 @@ freight_agent_SOURCES = main.c freight-config.c\
 			postgres-db.c sqlite-db.c node.c \
 			freight-db.c xmlrpc_client.c\
 			freight-networks.c freight-net-addrs.c \
-			global-config.c ../freight-common.c
+			global-config.c scheduler.c \
+			../freight-common.c
 
 freightctl_SOURCES = freightctl_main.c \
 		freight-config.c postgres-db.c\

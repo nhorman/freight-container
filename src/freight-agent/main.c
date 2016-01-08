@@ -29,6 +29,7 @@
 #include <freight-config.h>
 #include <freight-db.h>
 #include <node.h>
+#include <scheduler.h>
 
 struct agent_config config;
 
@@ -123,7 +124,9 @@ int main(int argc, char **argv)
 		goto out_release;
 	}
 
-	if (streq(mode, "node"))
+	if (streq(mode, "scheduler"))
+		config.cmdline.mode = OP_MODE_SCHEDULER;
+	else if (streq(mode, "node"))
 		config.cmdline.mode = OP_MODE_NODE;
 	else if (streq(mode, "init"))
 		config.cmdline.mode = OP_MODE_INIT; 
@@ -186,8 +189,17 @@ int main(int argc, char **argv)
 	case OP_MODE_NODE:
 		rc = enter_mode_loop(&config);
 		if (rc) {
-			LOG(ERROR, "Mode operation terminated abnormally: %s\n",
+			LOG(ERROR, "Node operation terminated abnormally: %s\n",
 				strerror(rc));
+			goto out_disconnect;
+		}
+		break;
+
+	case OP_MODE_SCHEDULER:
+		rc = enter_scheduler_loop(&config);
+		if (rc) {
+			LOG(ERROR, "Scheduler operation terminated abnormally: %s\n",
+					strerror(rc));
 			goto out_disconnect;
 		}
 		break;

@@ -32,6 +32,7 @@ struct db_api *api = NULL;
 
 static const char* channel_map[] = {
 	[CHAN_CONTAINERS] = "containers",
+	[CHAN_CONTAINERS_SCHED] = "container-sched",
 	[CHAN_TENNANT_HOSTS] = "tennant_hosts",
 	[CHAN_GLOBAL_CONFIG] = "global_config"
 };
@@ -130,7 +131,7 @@ int channel_subscribe(const struct agent_config *acfg,
 
 	struct channel_callback *tmp;
 	char *chname, *achname;
-	int rc;
+	int rc = 0;
 
 	tmp = callbacks;
 	/*
@@ -159,9 +160,11 @@ int channel_subscribe(const struct agent_config *acfg,
 	/*
 	 * We actually want to subscribe to 2 channels here, <name>-<hostname>
 	 * channel, and the <name>-all channel, if a signaler wants to reach all hosts 
+	 * NOTE: CHAN_CONTAINERS_SCHED is special, as it only has an -all channel
 	 */
 	chname = strjoina("\"", channel_map[chn],"-", acfg->cmdline.hostname, "\"", NULL);
-	rc = __chn_subscribe(acfg, "LISTEN", chname);
+	if (chn != CHAN_CONTAINERS_SCHED)
+		rc = __chn_subscribe(acfg, "LISTEN", chname);
 
 	if (!rc) {
 		achname = strjoina("\"", channel_map[chn], "-all\"", NULL);
@@ -201,8 +204,10 @@ void channel_unsubscribe(const struct agent_config *acfg,
 
 	prev->next = tmp->next;
 
-	chname = strjoina("\"", channel_map[chn],"-", acfg->cmdline.hostname, "\"", NULL);
-	__chn_subscribe(acfg, "UNLISTEN", chname);
+	if (chn != CHAN_CONTAINERS_SCHED) {
+		chname = strjoina("\"", channel_map[chn],"-", acfg->cmdline.hostname, "\"", NULL);
+		__chn_subscribe(acfg, "UNLISTEN", chname);
+	}
 
 	achname = strjoina("\"", channel_map[chn], "-all\"", NULL);
 	__chn_subscribe(acfg, "UNLISTEN", achname);
