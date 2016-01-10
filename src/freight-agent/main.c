@@ -196,6 +196,11 @@ int main(int argc, char **argv)
 		break;
 
 	case OP_MODE_SCHEDULER:
+		if (config.db.dbtype != DB_TYPE_POSTGRES) {
+			LOG(ERROR, "Scheduler mode requires a postgres database\n");
+			goto out_disconnect;
+		}
+
 		rc = enter_scheduler_loop(&config);
 		if (rc) {
 			LOG(ERROR, "Scheduler operation terminated abnormally: %s\n",

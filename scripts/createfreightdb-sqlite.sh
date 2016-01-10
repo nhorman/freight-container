@@ -33,6 +33,7 @@ INSERT INTO status values ('operating');
 INSERT INTO status values ('unreachable');
 
 CREATE TABLE cstate (cstate varchar(512) PRIMARY KEY NOT NULL);
+INSERT INTO cstate values('assigning-host');
 INSERT INTO cstate values('staged');
 INSERT INTO cstate values('start-requested');
 INSERT INTO cstate values('failed');

@@ -24,6 +24,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <signal.h>
+#include <limits.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
@@ -52,10 +53,70 @@ static enum event_rc handle_global_config_update(const enum listen_channel chnl,
 	return EVENT_CONSUMED;
 }
 
+static void select_host_for_container(const char *name, const char *tennant,
+				      const struct agent_config *acfg)
+{
+	struct tbl *hosts;
+	char *sql;
+	int i, load, tmp, best;
+	char *filter = strjoina("tennant='", tennant, "'", NULL);
+
+	hosts = get_raw_table(TABLE_TENNANT_HOSTS, filter, acfg);
+
+	if (!hosts) {
+		LOG(WARNING, "Scheduler has no hosts to assign for container %s\n", name);
+		return;
+	}
+
+	load=INT_MAX;
+	best=0;
+
+	if (!hosts->rows) {
+		LOG(WARNING, "Scheduler has no hosts to assign for container %s\n", name);
+		goto out;
+	}
+
+	for (i=0; i < hosts->rows; i++) {
+		tmp = strtol(lookup_tbl(hosts, i, COL_LOAD), NULL, 10);
+		if (tmp < load)
+			best = i;
+	}
+
+	sql = strjoina("UPDATE nodes SET (state='staged', hostname='",
+			lookup_tbl(hosts, best, COL_NAME), "')",
+			"WHERE iname='",name,"' AND tennant='", tennant, "'", NULL);
+
+
+	if (send_raw_sql(sql, acfg))
+		LOG(ERROR, "Unable to update container assignment\n");
+	
+out:
+	free_tbl(hosts);
+	return;
+}
+
 static enum event_rc handle_container_update(const enum listen_channel chnl, const char *extra,
 					 const struct agent_config *acfg)
 {
-	LOG(INFO, "SCHEDULING CONTAINER ON A HOST\n");
+	struct tbl *containers;
+	int i;
+
+	containers = get_raw_table(TABLE_CONTAINERS, "state='assigning-host'", acfg);
+
+	if (!containers)
+		goto out;
+
+	if (!containers->rows)
+		goto out_free;
+
+	for (i=0; i < containers->rows; i++)
+		select_host_for_container(lookup_tbl(containers, i, COL_NAME),
+					  lookup_tbl(containers, i, COL_TENNANT),
+					  acfg);
+
+out_free:
+	free_tbl(containers);
+out:
 	return EVENT_CONSUMED;
 }
 

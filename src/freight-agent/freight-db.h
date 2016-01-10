@@ -88,6 +88,7 @@ enum table_col {
 	COL_PROXYPASS,
 	COL_CONFIG,
 	COL_PROXYADMIN,
+	COL_LOAD,
 	COL_MAX
 };
 
@@ -277,6 +278,10 @@ extern struct tbl* get_containers_of_type(const char *cname,
 						 const char *host,
 						 const struct agent_config *acfg);
 
+extern int assign_container_host(const char *name, const char *host,
+                                 const char *tennant,
+                                 const struct agent_config *acfg);
+
 extern int request_create_container(const char *cname,
 				    const char *iname,
 				    const char *chost,
@@ -321,6 +326,8 @@ extern int notify_tennant(const enum listen_channel chn, const char *tennant,
 extern int notify_all(const enum listen_channel chn, const struct agent_config *acfg);
 
 extern struct tbl* get_raw_table(enum db_table table, char *filter, const struct agent_config *acfg);
+
+extern int send_raw_sql(char *sql, const struct agent_config *acfg);
 
 extern int network_create_config(const char *name, const char *cfstring, const char *tennant, const struct agent_config *acfg);
 

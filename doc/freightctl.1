@@ -103,6 +103,7 @@ allbox;
 cb	cb	cb
 .
 CURRENT STATE	DESCRIPTION	NEXT STATES
+ASSIGNING-HOST	Container is Created and awaiting scheduler host assignment	STAGED
 STAGED	Container is created in DB	START-REQUESTED
 START-REQUESTED	Container has been requested to boot	INSTALLING,RUNNING,FAILED
 INSTALLING	Container image is downloading to agent system	RUNNING,FAILED

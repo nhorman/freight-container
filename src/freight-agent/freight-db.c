@@ -59,15 +59,15 @@ static char *tablenames[TABLE_MAX] = {
  */
 
 static int db_col_map[TABLE_MAX][COL_MAX] = {
- [TABLE_TENNANTS] =		{ 0, -1, -1, -1, -1, -1, -1,  1, -1, 2},
- [TABLE_NODES] =		{-1,  0,  1, -1, -1, -1, -1, -1, -1, -1},
- [TABLE_TENNANT_HOSTS] = 	{ 1,  0, -1, -1, -1, -1, -1, -1, -1, -1},
- [TABLE_YUM_CONFIG] =		{ 2, -1, -1,  0,  1, -1, -1, -1, -1, -1},
- [TABLE_CONTAINERS] =		{ 0,  3,  4, -1, -1,  1,  2, -1, -1, -1},
- [TABLE_NETWORKS] =		{ 1, -1,  2,  0, -1, -1, -1, -1,  3, -1},
- [TABLE_NETMAP] =		{ 0, -1, -1, -1, -1,  1,  2, -1, -1, -1}, 
- [TABLE_EVENTS] =		{ -1,-1, -1,  0, -1, -1, -1, -1,  1, -1},
- [TABLE_GCONF] =		{ -1,-1, -1,  0, -1, -1, -1, -1,  1, -1}
+ [TABLE_TENNANTS] =		{ 0, -1, -1, -1, -1, -1, -1,  1, -1,  2, -1},
+ [TABLE_NODES] =		{-1,  0,  1, -1, -1, -1, -1, -1, -1, -1,  2},
+ [TABLE_TENNANT_HOSTS] = 	{ 1,  0, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+ [TABLE_YUM_CONFIG] =		{ 2, -1, -1,  0,  1, -1, -1, -1, -1, -1, -1},
+ [TABLE_CONTAINERS] =		{ 0,  3,  4, -1, -1,  1,  2, -1, -1, -1, -1},
+ [TABLE_NETWORKS] =		{ 1, -1,  2,  0, -1, -1, -1, -1,  3, -1, -1},
+ [TABLE_NETMAP] =		{ 0, -1, -1, -1, -1,  1,  2, -1, -1, -1, -1}, 
+ [TABLE_EVENTS] =		{ -1,-1, -1,  0, -1, -1, -1, -1,  1, -1, -1},
+ [TABLE_GCONF] =		{ -1,-1, -1,  0, -1, -1, -1, -1,  1, -1, -1}
 };
 
 
@@ -504,6 +504,21 @@ extern int change_host_state(const char *host, const char *newstate,
 	return api->send_raw_sql(sql, acfg);
 }
 
+int assign_container_host(const char *name, const char *host,
+			  const char *tennant,
+			  const struct agent_config *acfg)
+{
+	char *sql;
+
+	if (!api->send_raw_sql)
+		return -EOPNOTSUPP;
+
+	sql = strjoina("UPDATE nodes SET (hostname='", host, ",state='staged') ",
+		       "WHERE tennant='",tennant," AND iname='",name,"'", NULL);
+
+	return api->send_raw_sql(sql, acfg);
+}
+
 struct tbl* get_tennants_for_host(const char *host,
 			  	  const struct agent_config *acfg)
 {
@@ -603,7 +618,7 @@ int request_create_container(const char *cname,
 			       "'", iname, "',",
 			       "'", cname, "',",
 			       " null, ",
-			       "'staged')", NULL);
+			       "'assigning-host')", NULL);
 	
 
 	rc = api->send_raw_sql(sql, acfg);
@@ -837,6 +852,13 @@ struct tbl* get_raw_table(enum db_table table, char *filter, const struct agent_
 		return NULL;
 
         return api->get_table(table, "*", filter, acfg);
+}
+
+int send_raw_sql(char *sql, const struct agent_config *acfg)
+{
+	if (!api->send_raw_sql)
+		return -EOPNOTSUPP;
+	return api->send_raw_sql(sql, acfg);
 }
 
 int network_create_config(const char *name, const char *cfstring, const char *tennant, const struct agent_config *acfg)

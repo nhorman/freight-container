@@ -100,7 +100,7 @@ END;
 \$\$ LANGUAGE plpgsql;
 
 CREATE TYPE status as ENUM ('offline', 'operating', 'unreachable');
-CREATE TYPE cstate as ENUM ('staged', 'start-requested', 'failed', 'installing', 'running', 'exiting');
+CREATE TYPE cstate as ENUM ('assigning-host', 'staged', 'start-requested', 'failed', 'installing', 'running', 'exiting');
 CREATE TYPE nstate as ENUM ('staged', 'active', 'failed');
 
 CREATE TABLE global_config (
