@@ -139,12 +139,63 @@ out:
 	return EVENT_CONSUMED;
 }
 
+static void preform_healthcheck(const struct agent_config *acfg)
+{
+	char *interval;
+	char *sql, *filter;
+
+	asprintf(&interval, "%d", gcfg.base_interval * gcfg.healthcheck_multiple);
+
+	/*
+	 * Move operating nodes to the unreachable state
+	 */
+	filter= strjoin("state='operating' AND modified >= (CURRENT_TIMESTAMP - interval '", interval, "' second)", NULL);
+	sql = strjoin("UPDATE nodes set state='unreachable' WHERE ", filter, NULL);
+
+	if (send_raw_sql(sql, acfg))
+		LOG(WARNING, "Healthcheck unreachable update failed\n");
+
+	free(sql);
+	free(filter);
+
+	/*
+	 * Move unreachable nodes into the failed state
+	 */
+	filter= strjoin("state='unreachable' AND modified >= (CURRENT_TIMESTAMP - interval '", interval , "' second)", NULL);
+	sql = strjoin("UPDATE nodes set state='failed' WHERE ", filter, NULL);
+
+	if (send_raw_sql(sql, acfg))
+		LOG(WARNING, "Healthcheck failed update failed\n");
+
+	free(sql);
+	free(filter);
+
+	/*
+	 * Finally preform a check to move anyone who has a modified time within the current timestamp window
+	 * back to the operating state
+	 */
+	filter= strjoin("modified >= (CURRENT_TIMESTAMP - interval '", interval, "' second)", NULL);
+	sql = strjoin("UPDATE nodes set state='operating' WHERE ", filter, NULL);
+
+	if (send_raw_sql(sql, acfg))
+		LOG(WARNING, "Healthcheck operating update failed\n");
+
+	free(sql);
+	free(filter);
+	free(interval);
+}
 
 static bool request_shutdown = false;
+static bool alarm_expired = false;
 
 static void sigint_handler(int sig, siginfo_t *info, void *ptr)
 {
 	request_shutdown = true;
+}
+
+static void sigalrm_handler(int sig, siginfo_t *info, void *ptr)
+{
+	alarm_expired = true;
 }
 
 /*
@@ -155,6 +206,7 @@ int enter_scheduler_loop(struct agent_config *config)
 {
 	int rc = -EINVAL;
 	struct sigaction intact;
+	struct sigaction alrmact;
 	
 	/*
 	 * Join the container scheduler update channel
@@ -182,8 +234,19 @@ int enter_scheduler_loop(struct agent_config *config)
 	
 	rc = 0;
 
-	while (request_shutdown == false)
+	memset(&alrmact, 0, sizeof(struct sigaction));
+	alrmact.sa_sigaction = sigalrm_handler;
+	alrmact.sa_flags = SA_SIGINFO;
+	sigaction(SIGALRM, &alrmact, NULL);
+	alarm(gcfg.base_interval * gcfg.healthcheck_multiple);
+
+	while (request_shutdown == false) {
 		wait_for_channel_notification(config);
+		if (alarm_expired == true) {
+			preform_healthcheck(config);
+			alarm(gcfg.base_interval *gcfg.healthcheck_multiple);
+		}
+	}
 
 	LOG(INFO, "Shutting down\n");
 	alarm(0);

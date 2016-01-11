@@ -31,6 +31,7 @@ CREATE TABLE status (status varchar(512) PRIMARY KEY NOT NULL);
 INSERT INTO status values ('offline');
 INSERT INTO status values ('operating');
 INSERT INTO status values ('unreachable');
+INSERT INTO status values ('failed');
 
 CREATE TABLE cstate (cstate varchar(512) PRIMARY KEY NOT NULL);
 INSERT INTO cstate values('assigning-host');
@@ -71,7 +72,7 @@ CREATE TABLE nodes (
 );
 
 CREATE TRIGGER [update_modified_time]
-AFTER UPDATE
+AFTER UPDATE OF load
 ON nodes
 FOR EACH ROW
 BEGIN

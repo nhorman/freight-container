@@ -1230,6 +1230,7 @@ int enter_mode_loop(struct agent_config *config)
 	 * Mark ourselves as being present and ready to accept requests
 	 */
 	change_host_state(config->cmdline.hostname, "operating", config);
+	update_node_health(config);
 
 	while (request_shutdown == false) {
 		wait_for_channel_notification(config);

@@ -99,7 +99,7 @@ BEGIN
 END;
 \$\$ LANGUAGE plpgsql;
 
-CREATE TYPE status as ENUM ('offline', 'operating', 'unreachable');
+CREATE TYPE status as ENUM ('offline', 'operating', 'unreachable', 'failed');
 CREATE TYPE cstate as ENUM ('assigning-host', 'staged', 'start-requested', 'failed', 'installing', 'running', 'exiting');
 CREATE TYPE nstate as ENUM ('staged', 'active', 'failed');
 
@@ -126,7 +126,7 @@ CREATE TABLE nodes (
 	modified	timestamp
 );
 
-CREATE TRIGGER update_node_modtime BEFORE UPDATE ON nodes
+CREATE TRIGGER update_node_modtime BEFORE UPDATE OF load ON nodes
  FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
 
 CREATE TABLE tennant_hosts (
