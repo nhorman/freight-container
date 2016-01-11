@@ -56,9 +56,9 @@ static enum event_rc handle_global_config_update(const enum listen_channel chnl,
 static void select_host_for_container(const char *name, const char *tennant,
 				      const struct agent_config *acfg)
 {
-	struct tbl *hosts;
+	struct tbl *hosts, *hinfo, *best;
 	char *sql;
-	int i, load, tmp, best;
+	int i, load, tmp;
 	char *filter = strjoina("tennant='", tennant, "'", NULL);
 
 	hosts = get_raw_table(TABLE_TENNANT_HOSTS, filter, acfg);
@@ -69,7 +69,7 @@ static void select_host_for_container(const char *name, const char *tennant,
 	}
 
 	load=INT_MAX;
-	best=0;
+	best = NULL;
 
 	if (!hosts->rows) {
 		LOG(WARNING, "Scheduler has no hosts to assign for container %s\n", name);
@@ -77,15 +77,34 @@ static void select_host_for_container(const char *name, const char *tennant,
 	}
 
 	for (i=0; i < hosts->rows; i++) {
-		tmp = strtol(lookup_tbl(hosts, i, COL_LOAD), NULL, 10);
-		if (tmp < load)
-			best = i;
+		hinfo = get_host_info(lookup_tbl(hosts,i,COL_HOSTNAME), acfg);
+
+		/*
+		 * Only consider hosts that are in the online state
+		 */
+		if (strcmp(lookup_tbl(hinfo, 0, COL_STATE), "online"))
+			continue;
+
+		tmp = strtol(lookup_tbl(hinfo, 0, COL_LOAD), NULL, 10);
+		if (tmp < load) {
+			if (best)
+				free_tbl(best);
+			best = hinfo;
+			load = tmp;		
+		} else
+			free_tbl(hinfo);
 	}
 
-	sql = strjoina("UPDATE nodes SET (state='staged', hostname='",
-			lookup_tbl(hosts, best, COL_NAME), "')",
-			"WHERE iname='",name,"' AND tennant='", tennant, "'", NULL);
+	if (!best) {
+		LOG(WARNING, "No best host selected\n");
+		goto out;
+	}
 
+	sql = strjoina("UPDATE containers SET state='staged',hostname='",
+			lookup_tbl(best, 0, COL_HOSTNAME), "'",
+			" WHERE iname='",name,"' AND tennant='", tennant, "'", NULL);
+
+	free_tbl(best);
 
 	if (send_raw_sql(sql, acfg))
 		LOG(ERROR, "Unable to update container assignment\n");
@@ -110,7 +129,7 @@ static enum event_rc handle_container_update(const enum listen_channel chnl, con
 		goto out_free;
 
 	for (i=0; i < containers->rows; i++)
-		select_host_for_container(lookup_tbl(containers, i, COL_NAME),
+		select_host_for_container(lookup_tbl(containers, i, COL_INAME),
 					  lookup_tbl(containers, i, COL_TENNANT),
 					  acfg);
 

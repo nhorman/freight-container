@@ -593,6 +593,13 @@ struct tbl *get_containers_of_type(const char *cname,
 	return api->get_table(TABLE_CONTAINERS, "*", filter, acfg);
 }
 
+struct tbl *get_host_info(const char *name, const struct agent_config *acfg)
+{
+	char *filter = strjoina("hostname='", name, "'", NULL);
+
+	return get_raw_table(TABLE_NODES, filter, acfg);
+} 
+
 int request_create_container(const char *cname,
                              const char *iname,
                              const char *chost,

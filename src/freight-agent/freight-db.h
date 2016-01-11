@@ -278,6 +278,8 @@ extern struct tbl* get_containers_of_type(const char *cname,
 						 const char *host,
 						 const struct agent_config *acfg);
 
+extern struct tbl *get_host_info(const char *name, const struct agent_config *acfg);
+
 extern int assign_container_host(const char *name, const char *host,
                                  const char *tennant,
                                  const struct agent_config *acfg);
