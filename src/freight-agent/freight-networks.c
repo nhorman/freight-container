@@ -104,6 +104,41 @@ static int parse_network_type(config_t *config, struct netconf *conf)
 	return rc;
 }
 
+static int parse_static_addr_config(struct static_config *cfg, config_t *config,
+				    const char *cfgname)
+{
+	config_setting_t *scfg = config_lookup(config, cfgname);
+	config_setting_t *tmp;
+
+	if (!scfg)
+		return -ENOENT;
+
+	tmp = config_setting_get_member(scfg, "addr_start");
+	if (!tmp)
+		return -ENOENT;
+	cfg->addr_start = strdup(config_setting_get_string(tmp));
+
+	tmp = config_setting_get_member(scfg, "addr_end");
+	if (!tmp)
+		return -ENOENT;
+
+	cfg->addr_end = strdup(config_setting_get_string(tmp));
+
+	tmp = config_setting_get_member(scfg, "netmask");
+	if (!tmp)
+		return -ENOENT;
+
+	cfg->netmask = strdup(config_setting_get_string(tmp));
+
+	tmp = config_setting_get_member(scfg, "defroute");
+	if (!tmp)
+		return -ENOENT;
+
+	cfg->defroute = strdup(config_setting_get_string(tmp));
+
+	return 0;
+}
+
 static int parse_address_config(config_t *config, struct netconf *conf)
 {
 	config_setting_t *acfg = config_lookup(config, "address_config");
@@ -120,21 +155,26 @@ static int parse_address_config(config_t *config, struct netconf *conf)
 	typestr = config_setting_get_string(type);	
 	if (!strcmp(typestr, "dhcp"))
 		conf->aconf.ipv4 = AQUIRE_DHCP;
-	else if (!strcmp(typestr, "static"))
-		conf->aconf.ipv4 = AQUIRE_STATIC;
-	else {
+	else if (!strcmp(typestr, "external_static")) {
+		conf->aconf.ipv4 = AQUIRE_EXTERNAL_STATIC;
+		if (parse_static_addr_config(&conf->aconf.ipv4_config, config,
+					     "ipv4_static_config")) {
+			rc = -ENOENT;
+			LOG(ERROR, "External static aquisition requires static config\n");
+			goto out;
+		}
+	} else {
 		rc = -EINVAL;
 		goto out;
 	}
 
-	LOG(DEBUG, "IPV4 AQUISITON TYPE IS %d\n", conf->aconf.ipv4);
 	type = config_setting_get_member(acfg, "ipv6_aquisition");
 	if (type) {
 		typestr = config_setting_get_string(type);	
 		if (!strcmp(typestr, "dhcpv6"))
 			conf->aconf.ipv6 = AQUIRE_DHCPV6;
-		else if (!strcmp(typestr, "static"))
-			conf->aconf.ipv6 = AQUIRE_STATIC;
+		else if (!strcmp(typestr, "external_static"))
+			conf->aconf.ipv6 = AQUIRE_EXTERNAL_STATIC;
 		else if (!strcmp(typestr, "slaac"))
 			conf->aconf.ipv6 = AQUIRE_SLAAC;
 		else {
@@ -230,6 +270,14 @@ static void free_network_entry(struct network *ptr)
 	free(ptr->tennant);
 	free(ptr->network);
 	free(ptr->bridge);
+	free(ptr->conf->aconf.ipv4_config.addr_start);
+	free(ptr->conf->aconf.ipv4_config.addr_end);
+	free(ptr->conf->aconf.ipv4_config.netmask);
+	free(ptr->conf->aconf.ipv4_config.defroute);
+	free(ptr->conf->aconf.ipv6_config.addr_start);
+	free(ptr->conf->aconf.ipv6_config.addr_end);
+	free(ptr->conf->aconf.ipv6_config.netmask);
+	free(ptr->conf->aconf.ipv6_config.defroute);
 	free(ptr->conf);
 	free(ptr);
 }

@@ -39,7 +39,7 @@ struct addr_management mgmt_type[] = {
 	[AQUIRE_DHCP] = {NULL, NULL },
         [AQUIRE_DHCPV6] = {NULL, NULL},
         [AQUIRE_SLAAC] = {NULL, NULL},
-        [AQUIRE_STATIC] = {NULL, NULL},
+        [AQUIRE_EXTERNAL_STATIC] = {NULL, NULL},
 };
 
 #if 0

@@ -34,19 +34,27 @@ enum aquire_type {
 	AQUIRE_DHCP,
 	AQUIRE_DHCPV6,
 	AQUIRE_SLAAC,
-	AQUIRE_STATIC,
+	AQUIRE_EXTERNAL_STATIC,
 };
 
+struct static_config {
+	char *addr_start;
+	char *addr_end;
+	char *netmask;
+	char *dns;
+	char *defroute;
+};
 
 struct address_config {
 	enum aquire_type ipv4;
+	struct static_config ipv4_config;
 	enum aquire_type ipv6;
+	struct static_config ipv6_config;
 };
 
 struct netconf {
 	enum network_type type;
 	struct address_config aconf;
-	/* network type config should go here */
 };
 
 struct network {

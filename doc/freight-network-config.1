@@ -17,14 +17,30 @@ network = {
 };
 
 address_config = {
-	ipv4_aquisition = "dhcp";
-	ipv6_aquisition = "dhcpv6|slaac";
+	ipv4_aquisition = "none|dhcp|external_static";
+	ipv6_aquisition = "none|dhcpv6|slaac|external_static";
 };
 
 <type>_config = {
 	# see network type sections for config options
 };
 
+ipv4_static_config = {
+	addr_start = "192.168.1.2";
+	addr_end = "192.168.1.254";
+	netmask = "255.255.255.0";
+	dns = "192.168.1.1";
+	defroute = "192.168.1.1";
+};
+
+ipv6_static_config = {
+	addr_start = "2001:470:8:a08::0:1";
+	addr_end = "2001:470:8:a08::0:ffff";
+	netmask = "/64";
+	dns = "2001:470:8:a08:7aac:c0ff:fec2:933b";
+	defroute = "fe80::12c3:7bff:fe42:d970";
+};
+	
 
 .SH NETWORK TYPES
 
@@ -46,4 +62,12 @@ obtain an address.  Current supported formats are dhcp, and slaac
 .P
 There are no bridge specific config options
 
+
+.SH STATIC CONFIGURATION
+.P
+The Ipv4/6 static configuration section are for use with the external_static
+aquisition type.  This address assignment type has the freight agent allocate a
+network address on behalf of the container and assign it in a static fashion.
+The configuration defines the allocatable address range for the network and the
+static dns/default route configuration for containers attached to the network
 
