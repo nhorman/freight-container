@@ -37,11 +37,6 @@ enum aquire_type {
 	AQUIRE_STATIC,
 };
 
-struct static_entry {
-	char *cname;
-	char *ipv4_address;
-	char *ipv6_address;
-};
 
 struct address_config {
 	enum aquire_type ipv4;
@@ -52,8 +47,6 @@ struct netconf {
 	enum network_type type;
 	struct address_config aconf;
 	/* network type config should go here */
-	unsigned int static_entries;
-	struct static_entry entries[0];
 };
 
 struct network {

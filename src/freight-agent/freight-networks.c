@@ -152,9 +152,7 @@ static int parse_network_configuration(const char *cfstring, struct network *net
 				       const struct agent_config *acfg)
 {
 	config_t config;
-	config_setting_t *tmp;
 	int rc;
-	int entry_cnt = 0;
 
 	config_init(&config);
 
@@ -166,24 +164,13 @@ static int parse_network_configuration(const char *cfstring, struct network *net
 		goto out;
 	}
 
-	/*
-	 * We have to count the number of static entries before we can allocate
-	 * the config struct
-	 */
-	tmp = config_lookup(&config, "static_address");
-
-	if (tmp)
-		entry_cnt = config_setting_length(tmp);
-
-	net->conf = calloc(1,sizeof(struct netconf)+((sizeof(struct static_entry)*entry_cnt)));
+	net->conf = calloc(1,sizeof(struct netconf));
 
 	if (!net->conf) {
 		LOG(ERROR, "Unable to allocate memory for network config\n");
 		rc = -EINVAL;
 		goto out_destroy;
 	}
-
-	net->conf->static_entries = entry_cnt;
 
 	rc = parse_network_type(&config, net->conf);
 	if (rc) {

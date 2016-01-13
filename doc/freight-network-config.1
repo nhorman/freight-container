@@ -17,28 +17,13 @@ network = {
 };
 
 address_config = {
-	ipv4_aquisition = "dhcp|static";
-	ipv6_aquisition = "dhcpv6|slaac|static";
+	ipv4_aquisition = "dhcp";
+	ipv6_aquisition = "dhcpv6|slaac";
 };
 
 <type>_config = {
 	# see network type sections for config options
 };
-
-
-static_address = [ 
-	{
-		cname = "container name";
-		ipv4_addr="192.168.1.1";
-		ipv6_addr="fe80::fc54:ff:fe84:f6f0/64";
-	},
-	{
-		cname = "container name"'
-		ipv4_addr="192.168.1.2";
-		ipv6_addr="fe80::fc54:ff:fe84:f6f1/64";
-	},
-	...
-];
 
 
 .SH NETWORK TYPES
@@ -60,14 +45,5 @@ obtain an address.  Current supported formats are dhcp, and slaac
 .B bridged_config
 .P
 There are no bridge specific config options
-
-.SH <NAME> STATIC ADDRESSES
-This section allows for the configuration to specify a per-container static
-address override.  If a container with the instance name <name> is attached to
-the network, the host running that container will assign the provided static
-address to the container, overriding the address_config section.  This is useful
-in creating networks that have a 'controlling' container - a container on an
-isolated tunnel network perhaps that serves dhcp and dns to the other containers
-on the network for example.
 
 

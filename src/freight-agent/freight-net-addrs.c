@@ -72,7 +72,7 @@ static int acquire_address_for_ifc(const char *ifc, const struct network *net, c
 	return rc;
 
 }
-
+#if 0
 static int assign_static_v4_address(const char *ifc, const char *addr, const struct agent_config *acfg)
 {
 	char *cmd;
@@ -81,12 +81,13 @@ static int assign_static_v4_address(const char *ifc, const char *addr, const str
 
 	return run_command(cmd, 0);
 }
+#endif
 
 int get_address_for_interfaces(struct ifc_list *list, const char *container, const struct agent_config *acfg)
 {
 	struct network *net;
-	int i, j;
-	int assigned, rc;
+	int i;
+	int rc;
 
 	rc = 0;
 	/*
@@ -94,20 +95,6 @@ int get_address_for_interfaces(struct ifc_list *list, const char *container, con
 	 */
 	for (i = 0; i < list->count; i ++) {
 		net = (struct network *)list->ifc[i].ifcdata;
-		assigned = 0;
-		/*
-		 * Check to see if there is a static entry for this contianer
-		 */
-		for (j = 0; j < net->conf->static_entries; j++) {
-			if (!strcmp(net->conf->entries[j].cname, container)) {
-				assign_static_v4_address(list->ifc[i].container_veth, net->conf->entries[j].ipv4_address, acfg);
-				assigned = 1;
-				break;
-			}
-		}
-
-		if (assigned)
-			continue;
 
 		/*
 		 * If we make it here the we need to use the default policy for the network
