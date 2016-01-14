@@ -705,6 +705,7 @@ static enum event_rc handle_tennant_update(const enum listen_channel chnl, const
 
 	struct tbl *tennants = get_tennants_for_host(acfg->cmdline.hostname, acfg);
 
+	LOG(INFO, "Got a tennant host update\n");
 	/*
 	 * Handle leaving tennants first
 	 */
@@ -1158,6 +1159,7 @@ int enter_mode_loop(struct agent_config *config)
 	struct stat buf;
 	struct sigaction intact;
 	struct sigaction alrmact;
+	struct tbl *hostinfo;
 	unsigned int health_count = 0;
 	
 	/*
@@ -1183,6 +1185,28 @@ int enter_mode_loop(struct agent_config *config)
 	if (rc == ENOENT) {
 		LOG(ERROR, "please run freight-agent -m init first\n");
 		goto out;
+	}
+
+	memset(&intact, 0, sizeof(struct sigaction));
+
+	intact.sa_sigaction = sigint_handler;
+	intact.sa_flags = SA_SIGINFO;
+	sigaction(SIGINT, &intact, NULL);
+
+
+	/*
+	 * Wait for us to have an entry in the db
+	 */
+	while (request_shutdown == false) {
+		LOG(INFO, "Waiting on our entry in the database\n");
+		hostinfo = get_host_info(config->cmdline.hostname, config);
+		if (hostinfo && hostinfo->rows == 1) {
+			free_tbl(hostinfo);
+			LOG(INFO, "Entry found, continuing\n");
+			break;
+		}
+		free_tbl(hostinfo);
+		sleep(5);
 	}
 
 	/*
@@ -1212,12 +1236,12 @@ int enter_mode_loop(struct agent_config *config)
 		goto out_containers;
 	}
 
-	memset(&intact, 0, sizeof(struct sigaction));
+	/*
+	 * Mark ourselves as being operational
+	 */
+	change_host_state(config->cmdline.hostname, "operating", config);
+	update_node_health(config);
 
-	intact.sa_sigaction = sigint_handler;
-	intact.sa_flags = SA_SIGINFO;
-	sigaction(SIGINT, &intact, NULL);
-	
 	memset(&alrmact, 0, sizeof(struct sigaction));
 
 	alrmact.sa_sigaction = sigalrm_handler;
@@ -1225,12 +1249,6 @@ int enter_mode_loop(struct agent_config *config)
 	sigaction(SIGALRM, &alrmact, NULL);
 	alarm(gcfg.base_interval);
 	rc = 0;
-
-	/*
-	 * Mark ourselves as being present and ready to accept requests
-	 */
-	change_host_state(config->cmdline.hostname, "operating", config);
-	update_node_health(config);
 
 	while (request_shutdown == false) {
 		wait_for_channel_notification(config);

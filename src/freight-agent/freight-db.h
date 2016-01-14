@@ -104,6 +104,7 @@ enum listen_channel {
 	CHAN_CONTAINERS_SCHED,
 	CHAN_TENNANT_HOSTS,
 	CHAN_GLOBAL_CONFIG,
+	CHAN_NODES,
 };
 
 enum notify_type {

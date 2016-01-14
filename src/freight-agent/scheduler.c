@@ -42,6 +42,8 @@
 
 static struct global_cfg gcfg;
 
+static bool rescan_later = false;
+
 static enum event_rc handle_global_config_update(const enum listen_channel chnl, const char *extra,
 					 const struct agent_config *acfg)
 {
@@ -82,7 +84,7 @@ static void select_host_for_container(const char *name, const char *tennant,
 		/*
 		 * Only consider hosts that are in the online state
 		 */
-		if (strcmp(lookup_tbl(hinfo, 0, COL_STATE), "online"))
+		if (strcmp(lookup_tbl(hinfo, 0, COL_STATE), "operating"))
 			continue;
 
 		tmp = strtol(lookup_tbl(hinfo, 0, COL_LOAD), NULL, 10);
@@ -96,7 +98,8 @@ static void select_host_for_container(const char *name, const char *tennant,
 	}
 
 	if (!best) {
-		LOG(WARNING, "No best host selected\n");
+		LOG(WARNING, "No best host selected...trying later\n");
+		rescan_later = true;
 		goto out;
 	}
 
@@ -104,17 +107,21 @@ static void select_host_for_container(const char *name, const char *tennant,
 			lookup_tbl(best, 0, COL_HOSTNAME), "'",
 			" WHERE iname='",name,"' AND tennant='", tennant, "'", NULL);
 
-	free_tbl(best);
 
 	if (send_raw_sql(sql, acfg))
 		LOG(ERROR, "Unable to update container assignment\n");
+
+	if (notify_host(CHAN_CONTAINERS, lookup_tbl(best, 0, COL_HOSTNAME), acfg))
+		LOG(ERROR, "Unalbe to notify host\n");
+
+	free_tbl(best);
 	
 out:
 	free_tbl(hosts);
 	return;
 }
 
-static enum event_rc handle_container_update(const enum listen_channel chnl, const char *extra,
+static enum event_rc handle_container_tbl_update(const enum listen_channel chnl, const char *extra,
 					 const struct agent_config *acfg)
 {
 	struct tbl *containers;
@@ -207,13 +214,22 @@ int enter_scheduler_loop(struct agent_config *config)
 	int rc = -EINVAL;
 	struct sigaction intact;
 	struct sigaction alrmact;
+
+	/*
+	 * Join the nodes update chanel
+	 */
+	if (channel_subscribe(config, CHAN_NODES, handle_container_tbl_update)) {
+		LOG(ERROR, "Cannot subscribe to nodes updates\n");
+		rc = -EINVAL;
+		goto out;
+	}
 	
 	/*
 	 * Join the container scheduler update channel
 	 */
-	if (channel_subscribe(config, CHAN_CONTAINERS_SCHED, handle_container_update)) {
+	if (channel_subscribe(config, CHAN_CONTAINERS_SCHED, handle_container_tbl_update)) {
 		LOG(ERROR, "Cannot subscribe to database container updates\n");
-		rc = EINVAL;
+		rc = -EINVAL;
 		goto out;
 	}
 
@@ -243,6 +259,10 @@ int enter_scheduler_loop(struct agent_config *config)
 	while (request_shutdown == false) {
 		wait_for_channel_notification(config);
 		if (alarm_expired == true) {
+			if (rescan_later == true) {
+				rescan_later = false;
+				handle_container_tbl_update(CHAN_CONTAINERS_SCHED, NULL, config);
+			}
 			preform_healthcheck(config);
 			alarm(gcfg.base_interval *gcfg.healthcheck_multiple);
 		}

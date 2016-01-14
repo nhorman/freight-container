@@ -34,7 +34,8 @@ static const char* channel_map[] = {
 	[CHAN_CONTAINERS] = "containers",
 	[CHAN_CONTAINERS_SCHED] = "container-sched",
 	[CHAN_TENNANT_HOSTS] = "tennant_hosts",
-	[CHAN_GLOBAL_CONFIG] = "global_config"
+	[CHAN_GLOBAL_CONFIG] = "global_config",
+	[CHAN_NODES] = "nodes"
 };
 
 static char *tablenames[TABLE_MAX] = {
@@ -494,6 +495,7 @@ extern int change_host_state(const char *host, const char *newstate,
 			     const struct agent_config *acfg)
 {
 	char *sql;
+	int rc;
 
 	if (!api->send_raw_sql)
 		return -EOPNOTSUPP;
@@ -501,7 +503,9 @@ extern int change_host_state(const char *host, const char *newstate,
 	sql = strjoina("UPDATE nodes SET state = '", newstate,
 		       "' WHERE hostname = '", host, "'");
 
-	return api->send_raw_sql(sql, acfg);
+	rc = api->send_raw_sql(sql, acfg);
+	notify_all(CHAN_NODES, acfg);
+	return rc;
 }
 
 int assign_container_host(const char *name, const char *host,
