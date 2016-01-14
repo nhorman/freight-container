@@ -175,9 +175,15 @@ static int parse_address_config(config_t *config, struct netconf *conf)
 			conf->aconf.ipv6 = AQUIRE_DHCPV6;
 		else if (!strcmp(typestr, "external_static"))
 			conf->aconf.ipv6 = AQUIRE_EXTERNAL_STATIC;
-		else if (!strcmp(typestr, "slaac"))
+		else if (!strcmp(typestr, "slaac")) {
 			conf->aconf.ipv6 = AQUIRE_SLAAC;
-		else {
+			if (parse_static_addr_config(&conf->aconf.ipv4_config, config,
+						     "ipv6_static_config")) {
+				rc = -ENOENT;
+				LOG(ERROR, "External static aquisition requires static config\n");
+				goto out;
+			}
+		} else {
 			rc = -EINVAL;
 			goto out;
 		}
