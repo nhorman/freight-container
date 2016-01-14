@@ -117,6 +117,16 @@ CREATE TABLE net_container_map (
 	FOREIGN KEY (tennant, network) references networks(tennant, name)
 );
 
+CREATE TABLE net_address_allocation_map (
+       name            varchar(512) NOT NULL,
+       tennant         varchar(512) NOT NULL,
+       address         bytea NOT NULL,
+       allocated       boolean NOT NULL,
+       ownerip         bytea,
+       ownerhost       varchar(512) references nodes(hostname),
+       PRIMARY KEY (tennant, name, address),
+       FOREIGN KEY (tennant, name) references networks(tennant, name)
+);
 
 CREATE TABLE event_table (
 	channel varchar(512) NOT NULL,
