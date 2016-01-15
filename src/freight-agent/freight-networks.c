@@ -173,10 +173,10 @@ static int parse_address_config(config_t *config, struct netconf *conf)
 		typestr = config_setting_get_string(type);	
 		if (!strcmp(typestr, "dhcpv6"))
 			conf->aconf.ipv6 = AQUIRE_DHCPV6;
-		else if (!strcmp(typestr, "external_static"))
-			conf->aconf.ipv6 = AQUIRE_EXTERNAL_STATIC;
-		else if (!strcmp(typestr, "slaac")) {
+		else if (!strcmp(typestr, "slaac"))
 			conf->aconf.ipv6 = AQUIRE_SLAAC;
+		else if (!strcmp(typestr, "external_static")) {
+			conf->aconf.ipv6 = AQUIRE_EXTERNAL_STATIC;
 			if (parse_static_addr_config(&conf->aconf.ipv4_config, config,
 						     "ipv6_static_config")) {
 				rc = -ENOENT;
@@ -501,6 +501,7 @@ int establish_networks_on_host(const char *container, const char *tennant,
 	char *cfstring;
 	struct network *new;
 
+	LOG(Info, "Establishing networks on host for container %s\n", container);
 	filter = strjoina("tennant='",tennant,"' AND name='",container,"'",NULL);
 
 	networks = get_raw_table(TABLE_NETMAP, filter, acfg);
@@ -516,8 +517,10 @@ int establish_networks_on_host(const char *container, const char *tennant,
 		netname = lookup_tbl(networks, i, COL_CNAME);
 
 		netinfo = get_network_info(netname, tennant,  acfg);
-		if (!netinfo)
+		if (!netinfo) {
+			LOG(WARNING, "No info for network %s\n", netname);
 			continue;
+		}
 
 		cfstring = lookup_tbl(netinfo, 0, COL_CONFIG);
 
@@ -525,6 +528,7 @@ int establish_networks_on_host(const char *container, const char *tennant,
 		 * if we already have the network, just go on
 		 */
 		if (get_network_entry(netname, tennant)) {
+			LOG(INFO, "We already have network %s\n", netname);
 			free_tbl(netinfo);
 			continue;
 		}
@@ -591,6 +595,7 @@ const struct ifc_list* build_interface_list_for_container(const char *container,
 
 	struct ifc_list *list = NULL;
 
+	LOG(DEBUG, "Building ifc list for %s\n", container);
 	filter = strjoina("tennant='", tennant, "' AND name='",
 			  container,"'",NULL);
 

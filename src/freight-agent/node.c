@@ -770,6 +770,7 @@ static void create_containers_from_table(const void *data, const struct agent_co
 		tennant = lookup_tbl(containers, i, COL_TENNANT);
 		iname = lookup_tbl(containers, i, COL_INAME);
 		cname = lookup_tbl(containers, i, COL_CNAME);
+
 		ifcs = build_interface_list_for_container(iname, tennant, acfg);
 
 		LOG(INFO, "Creating container %s of type %s for tennant %s\n",
