@@ -855,6 +855,9 @@ static void handle_new_containers(const struct agent_config *acfg)
 		if (establish_networks_on_host(container, tennant, acfg)) {
 			LOG(ERROR, "Unable to setup all networks for %s:%s\n",
 				tennant, container);
+			change_container_state(lookup_tbl(containers, i, COL_TENNANT),
+					       lookup_tbl(containers, i, COL_INAME),
+					       "start-requested", "failed", acfg);
 		}
 	}	
 
