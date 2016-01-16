@@ -120,9 +120,9 @@ CREATE TABLE net_container_map (
 CREATE TABLE net_address_allocation_map (
        name            varchar(512) NOT NULL,
        tennant         varchar(512) NOT NULL,
-       address         bytea NOT NULL,
+       address         varchar NOT NULL,
        allocated       boolean NOT NULL,
-       ownerip         bytea,
+       ownerip         varchar,
        ownerhost       varchar(512) references nodes(hostname),
        PRIMARY KEY (tennant, name, address),
        FOREIGN KEY (tennant, name) references networks(tennant, name)
