@@ -42,9 +42,17 @@ enum ifc_state {
 	IFC_ATTACHED
 };
 
+struct external_static_data {
+	char container_v4addr[32];
+	char container_v6addr[256];
+};
+
 struct ifc_info {
 	const char *container_veth;
 	const char *bridge_veth;
+	union {
+		struct external_static_data esd;
+	};
 	void *ifcdata;
 	enum ifc_state state;
 };

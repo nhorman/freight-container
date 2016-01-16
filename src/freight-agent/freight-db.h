@@ -71,6 +71,7 @@ enum db_table {
 	TABLE_NETMAP,
 	TABLE_EVENTS,
 	TABLE_GCONF,
+	TABLE_ALLOCMAP,
 	TABLE_MAX
 };
 
@@ -358,5 +359,9 @@ extern struct tbl* get_global_config(const struct agent_config *acfg);
 
 extern int update_node_metrics(const struct node_health_metrics *metrics, const struct agent_config *acfg);
 
+extern char* alloc_db_v4addr(const char *netname, const char *tennant, const char *astart, const char *aend, const struct agent_config *acfg);
+extern char* alloc_db_v6addr(const char *netname, const char *tennant, const char *astart, const char *aend, const struct agent_config *acfg);
 
+extern void release_db_v4addr(const char *netname, const char *tennant, const char *addr, const struct agent_config *acfg);
+extern void release_db_v6addr(const char *netname, const char *tennant, const char *aadr, const struct agent_config *acfg);
 #endif

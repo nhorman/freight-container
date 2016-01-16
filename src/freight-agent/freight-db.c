@@ -24,6 +24,9 @@
 #include <errno.h>
 #include <alloca.h>
 #include <string.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <freight-common.h>
 #include <freight-log.h>
 #include <freight-db.h>
@@ -47,7 +50,8 @@ static char *tablenames[TABLE_MAX] = {
 	[TABLE_NETWORKS] = "networks",
 	[TABLE_NETMAP] = "net_container_map",
 	[TABLE_EVENTS] = "event_table",
-	[TABLE_GCONF] = "global_config"
+	[TABLE_GCONF] = "global_config",
+	[TABLE_ALLOCMAP]= "net_address_allocation_map"
 };
 
 /*
@@ -57,6 +61,7 @@ static char *tablenames[TABLE_MAX] = {
  * TENNANT, HOSTNAME, STATE, NAME, URL, INAME, CNAME, PROXYPASS, TYPE, CONFIG
  * Note: the net_contaienr_map uses INAME for the container name and CNAME for the network name
  * Note: the global_config table uses NAME for the key and CONFIG for the value column
+ * Note: The allocmap uses INAME for the ownerip
  */
 
 static int db_col_map[TABLE_MAX][COL_MAX] = {
@@ -68,7 +73,8 @@ static int db_col_map[TABLE_MAX][COL_MAX] = {
  [TABLE_NETWORKS] =		{ 1, -1,  2,  0, -1, -1, -1, -1,  3, -1, -1},
  [TABLE_NETMAP] =		{ 0, -1, -1, -1, -1,  1,  2, -1, -1, -1, -1}, 
  [TABLE_EVENTS] =		{ -1,-1, -1,  0, -1, -1, -1, -1,  1, -1, -1},
- [TABLE_GCONF] =		{ -1,-1, -1,  0, -1, -1, -1, -1,  1, -1, -1}
+ [TABLE_GCONF] =		{ -1,-1, -1,  0, -1, -1, -1, -1,  1, -1, -1},
+ [TABLE_ALLOCMAP] =		{ 1,  5,  3,  0, -1,  4, -1, -1, -1, -1,  2} 
 };
 
 
@@ -1154,4 +1160,131 @@ int update_node_metrics(const struct node_health_metrics *metrics, const struct 
 	free(loadstr);
 
 	return api->send_raw_sql(sql, acfg);
+}
+
+char *alloc_db_v4addr(const char *netname, const char *tennant, const char *astart, const char *aend, const struct agent_config *acfg)
+{
+	struct tbl *available;
+	char *sql;
+	char *addr = NULL;
+	struct in_addr start_addr;
+	struct in_addr end_addr;
+	char *filter = strjoin("name='", netname, "' AND tennant='", tennant, "' AND allocated='f'", NULL);
+
+try_again:
+	available = get_raw_table(TABLE_ALLOCMAP,  filter, acfg);
+	free(filter);
+
+	if (!available)
+		goto find_new;
+
+	if (available->rows == 0) {
+		free_tbl(available);
+		available = NULL;
+		goto find_new;
+	}
+
+	/*
+	 * Try to claim an unallocated address
+	 */
+	sql = strjoin("UPDATE net_address_allocation_map SET allocated='t' ",
+		      "ownerhost='", acfg->cmdline.hostname, "' ",
+		      "WHERE name='", netname, "' ",
+		      "AND tennant='", tennant, "' ",
+		      "AND address='", lookup_tbl(available, 0, COL_CONFIG), "'", NULL);
+
+	send_raw_sql(sql, acfg);
+	free(sql);
+
+	/*
+	 * Now we see if we got it
+	 */
+	filter = strjoin("name='", netname, "' AND tennant='", tennant, "' AND allocated='t'",
+			 " AND address = '", lookup_tbl(available, 0, COL_CONFIG), "'",
+			 " AND ownerhost='", acfg->cmdline.hostname, "'", NULL);
+	free_tbl(available);
+	available = get_raw_table(TABLE_ALLOCMAP, filter, acfg);
+	free(filter);
+	if (!available)
+		goto find_new;
+	if (available->rows == 0) {
+		free_tbl(available);
+		goto try_again;
+	}
+
+	/*
+	 * We found 1 row in the table, so we got the address
+	 */
+	addr = strdup(lookup_tbl(available, 0, COL_CONFIG));
+	free_tbl(available);
+	goto out;		
+	
+	
+find_new:
+	/*
+	 * We need to start hunting for an available address within our range
+	 */
+	filter = strjoin("name='", netname, "' AND tennant='", tennant, "' AND allocated='t'", NULL);
+	available = get_raw_table(TABLE_ALLOCMAP, filter, acfg);
+	free(filter);
+
+	/*
+	 * Given that we know from the prior bit that all addresses in the table are in use, we should start searching from the 
+	 * end address, plus the number of addresses in the table
+	 */
+	inet_aton(astart, &start_addr);
+	inet_aton(aend, &end_addr);
+	start_addr.s_addr += available->rows;
+	free_tbl(available);
+
+	while (start_addr.s_addr != end_addr.s_addr) {
+		sql = strjoin("INSERT into net_address_allocation_map  VALUES (",
+			      "'", netname, "', '", tennant, "','", inet_ntoa(start_addr),
+			      "','t', null, '", acfg->cmdline.hostname, "')", NULL);
+		send_raw_sql(sql, acfg);
+		free(sql);
+		filter = strjoin("name='", netname, "' AND tennant='", tennant, "' AND allocated='t'",
+                         " AND address = '", inet_ntoa(start_addr), "'", NULL);
+		available = get_raw_table(TABLE_ALLOCMAP, filter, acfg);
+		free(filter);
+		if (!available) {
+			start_addr.s_addr++;
+			continue;
+		}
+		if (available->rows == 0) {
+			free_tbl(available);
+			start_addr.s_addr++;
+			continue;
+		}
+
+		/*
+		 * Its our address!
+		 */
+		addr = strdup(lookup_tbl(available, 0, COL_CONFIG));
+		free_tbl(available);
+		goto out;
+	}
+	
+out:
+	return addr;
+}
+
+char* alloc_db_v6addr(const char *netname, const char *tennant, const char *astart, const char *aend, const struct agent_config *acfg)
+{
+	return 0;
+}
+
+
+void release_db_v4addr(const char *netname, const char *tennant, const char *addr, const struct agent_config *acfg)
+{
+	char *sql = strjoina("UPDATE net_address_allocation_map set allocated='f' WHERE ",
+			     "name='", netname, "' AND ",
+			     "tennant='", tennant, "' address='", addr, "'", NULL);
+
+	send_raw_sql(sql, acfg);
+}
+
+void release_db_v6addr(const char *netname, const char *tennant, const char *aadr, const struct agent_config *acfg)
+{
+	return;
 }

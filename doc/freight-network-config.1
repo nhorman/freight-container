@@ -55,7 +55,22 @@ the bridge and pass the other end to the container.
 
 .SH ADDRESS CONFIG
 The address config section ennumerates how a container on this network will
-obtain an address.  Current supported formats are dhcp, and slaac
+obtain an address.  Current supported formats are dhcp, slaac, and external_static
+
+.B dhcp
+.P
+The container will have its config modified to run dhclient on network activiation
+.P
+.B slaac
+.P
+The container will have its config modified to use slaac to obtain an ipv6 address
+.P
+.B external_static
+.P
+Freight will allocate an address for the container using the static address
+configuration for the network, and then modify the container to use that address
+as a static configuration
+
 
 .SH NETWORK TYPE CONFIGURATIONS
 .B bridged_config
