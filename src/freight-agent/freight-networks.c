@@ -99,6 +99,9 @@ static int parse_network_type(config_t *config, struct netconf *conf)
 	if (!strcmp(typestr, "bridged")) {
 		rc = 0;
 		conf->type = NET_TYPE_BRIDGED;
+	} else if (!strcmp(typestr, "private")) {
+		rc = 0;
+		conf->type = NET_TYPE_PRIVATE;
 	}
 
 	return rc;
@@ -410,17 +413,21 @@ struct host_net_methods {
 
 static struct host_net_methods host_attach_methods[] = {
 	[NET_TYPE_BRIDGED] = {hattach_pbridge_to_bridge, hdetach_pbridge_from_bridge},
+	[NET_TYPE_PRIVATE] = {NULL, NULL},
 	{NULL, NULL}
 };
 
 static int attach_host_network_to_bridge(struct network *net, const struct agent_config *acfg)
 {
-	return host_attach_methods[net->conf->type].host_attach(net, acfg);
+	if (host_attach_methods[net->conf->type].host_attach)
+		return host_attach_methods[net->conf->type].host_attach(net, acfg);
+	return 0;
 }
 
 static void detach_host_network_from_bridge(struct network *net, const struct agent_config *acfg)
 {
-	host_attach_methods[net->conf->type].host_detach(net, acfg);
+	if (host_attach_methods[net->conf->type].host_detach)
+		host_attach_methods[net->conf->type].host_detach(net, acfg);
 }
 
 static struct network* add_network_bridge(const char *network, const char *tennant,

@@ -52,6 +52,15 @@ running containers attached to networks of this type will create a bridge,
 attach a physical interface to the bridge, create a veth pair, attach one end to
 the bridge and pass the other end to the container.
 
+.B private
+.P
+Private networks are, as the name implies, a network that has no connection
+outside of itself.  Containers attached to this network may only communicate
+with other containers on the same network.  Note that, given this limitation,
+containers deployed on a private network should directly assign hosts to
+containers so that separate private networks are not established on multiple
+hosts
+
 
 .SH ADDRESS CONFIG
 The address config section ennumerates how a container on this network will

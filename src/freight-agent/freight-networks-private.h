@@ -27,6 +27,7 @@
 
 enum network_type {
 	NET_TYPE_BRIDGED = 0,
+	NET_TYPE_PRIVATE,
 };
 
 enum aquire_type {
