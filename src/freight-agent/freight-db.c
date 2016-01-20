@@ -1248,19 +1248,18 @@ find_new:
 		available = get_raw_table(TABLE_ALLOCMAP, filter, acfg);
 		free(filter);
 		if (!available) {
-			start_addr.s_addr++;
+			start_addr.s_addr = htonl(ntohl(start_addr.s_addr)+1);
 			continue;
 		}
 		if (available->rows == 0) {
 			free_tbl(available);
-			start_addr.s_addr++;
+			start_addr.s_addr = htonl(ntohl(start_addr.s_addr)+1);
 			continue;
 		}
-
 		/*
 		 * Its our address!
 		 */
-		addr = strdup(lookup_tbl(available, 0, COL_CONFIG));
+		addr = strdup(inet_ntoa(start_addr));
 		free_tbl(available);
 		goto out;
 	}

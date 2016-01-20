@@ -771,8 +771,6 @@ static void create_containers_from_table(const void *data, const struct agent_co
 		iname = lookup_tbl(containers, i, COL_INAME);
 		cname = lookup_tbl(containers, i, COL_CNAME);
 
-		ifcs = build_interface_list_for_container(iname, tennant, acfg);
-
 		LOG(INFO, "Creating container %s of type %s for tennant %s\n",
 			iname, cname, tennant);
 
@@ -780,6 +778,14 @@ static void create_containers_from_table(const void *data, const struct agent_co
 			LOG(WARNING, "Unable to install/update container %s\n", iname);
 			change_container_state(tennant, iname,
 					       "installing", "failed", acfg);
+			continue;
+		}
+
+		ifcs = build_interface_list_for_container(iname, tennant, acfg);
+
+		if (get_address_for_interfaces(ifcs, iname, acfg)) {
+			LOG(ERROR, "Could not assign addresses for some interfaces\n");
+			change_container_state(tennant, iname, "installing", "failed", acfg);
 			continue;
 		}
 
@@ -796,6 +802,8 @@ static void create_containers_from_table(const void *data, const struct agent_co
 			LOG(WARNING, "Failed to exec container %s: %s\n",
 				iname, strerror(rc));
 			change_container_state(tennant, iname, "installing", "failed", acfg);
+			release_address_for_interfaces(ifcs, acfg);
+
 		} else {
 			LOG(INFO, "Started container %s\n", iname);
 			change_container_state(tennant, iname, "installing", "running", acfg);

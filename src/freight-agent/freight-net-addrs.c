@@ -103,7 +103,7 @@ static int acquire_address_for_ifc(const char *ifc, struct ifc_info *info, const
 
 }
 
-int get_address_for_interfaces(struct ifc_list *list, const char *container, const struct agent_config *acfg)
+int get_address_for_interfaces(const struct ifc_list *list, const char *container, const struct agent_config *acfg)
 {
 	int i;
 	int rc;
@@ -113,11 +113,10 @@ int get_address_for_interfaces(struct ifc_list *list, const char *container, con
 	 * We have to do this for every interface
 	 */
 	for (i = 0; i < list->count; i ++) {
-
 		/*
 		 * If we make it here the we need to use the default policy for the network
 		 */
-		rc = acquire_address_for_ifc(list->ifc[i].container_veth, &list->ifc[i], acfg); 
+		rc = acquire_address_for_ifc(list->ifc[i].container_veth, (struct ifc_info *)&list->ifc[i], acfg); 
 		if (rc)
 			LOG(WARNING, "Failed to get address for ifc %s on container %s\n", 
 				list->ifc[i].container_veth, container);
@@ -127,7 +126,7 @@ int get_address_for_interfaces(struct ifc_list *list, const char *container, con
 	return rc;
 }
 
-void release_address_for_interfaces(struct ifc_list *list, const struct agent_config *acfg)
+void release_address_for_interfaces(const struct ifc_list *list, const struct agent_config *acfg)
 {
 
 }

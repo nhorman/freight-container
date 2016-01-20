@@ -758,6 +758,11 @@ int setup_networks_in_container(const char *cname, const char *iname, const char
 		case AQUIRE_DHCP:
 			fprintf(fptr, "BOOTPROTO=dhcp\n");
 			break;
+		case AQUIRE_EXTERNAL_STATIC:
+			fprintf(fptr, "BOOTPROTO=static\n");
+			fprintf(fptr, "IPADDR=%s\n", list->ifc[i].esd.container_v4addr);
+			fprintf(fptr, "DNS1=%s\n", net->conf->aconf.ipv4_config.dns);
+			break;
 		default:
 			LOG(WARNING, "ipv4 acquire type is unknown: %d\n",
 				net->conf->aconf.ipv4);
@@ -776,9 +781,27 @@ int setup_networks_in_container(const char *cname, const char *iname, const char
 		cmd = strjoin("echo HWADDR=`ip link show ", list->ifc[i].container_veth,
 			      " | awk '/link/ {print $2}'` >> ", path, NULL);
 		run_command(cmd,1);
-
 		free(cmd);
 		free(path);
+
+		/*
+		 * For any static config, we may also need to setup the /etc/sysconfig/network file
+		 */
+		if (net->conf->aconf.ipv4 == AQUIRE_EXTERNAL_STATIC) {
+			path = strjoin(acfg->node.container_root, "/", tennant, "/containers/",
+				       cname, "/", iname, "/etc/sysconfig/network", NULL);
+
+			fptr = fopen(path, "w+");
+			if (!fptr) {
+				LOG(ERROR, "Could not write /etc/sysconfig/network file for container %s\n",
+				    iname);
+				free(path);
+				continue;
+			}
+			fprintf(fptr, "GATEWAY=%s\n", net->conf->aconf.ipv4_config.defroute);
+			fclose(fptr);
+			free(path);
+		}
 	}
 	return 0;	
 }
