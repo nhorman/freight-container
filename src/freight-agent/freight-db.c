@@ -1232,8 +1232,8 @@ find_new:
 	 * Given that we know from the prior bit that all addresses in the table are in use, we should start searching from the 
 	 * end address, plus the number of addresses in the table
 	 */
-	inet_aton(astart, &start_addr);
-	inet_aton(aend, &end_addr);
+	inet_pton(AF_INET, astart, &start_addr);
+	inet_pton(AF_INET, aend, &end_addr); 
 	start_addr.s_addr += available->rows;
 	free_tbl(available);
 
@@ -1248,12 +1248,12 @@ find_new:
 		available = get_raw_table(TABLE_ALLOCMAP, filter, acfg);
 		free(filter);
 		if (!available) {
-			start_addr.s_addr = htonl(ntohl(start_addr.s_addr)+1);
+			start_addr.s_addr++;
 			continue;
 		}
 		if (available->rows == 0) {
 			free_tbl(available);
-			start_addr.s_addr = htonl(ntohl(start_addr.s_addr)+1);
+			start_addr.s_addr++;
 			continue;
 		}
 		/*
