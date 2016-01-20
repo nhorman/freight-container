@@ -188,6 +188,7 @@ GRANT ALL on containers to $ADMINUSER;
 GRANT ALL on networks to $ADMINUSER;
 GRANT ALL on net_container_map to $ADMINUSER;
 GRANT ALL on global_config to $ADMINUSER;
+GRANT ALL on net_address_allocation_map to $ADMINUSER;
 
 GRANT ALL on tennants to $NODEUSER;
 GRANT ALL on nodes to $NODEUSER;
@@ -197,6 +198,7 @@ GRANT ALL on containers to $NODEUSER;
 GRANT ALL on networks to $NODEUSER;
 GRANT SELECT on net_container_map to $NODEUSER;
 GRANT SELECT on global_config to $NODEUSER;
+GRANT ALL on net_address_allocation_map to $NODEUSER;
 
 EOF
 
