@@ -30,6 +30,9 @@ struct postgres_info {
 	PGconn *conn;
 };
 
+static int pg_send_raw_sql(const char *sql,
+		           const struct agent_config *acfg);
+
 static int pg_init(struct agent_config *acfg)
 {
 	struct postgres_info *info = calloc(1, sizeof(struct postgres_info));
@@ -102,6 +105,46 @@ out:
 	return rc;
 }
 
+static int pg_table_op(enum table_op op, enum db_table tbl, const struct colvallist *setlist,
+		       const struct colvallist *filter, const struct agent_config *acfg)
+{
+	const char *tblname = get_tablename(tbl);
+	char *sql;
+	int i, rc;
+
+	switch (op) {
+
+	case OP_INSERT:
+		sql = strjoin("INSERT INTO ", tblname, " VALUES (", NULL);
+		break;
+	default:
+		LOG(ERROR, "Unknown table operation\n");
+		return -ENOENT;
+	}
+
+	switch (op) {
+
+	case OP_INSERT:
+		/*
+		 * Note, this expects entries to be in column order!
+		 */
+		for(i=0; i < setlist->count; i++) { 
+			sql = strappend(sql, "'", setlist->entries[i].value, "'", NULL);
+			if (i != setlist->count-1)
+				sql = strappend(sql, ", ", NULL);
+		}
+		sql = strappend(sql, ")", NULL);
+		break;
+
+	default:
+		break;
+	}
+
+	rc = pg_send_raw_sql(sql, acfg);
+
+	free(sql);
+	return rc;
+}
 
 static int pg_send_raw_sql(const char *sql,
 		           const struct agent_config *acfg)
@@ -242,6 +285,7 @@ struct db_api postgres_db_api = {
 	.cleanup = pg_cleanup,
 	.connect = pg_connect,
 	.disconnect = pg_disconnect,
+	.table_op = pg_table_op,
 	.send_raw_sql = pg_send_raw_sql,
 	.get_table = pg_get_table,
 	.notify = pg_notify,

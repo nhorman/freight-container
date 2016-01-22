@@ -93,6 +93,12 @@ enum table_col {
 	COL_MAX
 };
 
+enum table_op { 
+	OP_INSERT = 0,
+	OP_UPDATE,
+	OP_DELETE
+};
+
 struct tbl {
 	enum db_table type;
 	int rows;
@@ -121,6 +127,16 @@ enum event_rc {
 	EVENT_FAILED,
 };
 
+struct colval {
+	enum table_col column;
+	const char *value;
+};
+
+struct colvallist {
+	size_t count;
+	struct colval *entries;
+};
+
 struct db_api {
 
 	/* setup and teardown functions */
@@ -130,6 +146,8 @@ struct db_api {
 	int (*disconnect)(struct agent_config *acfg);
 
 	/* operational methods */
+	int (*table_op)(enum table_op op, enum db_table tbl, const struct colvallist *setlist,
+			const struct colvallist *filter,  const struct agent_config *acfg);
 	int (*send_raw_sql)(const char *values, const struct agent_config *acfg);
 
 	struct tbl* (*get_table)(enum db_table tbl, const char *cols, const char *filter,

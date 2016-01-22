@@ -373,7 +373,7 @@ out:
 	free_tbl(table);
 	return rc;
 }
-int add_repo(const char *name, const char *url,
+static int old_add_repo(const char *name, const char *url,
 	     const char *tennant,
 	     const struct agent_config *acfg)
 {
@@ -386,6 +386,27 @@ int add_repo(const char *name, const char *url,
 			url, "', '", tennant, "')", NULL);
 
 	return api->send_raw_sql(sql, acfg);
+}
+
+int add_repo(const char *name, const char *url,
+	     const char *tennant, const struct agent_config *acfg)
+{
+	struct colval values[3];
+	struct colvallist list;
+
+	if (!api->table_op)
+		return old_add_repo(name, url, tennant, acfg);
+
+	list.count = 3;
+	list.entries = values;
+	values[0].value = name;
+	values[0].column = COL_NAME;
+	values[1].value = url;
+	values[1].column = COL_URL;
+	values[2].value = tennant;
+	values[2].column = COL_TENNANT;
+
+	return api->table_op(OP_INSERT, TABLE_YUM_CONFIG, &list, NULL, acfg);
 }
 
 extern int del_repo(const char *name,

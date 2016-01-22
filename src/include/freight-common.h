@@ -82,6 +82,13 @@ __mem;\
 
 char *strjoin(const char *a, ...)  __attribute((sentinel));
 
+
+#define strappend(s, a, ...) ({\
+	char *___new = strjoin(s,a,  __VA_ARGS__, NULL);\
+	free(s);\
+	___new;\
+})
+
 static inline size_t s_max(size_t a, size_t b) {
         return a > b ? a : b;
 }
