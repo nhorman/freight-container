@@ -129,7 +129,10 @@ static int pg_table_op(enum table_op op, enum db_table tbl, const struct colvall
 		 * Note, this expects entries to be in column order!
 		 */
 		for(i=0; i < setlist->count; i++) { 
-			sql = strappend(sql, "'", setlist->entries[i].value, "'", NULL);
+			if (setlist->entries[i].value)
+				sql = strappend(sql, "'", setlist->entries[i].value, "'", NULL);
+			else
+				sql = strappend(sql, "null", NULL);
 			if (i != setlist->count-1)
 				sql = strappend(sql, ", ", NULL);
 		}

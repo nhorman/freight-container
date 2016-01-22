@@ -58,23 +58,23 @@ static char *tablenames[TABLE_MAX] = {
  * This table maps the human readable column names
  * to the numeric columns that each table returns.
  * The array indicies are:
- * TENNANT, HOSTNAME, STATE, NAME, URL, INAME, CNAME, PROXYPASS, TYPE, CONFIG
+ * TENNANT, HOSTNAME, STATE, NAME, URL, INAME, CNAME, PROXYPASS, TYPE, CONFIG PROXYADMIN LOAD MODIFIED
  * Note: the net_contaienr_map uses INAME for the container name and CNAME for the network name
  * Note: the global_config table uses NAME for the key and CONFIG for the value column
  * Note: The allocmap uses INAME for the ownerip
  */
 
 static int db_col_map[TABLE_MAX][COL_MAX] = {
- [TABLE_TENNANTS] =		{ 0, -1, -1, -1, -1, -1, -1,  1, -1,  2, -1},
- [TABLE_NODES] =		{-1,  0,  1, -1, -1, -1, -1, -1, -1, -1,  2},
- [TABLE_TENNANT_HOSTS] = 	{ 1,  0, -1, -1, -1, -1, -1, -1, -1, -1, -1},
- [TABLE_YUM_CONFIG] =		{ 2, -1, -1,  0,  1, -1, -1, -1, -1, -1, -1},
- [TABLE_CONTAINERS] =		{ 0,  3,  4, -1, -1,  1,  2, -1, -1, -1, -1},
- [TABLE_NETWORKS] =		{ 1, -1,  2,  0, -1, -1, -1, -1,  3, -1, -1},
- [TABLE_NETMAP] =		{ 0, -1, -1, -1, -1,  1,  2, -1, -1, -1, -1}, 
- [TABLE_EVENTS] =		{ -1,-1, -1,  0, -1, -1, -1, -1,  1, -1, -1},
- [TABLE_GCONF] =		{ -1,-1, -1,  0, -1, -1, -1, -1,  1, -1, -1},
- [TABLE_ALLOCMAP] =		{ 1,  5,  3,  0, -1,  4, -1, -1, -1, -1,  2} 
+ [TABLE_TENNANTS] =		{ 0, -1, -1, -1, -1, -1, -1,  1, -1,  2, -1, -1},
+ [TABLE_NODES] =		{-1,  0,  1, -1, -1, -1, -1, -1, -1, -1,  2,  3},
+ [TABLE_TENNANT_HOSTS] = 	{ 1,  0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+ [TABLE_YUM_CONFIG] =		{ 2, -1, -1,  0,  1, -1, -1, -1, -1, -1, -1, -1},
+ [TABLE_CONTAINERS] =		{ 0,  3,  4, -1, -1,  1,  2, -1, -1, -1, -1, -1},
+ [TABLE_NETWORKS] =		{ 1, -1,  2,  0, -1, -1, -1, -1,  3, -1, -1, -1},
+ [TABLE_NETMAP] =		{ 0, -1, -1, -1, -1,  1,  2, -1, -1, -1, -1, -1}, 
+ [TABLE_EVENTS] =		{ -1,-1, -1,  0, -1, -1, -1, -1,  1, -1, -1, -1},
+ [TABLE_GCONF] =		{ -1,-1, -1,  0, -1, -1, -1, -1,  1, -1, -1, -1},
+ [TABLE_ALLOCMAP] =		{ 1,  5,  3,  0, -1,  4, -1, -1, -1, -1,  2, -1} 
 };
 
 
@@ -425,8 +425,8 @@ extern int del_repo(const char *name,
 }
 
 
-int add_host(const char *hostname,
-	     const struct agent_config *acfg)
+static int old_add_host(const char *hostname,
+	                const struct agent_config *acfg)
 {
 	char *sql;
 
@@ -436,6 +436,28 @@ int add_host(const char *hostname,
 	sql = strjoina("INSERT INTO nodes VALUES ('", hostname, "', 'offline', 0, null)", NULL);
 
 	return api->send_raw_sql(sql, acfg);
+}
+
+int add_host(const char *hostname,
+	     const struct agent_config *acfg)
+{
+	struct colval values[4];
+	struct colvallist list;
+	if (!api->table_op)
+		return old_add_host(hostname, acfg);
+
+	list.count = 4;
+	list.entries = values;
+	values[0].column = COL_HOSTNAME;
+	values[0].value = hostname;
+	values[1].column = COL_STATE;
+	values[1].value = "offline";
+	values[2].column = COL_LOAD;
+	values[2].value = "0";
+	values[3].column = COL_MODIFIED;
+	values[3].value = NULL;
+
+	return api->table_op(OP_INSERT, TABLE_NODES, &list, NULL, acfg);
 }
 
 int del_host(const char *hostname,

@@ -90,6 +90,7 @@ enum table_col {
 	COL_CONFIG,
 	COL_PROXYADMIN,
 	COL_LOAD,
+	COL_MODIFIED,
 	COL_MAX
 };
 

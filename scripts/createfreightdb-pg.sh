@@ -122,7 +122,7 @@ CREATE TABLE tennants (
 CREATE TABLE nodes (
 	hostname	varchar(256) PRIMARY KEY,
 	state		status NOT NULL,
-	load		integer,
+	load		varchar,
 	modified	timestamp
 );
 
