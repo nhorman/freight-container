@@ -679,11 +679,11 @@ struct tbl *get_host_info(const char *name, const struct agent_config *acfg)
 	return get_raw_table(TABLE_NODES, filter, acfg);
 } 
 
-int request_create_container(const char *cname,
-                             const char *iname,
-                             const char *chost,
-			     const char *tennant,
-			     const struct agent_config *acfg)
+static int old_request_create_container(const char *cname,
+					const char *iname,
+					const char *chost,
+					const char *tennant,
+					const struct agent_config *acfg)
 {
 	char *sql;
 	int rc;
@@ -724,6 +724,54 @@ int request_create_container(const char *cname,
 
 	return rc;
 
+}
+
+int request_create_container(const char *cname,
+			     const char *iname,
+			     const char *chost,
+			     const char *tennant,
+			     const struct agent_config *acfg)
+{
+
+	struct colval values[5];
+	struct colvallist list;
+	int rc;
+
+	if (!api->table_op)
+		return old_request_create_container(cname, iname, chost, tennant, acfg);
+
+	list.count = 5;
+	list.entries = values;
+
+	values[0].column = COL_TENNANT;
+	values[0].value = tennant;
+	
+	values[1].column = COL_NAME;
+	values[1].value = iname;
+
+	values[2].column = COL_CNAME;
+	values[2].value = cname;
+
+	values[3].column = COL_HOSTNAME;
+	values[3].value = chost;
+
+	values[4].column = COL_STATE;
+	values[4].value = chost ? "staged" : "assigning-host";
+
+	rc = api->table_op(OP_INSERT, TABLE_CONTAINERS, &list, NULL, acfg);
+	if (!rc) {
+		/*
+		 * If we add the sql safely, then we need to wake someone up to read the table
+		 * If a chost is specified, then notify that host only, otherwise, notify the 
+		 * master to pick a host for us
+		 */
+		if (chost)
+			rc = notify_host(CHAN_CONTAINERS, chost, acfg);
+		else
+			rc = notify_all(CHAN_CONTAINERS_SCHED, acfg);
+	}
+
+	return rc;
 }
 
 int request_delete_container(const char *iname,
