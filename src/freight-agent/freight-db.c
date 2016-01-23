@@ -473,9 +473,9 @@ int del_host(const char *hostname,
 	return api->send_raw_sql(sql, acfg);
 }
 
-int subscribe_host(const char *host,
-		   const char *tennant,
-		   const struct agent_config *acfg)
+int old_subscribe_host(const char *host,
+		       const char *tennant,
+		       const struct agent_config *acfg)
 {
 	char *sql;
 	int rc;
@@ -490,6 +490,32 @@ int subscribe_host(const char *host,
 		return rc;
 
 	return notify_host(CHAN_TENNANT_HOSTS, host, acfg);
+}
+
+int subscribe_host(const char *host,
+		   const char *tennant,
+		   const struct agent_config *acfg)
+{
+	int rc;
+	struct colval values[2];
+	struct colvallist list;
+
+	if (!api->table_op)
+		return old_subscribe_host(host, tennant, acfg);
+
+	list.count = 2;
+	list.entries = values;
+	values[0].column = COL_HOSTNAME;
+	values[0].value = host;
+	values[1].column = COL_TENNANT;
+	values[1].value = tennant;
+
+	rc = api->table_op(OP_INSERT, TABLE_TENNANT_HOSTS, &list, NULL, acfg);
+	
+	if (!rc)
+		rc = notify_host(CHAN_TENNANT_HOSTS, host, acfg);
+
+	return rc;
 }
 
 int unsubscribe_host(const char *tenant,
