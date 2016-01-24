@@ -995,7 +995,7 @@ int send_raw_sql(char *sql, const struct agent_config *acfg)
 	return api->send_raw_sql(sql, acfg);
 }
 
-int network_create_config(const char *name, const char *cfstring, const char *tennant, const struct agent_config *acfg)
+static int old_network_create_config(const char *name, const char *cfstring, const char *tennant, const struct agent_config *acfg)
 {
 	char *sql;
 
@@ -1014,6 +1014,28 @@ int network_create_config(const char *name, const char *cfstring, const char *te
 	
 }
 
+int network_create_config(const char *name, const char *cfstring, const char *tennant, const struct agent_config *acfg)
+{
+	struct colvallist list;
+	struct colval values[4];
+
+	if (!api->table_op)
+		return old_network_create_config(name, cfstring, tennant, acfg);
+
+	list.count = 4;
+	list.entries = values;
+
+	values[0].column = COL_NAME;
+	values[0].value = name;
+	values[1].column = COL_TENNANT;
+	values[1].value = tennant;
+	values[2].column = COL_STATE;
+	values[2].value = "active"; 
+	values[3].column = COL_CONFIG;
+	values[3].value = cfstring;
+
+	return api->table_op(OP_INSERT, TABLE_NETWORKS, &list, NULL, acfg);
+}
 
 int network_create(const char *name, const char *configfile, const char *tennant, const struct agent_config *acfg)
 {
