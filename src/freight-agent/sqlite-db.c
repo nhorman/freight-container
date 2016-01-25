@@ -248,11 +248,56 @@ static int sq_subscribe(const char *lcmd, const char *chnl, const struct agent_c
 	return 0;
 }
 
+static int sq_table_op(enum table_op op, enum db_table tbl, const struct colvallist *setlist,
+		       const struct colvallist *filter, const struct agent_config *acfg)
+{
+	const char *tblname = get_tablename(tbl);
+	char *sql;
+	int i, rc;
+
+	switch (op) {
+
+	case OP_INSERT:
+		sql = strjoin("INSERT INTO ", tblname, " VALUES (", NULL);
+		break;
+	default:
+		LOG(ERROR, "Unknown table operation\n");
+		return -ENOENT;
+	}
+
+	switch (op) {
+
+	case OP_INSERT:
+		/*
+		 * Note, this expects entries to be in column order!
+		 */
+		for(i=0; i < setlist->count; i++) { 
+			if (setlist->entries[i].value)
+				sql = strappend(sql, "'", setlist->entries[i].value, "'", NULL);
+			else
+				sql = strappend(sql, "null", NULL);
+			if (i != setlist->count-1)
+				sql = strappend(sql, ", ", NULL);
+		}
+		sql = strappend(sql, ")", NULL);
+		break;
+
+	default:
+		break;
+	}
+
+	rc = sq_send_raw_sql(sql, acfg);
+
+	free(sql);
+	return rc;
+}
+
 struct db_api sqlite_db_api = {
 	.init = sq_init,
 	.cleanup = sq_cleanup,
 	.connect = sq_connect,
 	.disconnect = sq_disconnect,
+	.table_op = sq_table_op,
 	.send_raw_sql = sq_send_raw_sql,
 	.get_table = sq_get_table,
 	.notify = sq_notify,
