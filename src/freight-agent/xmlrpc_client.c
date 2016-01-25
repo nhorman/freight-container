@@ -702,6 +702,173 @@ static int notify_fn(const char *values, const struct agent_config *acfg)
 	return 0;
 }
 
+
+static xmlrpc_value* make_string_array_from_colvallist(const struct colvallist *list, struct xmlrpc_info *info)
+{
+        xmlrpc_value *params;
+        xmlrpc_value *p;
+	int i;
+
+        params = xmlrpc_array_new(&info->env);
+
+	for (i=0; i < list->count; i++) {
+		p = xmlrpc_string_new(&info->env, list->entries[i].value);
+		xmlrpc_array_append_item(&info->env, params, p);
+		xmlrpc_DECREF(p);
+	}
+
+        return params;
+}
+
+static xmlrpc_value *insert_yum_config_op(enum table_op op, enum db_table tbl,
+						 const struct colvallist *setlist,
+						 const struct colvallist *filter,
+						 char **xmlop, const struct agent_config *acfg)
+{
+	struct colvallist list;
+	struct xmlrpc_info *info = acfg->db.db_priv;
+
+	*xmlop = "add.repo";
+
+	/*
+	 * Drop the last entry in this (the tennant) as we don't need it
+	 */
+	list.count = setlist->count-1;
+	list.entries = setlist->entries;
+	return make_string_array_from_colvallist(&list, info);
+}
+
+static xmlrpc_value *insert_containers_op(enum table_op op, enum db_table tbl,
+						 const struct colvallist *setlist,
+						 const struct colvallist *filter,
+						 char **xmlop, const struct agent_config *acfg)
+{
+	struct colvallist list;
+
+	struct xmlrpc_info *info = acfg->db.db_priv;
+
+	*xmlop = "create.container";
+
+	/*
+	 * This skips the tennant parameter which the xmlrpc code 
+	 * doesn't need
+	 */
+	list.count = setlist->count-1;
+	list.entries = &setlist->entries[1]; 
+	if (list.entries[2].value == NULL)
+		list.entries[2].value = "scheduler-chosen";
+
+	return make_string_array_from_colvallist(&list, info);
+}
+
+static xmlrpc_value *insert_networks_op(enum table_op op, enum db_table tbl,
+						 const struct colvallist *setlist,
+						 const struct colvallist *filter,
+						 char **xmlop, const struct agent_config *acfg)
+{
+	struct colvallist list;
+	struct colval values[2];
+
+	struct xmlrpc_info *info = acfg->db.db_priv;
+
+	*xmlop = "create.network";
+
+	/*
+	 * This skips the tennant and state parameter which the xmlrpc code 
+	 * doesn't need
+	 */
+	list.count = 2; 
+	list.entries = values;
+	list.entries[0].column = setlist->entries[0].column;
+	list.entries[0].value = setlist->entries[0].value;
+	list.entries[1].column = setlist->entries[3].column;
+	list.entries[1].value = setlist->entries[3].value;
+
+	return make_string_array_from_colvallist(&list, info);
+}
+
+static xmlrpc_value *insert_netmap_op(enum table_op op, enum db_table tbl,
+						 const struct colvallist *setlist,
+						 const struct colvallist *filter,
+						 char **xmlop, const struct agent_config *acfg)
+{
+	struct colvallist list;
+
+	struct xmlrpc_info *info = acfg->db.db_priv;
+
+	*xmlop = "create.container";
+
+	/*
+	 * This skips the tennant parameter which the xmlrpc code 
+	 * doesn't need
+	 */
+	list.count = setlist->count-1;
+	list.entries = &setlist->entries[1]; 
+
+	return make_string_array_from_colvallist(&list, info);
+}
+
+static xmlrpc_value *report_unsupported(enum table_op op, enum db_table tbl,
+						 const struct colvallist *setlist,
+						 const struct colvallist *filter,
+						 char **xmlop, const struct agent_config *acfg)
+{
+	*xmlop = NULL;
+	LOG(ERROR, "the xmlrpc client cannot add hosts to the cluster at this time\n");
+	return NULL;
+}
+
+struct xmlrpc_op_map {
+	xmlrpc_value *(*get_op_args)(enum table_op op, enum db_table tbl, const struct colvallist *setlist,
+			   	     const struct colvallist *filter, char **xmlop, const struct agent_config *acfg);
+	int (*parse_result)(xmlrpc_value *result, const struct agent_config *acfg);
+};
+
+static struct xmlrpc_op_map op_map[TABLE_MAX][OP_MAX] = {
+	[TABLE_YUM_CONFIG][OP_INSERT] = {insert_yum_config_op, parse_int_result},
+	[TABLE_NODES][OP_INSERT] = {report_unsupported, NULL},
+	[TABLE_TENNANT_HOSTS][OP_INSERT] = {report_unsupported, NULL},
+	[TABLE_CONTAINERS][OP_INSERT] = {insert_containers_op, parse_int_result},
+	[TABLE_NETWORKS][OP_INSERT] = {insert_networks_op, parse_int_result},
+	[TABLE_NETMAP][OP_INSERT] = {insert_netmap_op, parse_int_result},
+};
+
+
+static int xmlrpc_table_op(enum table_op op, enum db_table tbl, const struct colvallist *setlist,
+			   const struct colvallist *filter,  const struct agent_config *acfg)
+{
+	int rc;
+	xmlrpc_value *params, *result;
+	char *xmlop;
+	struct xmlrpc_info *info = acfg->db.db_priv;
+
+	params = op_map[tbl][op].get_op_args(op, tbl, setlist, filter, &xmlop, acfg);
+
+	if (!params)
+		return -EOPNOTSUPP;
+
+	
+	xmlrpc_client_call2(&info->env, info->client,
+			    info->server, xmlop,
+			    params,
+			    &result);
+	
+	xmlrpc_DECREF(params);
+
+	/*
+	 * check to make sure it worked properly
+	 */
+	if (info->env.fault_occurred) {
+		LOG(ERROR, "Failed to issue xmlrpc: %s\n", info->env.fault_string);
+                return -EFAULT;
+	}
+
+	rc = op_map[tbl][op].parse_result(result, acfg);
+
+	xmlrpc_DECREF(result);
+	return rc;
+}
+
 static int xmlrpc_send_raw_sql(const char *values, const struct agent_config *acfg)
 {
 
@@ -738,5 +905,6 @@ struct db_api xmlrpc_api = {
 	.connect = xmlrpc_connect,
 	.disconnect = xmlrpc_disconnect,
 	.get_table = xmlrpc_get_table,
+	.table_op = xmlrpc_table_op,
 	.send_raw_sql = xmlrpc_send_raw_sql,
 };

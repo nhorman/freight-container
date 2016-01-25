@@ -97,7 +97,8 @@ enum table_col {
 enum table_op { 
 	OP_INSERT = 0,
 	OP_UPDATE,
-	OP_DELETE
+	OP_DELETE,
+	OP_MAX
 };
 
 struct tbl {
