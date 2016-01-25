@@ -1122,7 +1122,7 @@ int network_list(const char *tennant, const struct agent_config *acfg)
 	return 0;	
 }
 
-int network_attach(const char *container, const char *network, const char *tennant, const struct agent_config *acfg)
+static int old_network_attach(const char *container, const char *network, const char *tennant, const struct agent_config *acfg)
 {
 	char *sql;
 
@@ -1135,6 +1135,26 @@ int network_attach(const char *container, const char *network, const char *tenna
 	return api->send_raw_sql(sql, acfg);
 }
 
+int network_attach(const char *container, const char *network, const char *tennant, const struct agent_config *acfg)
+{
+	struct colvallist list;
+	struct colval values[3];
+
+	if (!api->table_op)
+		return old_network_attach(container, network, tennant, acfg);
+
+	list.count = 3;
+	list.entries = values;
+
+	values[0].column = COL_TENNANT;
+	values[0].value = tennant;
+	values[1].column = COL_INAME;
+	values[1].value = container;
+	values[2].column = COL_CNAME;
+	values[2].value = network;
+
+	return api->table_op(OP_INSERT, TABLE_NETMAP, &list, NULL, acfg);
+}
 
 int network_detach(const char *container, const char *network, const char *tennant, const struct agent_config *acfg)
 {
