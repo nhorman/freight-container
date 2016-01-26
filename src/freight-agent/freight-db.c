@@ -813,7 +813,7 @@ int request_delete_container(const char *iname,
 
 	sql = strjoina("DELETE FROM containers WHERE tennant='",
 		tennant, "' AND iname='",iname,
-		"' AND (state='failed' OR state='staged')", NULL);
+		"' AND (state='failed' OR state='staged' OR state='assigning-host')", NULL);
 
 	return api->send_raw_sql(sql, acfg);
 
