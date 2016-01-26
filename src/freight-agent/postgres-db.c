@@ -117,6 +117,9 @@ static int pg_table_op(enum table_op op, enum db_table tbl, const struct colvall
 	case OP_INSERT:
 		sql = strjoin("INSERT INTO ", tblname, " VALUES (", NULL);
 		break;
+	case OP_DELETE:
+		sql = strjoin("DELETE FROM ", tblname, " WHERE ", NULL);
+		break;
 	default:
 		LOG(ERROR, "Unknown table operation\n");
 		return -ENOENT;
@@ -138,7 +141,14 @@ static int pg_table_op(enum table_op op, enum db_table tbl, const struct colvall
 		}
 		sql = strappend(sql, ")", NULL);
 		break;
-
+	case OP_DELETE:
+		for(i=0; i < filter->count; i++) {
+			sql = strappend(sql, get_colname(tbl, filter->entries[i].column),
+				  	"='", filter->entries[i].value, "'", NULL);
+			if (i < filter->count-1)
+				sql = strappend(sql, " AND ", NULL);
+		}
+		break;
 	default:
 		break;
 	}

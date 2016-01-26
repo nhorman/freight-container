@@ -244,6 +244,8 @@ extern enum event_rc event_dispatch(const char *chn, const char *extra);
 extern const char* get_tablename(enum db_table id);
 extern const enum db_table get_tableid(const char *name);
 
+extern const char *get_colname(enum db_table tbl, enum table_col col);
+
 extern struct tbl *alloc_tbl(int rows, int cols, enum db_table type);
 
 extern void free_tbl(struct tbl *table);

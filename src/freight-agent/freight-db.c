@@ -54,6 +54,30 @@ static char *tablenames[TABLE_MAX] = {
 	[TABLE_ALLOCMAP]= "net_address_allocation_map"
 };
 
+static char *colnames[TABLE_MAX][COL_MAX] = {
+	/*TABLE_TENNANTS*/
+	{"tennant", NULL, NULL, NULL, NULL, NULL, NULL, "proxypass", NULL, "proxyadmin", NULL, },
+	/*TABLE_NODES*/
+	{NULL, "hostname", "state", NULL, NULL, NULL, NULL, NULL, NULL, NULL, "load", "modified", },
+	/*TABLE_TENNANT_HOSTS*/
+	{"tennant", "hostname", },
+	/*TABLE_YUM_CONFIG*/
+	{"tennant", NULL, NULL, "name", "url", },
+	/*TABLE_CONTAINERS*/
+	{"tennant", "hostname", "state", NULL, "iname", "cname", },
+	/*TABLE_NETWORKS*/
+	{"tennant", NULL, "state", NULL, NULL, NULL, NULL, "config", },
+	/*TABLE_NETMAP*/
+	{"tennant", NULL, NULL, NULL, NULL, "name", "network", },
+	/*TABLE_EVENTS*/
+	{NULL, NULL, NULL, "event", "extra", },
+	/*TABLE_GCONF*/
+	{NULL, NULL, NULL, "key", NULL, NULL, NULL, NULL, "value", },
+	/*TABLE_ALLOCMAP*/
+	{"tennant", "ownerhost", "allocated", "ownerip", NULL, "type", NULL, NULL, NULL, "address", },
+	
+};
+
 /*
  * This table maps the human readable column names
  * to the numeric columns that each table returns.
@@ -74,9 +98,8 @@ static int db_col_map[TABLE_MAX][COL_MAX] = {
  [TABLE_NETMAP] =		{ 0, -1, -1, -1, -1,  1,  2, -1, -1, -1, -1, -1}, 
  [TABLE_EVENTS] =		{ -1,-1, -1,  0, -1, -1, -1, -1,  1, -1, -1, -1},
  [TABLE_GCONF] =		{ -1,-1, -1,  0, -1, -1, -1, -1,  1, -1, -1, -1},
- [TABLE_ALLOCMAP] =		{ 1,  5,  3,  0, -1,  4, -1, -1, -1, -1,  2, -1} 
+ [TABLE_ALLOCMAP] =		{ 1, 5,  3,  4,  3, -1,  -1, -1, -1,  2, -1, -1} 
 };
-
 
 struct channel_callback {
 	enum event_rc (*hndl)(const enum listen_channel chnl, const char *extra, const struct agent_config *acfg);
@@ -252,6 +275,10 @@ const enum db_table get_tableid(const char *name)
 	return TABLE_MAX;
 }
 
+const char *get_colname(enum db_table tbl, enum table_col col)
+{
+	return colnames[tbl][col];
+}
 
 struct tbl *alloc_tbl(int rows, int cols, enum db_table type)
 {
@@ -1156,7 +1183,7 @@ int network_attach(const char *container, const char *network, const char *tenna
 	return api->table_op(OP_INSERT, TABLE_NETMAP, &list, NULL, acfg);
 }
 
-int network_detach(const char *container, const char *network, const char *tennant, const struct agent_config *acfg)
+static int old_network_detach(const char *container, const char *network, const char *tennant, const struct agent_config *acfg)
 {
 	char *sql;
 
@@ -1169,6 +1196,26 @@ int network_detach(const char *container, const char *network, const char *tenna
 		       "AND network='", network,"'", NULL);
 
 	return api->send_raw_sql(sql, acfg);
+}
+
+int network_detach(const char *container, const char *network, const char *tennant, const struct agent_config *acfg)
+{
+	struct colvallist list;
+	struct colval values[3];
+
+	return old_network_detach(container, network, tennant, acfg);
+
+	list.count = 3;
+	list.entries = values;
+
+	values[0].column = COL_TENNANT;
+	values[0].value = tennant;
+	values[1].column = COL_INAME;
+	values[1].value = container;
+	values[2].column = COL_CNAME;
+	values[2].value = network;
+
+	return api->table_op(OP_DELETE, TABLE_NETMAP, NULL, &list, acfg);
 }
 
 struct tbl * get_network_info(const char *network, const char *tennant, const struct agent_config *acfg)
