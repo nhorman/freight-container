@@ -1203,7 +1203,8 @@ int network_detach(const char *container, const char *network, const char *tenna
 	struct colvallist list;
 	struct colval values[3];
 
-	return old_network_detach(container, network, tennant, acfg);
+	if (!api->table_op)
+		return old_network_detach(container, network, tennant, acfg);
 
 	list.count = 3;
 	list.entries = values;

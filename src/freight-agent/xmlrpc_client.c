@@ -808,6 +808,22 @@ static xmlrpc_value *insert_netmap_op(enum table_op op, enum db_table tbl,
 	return make_string_array_from_colvallist(&list, info);
 }
 
+static xmlrpc_value *delete_netmap_op(enum table_op op, enum db_table tbl,
+                                                 const struct colvallist *setlist,
+                                                 const struct colvallist *filter,
+                                                 char **xmlop, const struct agent_config *acfg)
+{
+	struct colvallist list;
+	struct xmlrpc_info *info = acfg->db.db_priv;
+
+	*xmlop = "detach.network";
+
+	list.count = filter->count - 1;
+	list.entries = &filter->entries[1];
+
+	return make_string_array_from_colvallist(&list, info);
+}
+
 static xmlrpc_value *report_unsupported(enum table_op op, enum db_table tbl,
 						 const struct colvallist *setlist,
 						 const struct colvallist *filter,
@@ -831,6 +847,7 @@ static struct xmlrpc_op_map op_map[TABLE_MAX][OP_MAX] = {
 	[TABLE_CONTAINERS][OP_INSERT] = {insert_containers_op, parse_int_result},
 	[TABLE_NETWORKS][OP_INSERT] = {insert_networks_op, parse_int_result},
 	[TABLE_NETMAP][OP_INSERT] = {insert_netmap_op, parse_int_result},
+	[TABLE_NETMAP][OP_DELETE] = {delete_netmap_op, parse_int_result},
 };
 
 
