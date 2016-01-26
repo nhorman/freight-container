@@ -248,6 +248,7 @@ static int sq_subscribe(const char *lcmd, const char *chnl, const struct agent_c
 	return 0;
 }
 
+
 static int sq_table_op(enum table_op op, enum db_table tbl, const struct colvallist *setlist,
 		       const struct colvallist *filter, const struct agent_config *acfg)
 {
@@ -259,6 +260,9 @@ static int sq_table_op(enum table_op op, enum db_table tbl, const struct colvall
 
 	case OP_INSERT:
 		sql = strjoin("INSERT INTO ", tblname, " VALUES (", NULL);
+		break;
+	case OP_DELETE:
+		sql = strjoin("DELETE FROM ", tblname, " WHERE ", NULL);
 		break;
 	default:
 		LOG(ERROR, "Unknown table operation\n");
@@ -281,7 +285,14 @@ static int sq_table_op(enum table_op op, enum db_table tbl, const struct colvall
 		}
 		sql = strappend(sql, ")", NULL);
 		break;
-
+	case OP_DELETE:
+		for(i=0; i < filter->count; i++) {
+			sql = strappend(sql, get_colname(tbl, filter->entries[i].column),
+				  	"='", filter->entries[i].value, "'", NULL);
+			if (i < filter->count-1)
+				sql = strappend(sql, " AND ", NULL);
+		}
+		break;
 	default:
 		break;
 	}
@@ -291,6 +302,7 @@ static int sq_table_op(enum table_op op, enum db_table tbl, const struct colvall
 	free(sql);
 	return rc;
 }
+
 
 struct db_api sqlite_db_api = {
 	.init = sq_init,
