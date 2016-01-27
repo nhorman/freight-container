@@ -507,7 +507,7 @@ int add_host(const char *hostname,
 	return api->table_op(OP_INSERT, TABLE_NODES, &list, NULL, acfg);
 }
 
-int del_host(const char *hostname,
+static int old_del_host(const char *hostname,
 	     const struct agent_config *acfg)
 {
 	char *sql;
@@ -518,6 +518,23 @@ int del_host(const char *hostname,
 	sql = strjoina("DELETE FROM nodes WHERE hostname = '", hostname, "'", NULL);
 
 	return api->send_raw_sql(sql, acfg);
+}
+
+int del_host(const char *hostname, const struct agent_config *acfg)
+{
+	struct colvallist list;
+	struct colval values[1];
+
+	if (!api->table_op)
+		return old_del_host(hostname, acfg);
+
+	list.count = 1;
+	list.entries = values;
+	values[0].column = COL_HOSTNAME;
+	values[0].value = hostname;
+
+	return api->table_op(OP_DELETE, TABLE_NODES, NULL, &list, acfg);
+	
 }
 
 int old_subscribe_host(const char *host,

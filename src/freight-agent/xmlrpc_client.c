@@ -853,6 +853,7 @@ static struct xmlrpc_op_map op_map[TABLE_MAX][OP_MAX] = {
 	[TABLE_YUM_CONFIG][OP_INSERT] = {yum_config_op, parse_int_result},
 	[TABLE_YUM_CONFIG][OP_DELETE] = {yum_config_op, parse_int_result},
 	[TABLE_NODES][OP_INSERT] = {report_unsupported, NULL},
+	[TABLE_NODES][OP_DELETE] = {report_unsupported, NULL},
 	[TABLE_TENNANT_HOSTS][OP_INSERT] = {report_unsupported, NULL},
 	[TABLE_CONTAINERS][OP_INSERT] = {insert_containers_op, parse_int_result},
 	[TABLE_NETWORKS][OP_INSERT] = {insert_networks_op, parse_int_result},
