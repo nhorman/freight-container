@@ -720,7 +720,7 @@ static xmlrpc_value* make_string_array_from_colvallist(const struct colvallist *
         return params;
 }
 
-static xmlrpc_value *insert_yum_config_op(enum table_op op, enum db_table tbl,
+static xmlrpc_value *yum_config_op(enum table_op op, enum db_table tbl,
 						 const struct colvallist *setlist,
 						 const struct colvallist *filter,
 						 char **xmlop, const struct agent_config *acfg)
@@ -728,13 +728,22 @@ static xmlrpc_value *insert_yum_config_op(enum table_op op, enum db_table tbl,
 	struct colvallist list;
 	struct xmlrpc_info *info = acfg->db.db_priv;
 
-	*xmlop = "add.repo";
+	if (op == OP_INSERT)
+		*xmlop = "add.repo";
+	else
+		*xmlop = "del.repo";
 
 	/*
-	 * Drop the last entry in this (the tennant) as we don't need it
+	 * Drop the first entry in this (the tennant) as we don't need it
 	 */
-	list.count = setlist->count-1;
-	list.entries = setlist->entries;
+	if (op == OP_INSERT) {
+		list.count = setlist->count-1;
+		list.entries = setlist->entries;
+	} else {
+		list.count = filter->count-1;
+		list.entries = filter->entries;
+	}
+
 	return make_string_array_from_colvallist(&list, info);
 }
 
@@ -841,7 +850,8 @@ struct xmlrpc_op_map {
 };
 
 static struct xmlrpc_op_map op_map[TABLE_MAX][OP_MAX] = {
-	[TABLE_YUM_CONFIG][OP_INSERT] = {insert_yum_config_op, parse_int_result},
+	[TABLE_YUM_CONFIG][OP_INSERT] = {yum_config_op, parse_int_result},
+	[TABLE_YUM_CONFIG][OP_DELETE] = {yum_config_op, parse_int_result},
 	[TABLE_NODES][OP_INSERT] = {report_unsupported, NULL},
 	[TABLE_TENNANT_HOSTS][OP_INSERT] = {report_unsupported, NULL},
 	[TABLE_CONTAINERS][OP_INSERT] = {insert_containers_op, parse_int_result},

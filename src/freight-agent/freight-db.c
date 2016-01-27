@@ -436,7 +436,7 @@ int add_repo(const char *name, const char *url,
 	return api->table_op(OP_INSERT, TABLE_YUM_CONFIG, &list, NULL, acfg);
 }
 
-extern int del_repo(const char *name,
+static int old_del_repo(const char *name,
 		    const char *tennant,
 		    const struct agent_config *acfg)
 {
@@ -451,6 +451,26 @@ extern int del_repo(const char *name,
 	return api->send_raw_sql(sql, acfg);
 }
 
+int del_repo(const char *name,
+	     const char *tennant,
+	     const struct agent_config *acfg)
+{
+	struct colvallist list;
+	struct colval values[2];
+
+	if (!api->table_op)
+		return old_del_repo(name, tennant, acfg);
+
+	list.count = 2;
+	list.entries = values;
+
+	values[0].column = COL_NAME;
+	values[0].value = name;
+	values[1].column = COL_TENNANT;
+	values[1].value = tennant;
+
+	return api->table_op(OP_DELETE, TABLE_YUM_CONFIG, NULL, &list, acfg);
+}
 
 static int old_add_host(const char *hostname,
 	                const struct agent_config *acfg)
