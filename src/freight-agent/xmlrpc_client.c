@@ -126,7 +126,7 @@ struct tbl* xmlrpc_get_table(enum db_table type, const char *cols, const char *f
 	 * Now we find out how many rows and colums this table has
 	 */
 	r = xmlrpc_array_size(&info->env, result);
-	if (r < 0)
+	if (r <= 0)
 		c = 0;
 	else {
 		xmlrpc_array_read_item(&info->env, result, 0, &tmpr);
