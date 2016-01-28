@@ -858,7 +858,7 @@ int request_create_container(const char *cname,
 	return rc;
 }
 
-int request_delete_container(const char *iname,
+static int old_request_delete_container(const char *iname,
 			     const char *tennant,
 			     const int force,
 			     const struct agent_config *acfg)
@@ -870,10 +870,39 @@ int request_delete_container(const char *iname,
 
 	sql = strjoina("DELETE FROM containers WHERE tennant='",
 		tennant, "' AND iname='",iname,
-		"' AND (state='failed' OR state='staged' OR state='assigning-host')", NULL);
+		"' AND state='failed' OR state='staged' OR state='assigning-host'", NULL);
 
 	return api->send_raw_sql(sql, acfg);
 
+}
+
+int request_delete_container(const char *iname,
+			     const char *tennant,
+			     const int force,
+			     const struct agent_config *acfg)
+{
+	struct colvallist list;
+	struct colval values[3];
+
+	if (!api->table_op)
+		return old_request_delete_container(iname, tennant, force, acfg);
+
+
+	/*
+	 * Note, we should also automatically detach from any networks this container
+	 * is attached to here
+	 */
+	list.count = 3;
+	list.entries = values;
+
+	values[0].column = COL_TENNANT;
+	values[0].value = tennant;
+	values[1].column = COL_INAME;
+	values[1].value = iname;
+	values[2].column = COL_VERBATIM;
+	values[2].value = "state='failed' OR state='staged' OR state='assigning-host'";
+
+	return api->table_op(OP_DELETE, TABLE_CONTAINERS, NULL, &list, acfg);
 }
 
 extern int request_boot_container(const char *iname, const char *tennant,

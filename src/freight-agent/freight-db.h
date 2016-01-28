@@ -77,6 +77,8 @@ enum db_table {
 
 /*
  * enum of column names
+ * Note that values above COL_MAX are special
+ * purpose and do not address real db columns
  */
 enum table_col {
 	COL_TENNANT = 0,
@@ -91,7 +93,8 @@ enum table_col {
 	COL_PROXYADMIN,
 	COL_LOAD,
 	COL_MODIFIED,
-	COL_MAX
+	COL_MAX,
+	COL_VERBATIM,
 };
 
 enum table_op { 

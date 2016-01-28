@@ -287,8 +287,11 @@ static int sq_table_op(enum table_op op, enum db_table tbl, const struct colvall
 		break;
 	case OP_DELETE:
 		for(i=0; i < filter->count; i++) {
-			sql = strappend(sql, get_colname(tbl, filter->entries[i].column),
-				  	"='", filter->entries[i].value, "'", NULL);
+			if (filter->entries[i].column == COL_VERBATIM)
+				sql = strappend(sql, filter->entries[i].value, NULL);
+			else
+				sql = strappend(sql, get_colname(tbl, filter->entries[i].column),
+						"='", filter->entries[i].value, "'", NULL);
 			if (i < filter->count-1)
 				sql = strappend(sql, " AND ", NULL);
 		}

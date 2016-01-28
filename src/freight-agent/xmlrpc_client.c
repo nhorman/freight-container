@@ -770,6 +770,31 @@ static xmlrpc_value *insert_containers_op(enum table_op op, enum db_table tbl,
 	return make_string_array_from_colvallist(&list, info);
 }
 
+static xmlrpc_value *delete_containers_op(enum table_op op, enum db_table tbl,
+						 const struct colvallist *setlist,
+						 const struct colvallist *filter,
+						 char **xmlop, const struct agent_config *acfg)
+{
+	struct colvallist list;
+	int i;
+	struct xmlrpc_info *info = acfg->db.db_priv;
+
+	*xmlop = "del.container";
+
+	/*
+	 * This skips the tennant parameter which the xmlrpc code 
+	 * doesn't need
+	 */
+	list.count = 1;
+	for (i =0; i < filter->count; i++) {
+		if (filter->entries[i].column == COL_INAME)
+			break;
+	}
+
+	list.entries = &filter->entries[i]; 
+
+	return make_string_array_from_colvallist(&list, info);
+}
 static xmlrpc_value *insert_networks_op(enum table_op op, enum db_table tbl,
 						 const struct colvallist *setlist,
 						 const struct colvallist *filter,
@@ -857,6 +882,7 @@ static struct xmlrpc_op_map op_map[TABLE_MAX][OP_MAX] = {
 	[TABLE_TENNANT_HOSTS][OP_INSERT] = {report_unsupported, NULL},
 	[TABLE_TENNANT_HOSTS][OP_DELETE] = {report_unsupported, NULL},
 	[TABLE_CONTAINERS][OP_INSERT] = {insert_containers_op, parse_int_result},
+	[TABLE_CONTAINERS][OP_DELETE] = {delete_containers_op, parse_int_result},
 	[TABLE_NETWORKS][OP_INSERT] = {insert_networks_op, parse_int_result},
 	[TABLE_NETMAP][OP_INSERT] = {insert_netmap_op, parse_int_result},
 	[TABLE_NETMAP][OP_DELETE] = {delete_netmap_op, parse_int_result},
