@@ -582,7 +582,7 @@ int subscribe_host(const char *host,
 	return rc;
 }
 
-int unsubscribe_host(const char *tenant,
+static int old_unsubscribe_host(const char *tenant,
 		     const char *host,
 		     const struct agent_config *acfg)
 {
@@ -600,6 +600,26 @@ int unsubscribe_host(const char *tenant,
 		return rc;
 
 	return notify_host(CHAN_TENNANT_HOSTS, host, acfg);
+}
+
+int unsubscribe_host(const char *tennant,
+		     const char *host,
+		     const struct agent_config *acfg)
+{
+	struct colvallist list;
+	struct colval values[2];
+
+	if (!api->table_op)
+		return old_unsubscribe_host(tennant, host, acfg);
+
+	list.count = 2;
+	list.entries = values;
+	values[0].column = COL_HOSTNAME;
+	values[0].value = host;
+	values[1].column = COL_TENNANT;
+	values[1].value = tennant;
+
+	return api->table_op(OP_DELETE, TABLE_TENNANT_HOSTS, NULL, &list, acfg);
 }
 
 
