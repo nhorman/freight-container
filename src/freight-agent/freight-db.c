@@ -66,7 +66,7 @@ static char *colnames[TABLE_MAX][COL_MAX] = {
 	/*TABLE_CONTAINERS*/
 	{"tennant", "hostname", "state", NULL, "iname", "cname", },
 	/*TABLE_NETWORKS*/
-	{"tennant", NULL, "state", NULL, NULL, NULL, NULL, "config", },
+	{"tennant", NULL, "state", "name", NULL, NULL, NULL, "config", },
 	/*TABLE_NETMAP*/
 	{"tennant", NULL, NULL, NULL, NULL, "name", "network", },
 	/*TABLE_EVENTS*/
@@ -1182,7 +1182,7 @@ out_free:
 
 }
 
-int network_delete(const char *name, const char *tennant, const struct agent_config *acfg)
+int old_network_delete(const char *name, const char *tennant, const struct agent_config *acfg)
 {
 	char *sql;
 
@@ -1193,6 +1193,41 @@ int network_delete(const char *name, const char *tennant, const struct agent_con
 
 	return api->send_raw_sql(sql, acfg);
 }
+
+int network_delete(const char *name, const char *tennant, const struct agent_config *acfg)
+{
+	struct colvallist list;
+	struct colval values[2];
+	int rc;
+	struct tbl *containers;
+	char *filter = strjoina("tennant='",tennant,"' AND network='",name,"'", NULL);
+
+	rc = 1;
+	containers = get_raw_table(TABLE_NETMAP, filter, acfg);
+	if (containers) {
+		rc = containers->rows;
+		free_tbl(containers);
+	}
+
+	if (rc) {
+		LOG(ERROR, "Cannot delete a network with containers attached\n");
+		return -EBUSY;
+	}
+	
+	if (!api->table_op)
+		return old_network_delete(name, tennant, acfg);
+
+	
+	list.count=2;
+	list.entries = values;
+	values[0].column = COL_NAME;
+	values[0].value = name;
+	values[1].column = COL_TENNANT;
+	values[1].value = tennant;
+
+	return api->table_op(OP_DELETE, TABLE_NETWORKS, NULL, &list, acfg);
+}
+
 
 int network_list(const char *tennant, const struct agent_config *acfg)
 {
