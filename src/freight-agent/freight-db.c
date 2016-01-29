@@ -110,6 +110,8 @@ struct channel_callback {
 
 static struct channel_callback *callbacks = NULL;
 
+static int auto_detach_networks_from_container(const char *iname, const char *tennant, const struct agent_config *acfg);
+
 static int __chn_subscribe(const struct agent_config *acfg,
 		    const char *lcmd,
 		    const char *chnl)
@@ -884,14 +886,14 @@ int request_delete_container(const char *iname,
 	struct colvallist list;
 	struct colval values[3];
 
+	if (auto_detach_networks_from_container(iname, tennant, acfg)) {
+		LOG(ERROR, "Unable to detatch container from some networks\n");
+		return -EFAULT;
+	}
+
 	if (!api->table_op)
 		return old_request_delete_container(iname, tennant, force, acfg);
 
-
-	/*
-	 * Note, we should also automatically detach from any networks this container
-	 * is attached to here
-	 */
 	list.count = 3;
 	list.entries = values;
 
@@ -1303,6 +1305,31 @@ int network_detach(const char *container, const char *network, const char *tenna
 	values[2].value = network;
 
 	return api->table_op(OP_DELETE, TABLE_NETMAP, NULL, &list, acfg);
+}
+
+static int auto_detach_networks_from_container(const char *iname, const char *tennant, const struct agent_config *acfg)
+{
+	struct tbl *networks;
+	int i, rc;
+	char *filter = strjoina("tennant='", tennant, "' AND name='", iname, "'", NULL);
+
+	networks = get_raw_table(TABLE_NETMAP, filter, acfg);
+
+	rc = 0;
+	if (!networks)
+		goto out;
+
+	for (i = 0; i < networks->rows; i++) {
+		rc = network_detach(iname, lookup_tbl(networks, i, COL_CNAME), tennant, acfg);
+		if (rc)
+			break;
+	}
+
+	free_tbl(networks);
+
+out:
+	return rc;
+	
 }
 
 struct tbl * get_network_info(const char *network, const char *tennant, const struct agent_config *acfg)
