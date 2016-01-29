@@ -343,10 +343,6 @@ extern int change_container_state_batch(const char *tennant,
 					const char *newstate,
 					const struct agent_config *acfg);
 
-extern int delete_container(const char *tennant,
-			    const char *iname,
-			    const struct agent_config *acfg);
-
 extern int notify_host(const enum listen_channel chn, const char *host,
 		       const struct agent_config *acfg);
 

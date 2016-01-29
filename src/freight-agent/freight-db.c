@@ -1041,21 +1041,6 @@ extern int change_container_state_batch(const char *tennant,
 	return api->send_raw_sql(sql, acfg);
 }
 
-int delete_container(const char *iname, const char *tennant,
-                     const struct agent_config *acfg)
-{
-	char *sql;
-
-	if (!api->send_raw_sql)
-		return -EOPNOTSUPP;
-
-	sql = strjoina("DELETE FROM containers where tennant='", tennant,
-		"' AND iname='", iname, "'", NULL);
-
-	return api->send_raw_sql(sql, acfg);
-}
-
-
 int notify_host(const enum listen_channel chn, const char *host,
 		const struct agent_config *acfg)
 {
