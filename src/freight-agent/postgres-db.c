@@ -156,7 +156,6 @@ static int pg_table_op(enum table_op op, enum db_table tbl, const struct colvall
 		break;
 	}
 
-	LOG(DEBUG, "Sending SQL %s\n", sql);
 	rc = pg_send_raw_sql(sql, acfg);
 
 	free(sql);
