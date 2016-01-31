@@ -181,7 +181,8 @@ static struct tbl* sq_get_table(enum db_table type,
 		sqlite3_step(stmt);
 		for (c = 0; c < col; c++) {
 			tmp = (const char *)sqlite3_column_text(stmt, c);
-			rtable->value[r][c] = strdup(tmp);
+			if (tmp)
+				rtable->value[r][c] = strdup(tmp);
 			if (!rtable->value[r][c]) {
 				free_tbl(rtable);
 				rtable = NULL;

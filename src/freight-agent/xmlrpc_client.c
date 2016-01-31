@@ -142,7 +142,8 @@ struct tbl* xmlrpc_get_table(enum db_table type, const char *cols, const char *f
 		for (j=0; j < c; j++) {
 			xmlrpc_array_read_item(&info->env, tmpr, j, &tmpc);
 			xmlrpc_read_string(&info->env, tmpc, &tmps);
-			table->value[i][j] = strdup(tmps);
+			if (tmps)
+				table->value[i][j] = strdup(tmps);
 			xmlrpc_DECREF(tmpc);
 		}
 		xmlrpc_DECREF(tmpr);

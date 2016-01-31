@@ -241,7 +241,9 @@ static struct tbl* pg_get_table(enum db_table type,
  	 */
 	for (r = 0; r < row; r++) { 
 		for (c = 0; c < col; c++) {
-			rtable->value[r][c] = strdup(PQgetvalue(result, r, c));
+			char *tmp = PQgetvalue(result, r, c);
+			if (tmp)
+				rtable->value[r][c] = strdup(tmp);
 			if (!rtable->value[r][c]) {
 				free_tbl(rtable);
 				rtable = NULL;
