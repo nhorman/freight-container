@@ -652,7 +652,7 @@ int list_subscriptions(const char *tenant,
 	
 }
 
-extern int change_host_state(const char *host, const char *newstate,
+static int old_change_host_state(const char *host, const char *newstate,
 			     const struct agent_config *acfg)
 {
 	char *sql;
@@ -665,7 +665,34 @@ extern int change_host_state(const char *host, const char *newstate,
 		       "' WHERE hostname = '", host, "'");
 
 	rc = api->send_raw_sql(sql, acfg);
-	notify_all(CHAN_NODES, acfg);
+	if (!rc)
+		notify_all(CHAN_NODES, acfg);
+	return rc;
+}
+
+int change_host_state(const char *host, const char *newstate,
+			     const struct agent_config *acfg)
+{
+	struct colvallist set, filter;
+	struct colval sval[1], fval[1];
+	int rc;
+
+	if (!api->table_op)
+		return old_change_host_state(host, newstate, acfg);
+
+	set.count = 1;
+	filter.count = 1;
+	set.entries = sval;
+	filter.entries = fval;
+
+	sval[0].column = COL_STATE;
+	sval[0].value = newstate;
+	fval[0].column = COL_HOSTNAME;
+	fval[0].value = host;
+
+	rc = api->table_op(OP_UPDATE, TABLE_NODES, &set, &filter, acfg);
+	if (!rc)
+		notify_all(CHAN_NODES, acfg);
 	return rc;
 }
 

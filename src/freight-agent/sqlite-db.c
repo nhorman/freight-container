@@ -248,7 +248,6 @@ static int sq_subscribe(const char *lcmd, const char *chnl, const struct agent_c
 	return 0;
 }
 
-
 static int sq_table_op(enum table_op op, enum db_table tbl, const struct colvallist *setlist,
 		       const struct colvallist *filter, const struct agent_config *acfg)
 {
@@ -264,6 +263,11 @@ static int sq_table_op(enum table_op op, enum db_table tbl, const struct colvall
 	case OP_DELETE:
 		sql = strjoin("DELETE FROM ", tblname, " WHERE ", NULL);
 		break;
+	case OP_UPDATE:
+		sql = strjoin("UPDATE ", tblname, " SET ", NULL);
+		if (setlist->count > 1)
+			sql = strappend(sql, "(", NULL);
+		break;
 	default:
 		LOG(ERROR, "Unknown table operation\n");
 		return -ENOENT;
@@ -271,11 +275,15 @@ static int sq_table_op(enum table_op op, enum db_table tbl, const struct colvall
 
 	switch (op) {
 
+	case OP_UPDATE:
+		/* FALLTHROUGH */
 	case OP_INSERT:
 		/*
 		 * Note, this expects entries to be in column order!
 		 */
 		for(i=0; i < setlist->count; i++) { 
+			if (op == OP_UPDATE)
+				sql = strappend(sql, get_colname(tbl, setlist->entries[i].column), " = ", NULL);
 			if (setlist->entries[i].value)
 				sql = strappend(sql, "'", setlist->entries[i].value, "'", NULL);
 			else
@@ -283,8 +291,14 @@ static int sq_table_op(enum table_op op, enum db_table tbl, const struct colvall
 			if (i != setlist->count-1)
 				sql = strappend(sql, ", ", NULL);
 		}
-		sql = strappend(sql, ")", NULL);
-		break;
+		if ((op == OP_INSERT) && (setlist->count > 1))
+			sql = strappend(sql, ")", NULL);
+		if (op == OP_UPDATE)
+			sql = strappend(sql, " WHERE ", NULL);
+		else
+			break;
+
+		/* FALLTHROUGH AGAIN FOR OP_UPDATE */
 	case OP_DELETE:
 		for(i=0; i < filter->count; i++) {
 			if (filter->entries[i].column == COL_VERBATIM)
