@@ -696,7 +696,7 @@ int change_host_state(const char *host, const char *newstate,
 	return rc;
 }
 
-int assign_container_host(const char *name, const char *host,
+static int old_assign_container_host(const char *name, const char *host,
 			  const char *tennant,
 			  const struct agent_config *acfg)
 {
@@ -709,6 +709,34 @@ int assign_container_host(const char *name, const char *host,
 		       "WHERE tennant='",tennant," AND iname='",name,"'", NULL);
 
 	return api->send_raw_sql(sql, acfg);
+}
+
+int assign_container_host(const char *name, const char *host,
+			  const char *tennant,
+			  const struct agent_config *acfg)
+{
+	struct colvallist slist;
+	struct colvallist flist;
+	struct colval set[2];
+	struct colval filter[2];
+
+	if (!api->table_op)
+		return old_assign_container_host(name, host, tennant, acfg);
+
+	slist.count = flist.count = 2;
+	slist.entries = set;
+	flist.entries = filter;
+
+	set[0].column = COL_HOSTNAME;
+	set[0].value = host;
+	set[1].column = COL_STATE;
+	set[1].value = "staged";
+	filter[0].column = COL_TENNANT;
+	filter[0].value = tennant;
+	filter[1].column = COL_INAME;
+	filter[1].value = name;
+
+	return api->table_op(OP_UPDATE, TABLE_NODES, &slist, &flist, acfg);
 }
 
 struct tbl* get_tennants_for_host(const char *host,
