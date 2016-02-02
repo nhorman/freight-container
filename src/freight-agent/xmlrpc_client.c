@@ -1018,6 +1018,15 @@ static int xmlrpc_send_raw_sql(const char *values, const struct agent_config *ac
 	return rc;
 }
 
+/*
+ * xmlrpc just pretends to notify systems, it really happens on the server
+ */
+int xmlrpc_null_notify(enum notify_type type, enum listen_channel chn,
+                      const char *name, const struct agent_config *acfg)
+{
+	return 0;
+}
+
 struct db_api xmlrpc_api = {
 	.init = xmlrpc_init,
 	.cleanup = xmlrpc_cleanup,
@@ -1026,4 +1035,5 @@ struct db_api xmlrpc_api = {
 	.get_table = xmlrpc_get_table,
 	.table_op = xmlrpc_table_op,
 	.send_raw_sql = xmlrpc_send_raw_sql,
+	.notify	= xmlrpc_null_notify,
 };
