@@ -166,6 +166,8 @@ xmlrpc_value* xmlrpc_boot_container(xmlrpc_env * const envp, xmlrpc_value * cons
 
 	xmlrpc_decompose_value(envp, params, "(s)", &iname);
 
+	LOG(ERROR, "Requesting boot of container %s\n", iname);
+
 	rc = request_boot_container(iname, cinfo->tennant, acfg);
 
 	return xmlrpc_int_new(envp, rc);	

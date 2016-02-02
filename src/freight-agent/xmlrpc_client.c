@@ -32,6 +32,11 @@ struct xmlrpc_info {
 	xmlrpc_server_info *server;
 };
 
+static xmlrpc_value *report_unsupported(enum table_op op, enum db_table tbl,
+                                                 const struct colvallist *setlist,
+                                                 const struct colvallist *filter,
+                                                 char **xmlop, const struct agent_config *acfg);
+
 static int xmlrpc_init(struct agent_config *acfg)
 {
 	struct xmlrpc_info *info;
@@ -797,6 +802,36 @@ static xmlrpc_value *delete_containers_op(enum table_op op, enum db_table tbl,
 	return make_string_array_from_colvallist(&list, info);
 }
 
+static xmlrpc_value *update_containers_op(enum table_op op, enum db_table tbl,
+						 const struct colvallist *setlist,
+						 const struct colvallist *filter,
+						 char **xmlop, const struct agent_config *acfg)
+{
+	struct colvallist list;
+	struct xmlrpc_info *info = acfg->db.db_priv;
+
+	/*
+	 * If the filter addresses anything other than iname,
+	 * its a batch update, which the xmlrpc interface doesn't support
+	 */
+	if (filter->entries[1].column != COL_INAME)
+		return report_unsupported(op, tbl, setlist, filter, xmlop, acfg);
+
+	if (!strcmp(setlist->entries[0].value, "start-requested"))
+		*xmlop = "boot.container";
+	else
+		return report_unsupported(op, tbl, setlist, filter, xmlop, acfg);
+
+	/*
+	 * This skips the tennant parameter which the xmlrpc code 
+	 * doesn't need
+	 */
+	list.count = 1;
+	list.entries = &filter->entries[1];
+	
+	return make_string_array_from_colvallist(&list, info);
+}
+
 static xmlrpc_value *insert_networks_op(enum table_op op, enum db_table tbl,
 						 const struct colvallist *setlist,
 						 const struct colvallist *filter,
@@ -890,7 +925,7 @@ static xmlrpc_value *report_unsupported(enum table_op op, enum db_table tbl,
 						 char **xmlop, const struct agent_config *acfg)
 {
 	*xmlop = NULL;
-	LOG(ERROR, "the xmlrpc client cannot add hosts to the cluster at this time\n");
+	LOG(ERROR, "the xmlrpc client cannot preform this operation at this time\n");
 	return NULL;
 }
 
@@ -910,6 +945,7 @@ static struct xmlrpc_op_map op_map[TABLE_MAX][OP_MAX] = {
 	[TABLE_TENNANT_HOSTS][OP_DELETE] = {report_unsupported, NULL},
 	[TABLE_CONTAINERS][OP_INSERT] = {insert_containers_op, parse_int_result},
 	[TABLE_CONTAINERS][OP_DELETE] = {delete_containers_op, parse_int_result},
+	[TABLE_CONTAINERS][OP_UPDATE] = {update_containers_op, parse_int_result},
 	[TABLE_NETWORKS][OP_INSERT] = {insert_networks_op, parse_int_result},
 	[TABLE_NETWORKS][OP_DELETE] = {delete_networks_op, parse_int_result},
 	[TABLE_NETMAP][OP_INSERT] = {insert_netmap_op, parse_int_result},

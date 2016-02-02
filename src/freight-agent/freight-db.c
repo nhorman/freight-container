@@ -64,7 +64,7 @@ static char *colnames[TABLE_MAX][COL_MAX] = {
 	/*TABLE_YUM_CONFIG*/
 	{"tennant", NULL, NULL, "name", "url", },
 	/*TABLE_CONTAINERS*/
-	{"tennant", "hostname", "state", NULL, "iname", "cname", },
+	{"tennant", "hostname", "state", NULL, NULL, "iname", "cname", },
 	/*TABLE_NETWORKS*/
 	{"tennant", NULL, "state", "name", NULL, NULL, NULL, "config", },
 	/*TABLE_NETMAP*/
@@ -1058,7 +1058,7 @@ int print_container_list(const char *tennant,
 
 
 
-extern int change_container_state(const char *tennant,
+static int old_change_container_state(const char *tennant,
                                   const char *iname,
 				  const char *oldstate,
                                   const char *newstate,
@@ -1075,6 +1075,38 @@ extern int change_container_state(const char *tennant,
 		       "' AND state = '", oldstate, "'", NULL);
 
 	return api->send_raw_sql(sql, acfg);
+}
+
+int change_container_state(const char *tennant,
+                                  const char *iname,
+				  const char *oldstate,
+                                  const char *newstate,
+                                  const struct agent_config *acfg)
+{
+	struct colvallist slist;
+	struct colvallist flist;
+	struct colval set[1];
+	struct colval filter[3];
+
+	if (!api->table_op)
+		return old_change_container_state(tennant, iname, oldstate, newstate, acfg);
+
+	slist.count = 1;
+	flist.count = 3;
+	slist.entries = set;
+	flist.entries = filter;
+
+	set[0].column = COL_STATE;
+	set[0].value = newstate;
+
+	filter[0].column = COL_TENNANT;
+	filter[0].value = tennant;
+	filter[1].column = COL_INAME;
+	filter[1].value = iname;
+	filter[2].column = COL_STATE;
+	filter[2].value = oldstate;
+
+	return api->table_op(OP_UPDATE, TABLE_CONTAINERS, &slist, &flist, acfg);
 }
 
 extern int change_container_state_batch(const char *tennant,
