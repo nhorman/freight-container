@@ -402,29 +402,12 @@ out:
 	free_tbl(table);
 	return rc;
 }
-static int old_add_repo(const char *name, const char *url,
-	     const char *tennant,
-	     const struct agent_config *acfg)
-{
-	char *sql; 
-
-	if (!api->send_raw_sql)
-		return -EOPNOTSUPP;
-
-	sql = strjoina("INSERT INTO yum_config VALUES ('", name, "', '",
-			url, "', '", tennant, "')", NULL);
-
-	return api->send_raw_sql(sql, acfg);
-}
 
 int add_repo(const char *name, const char *url,
 	     const char *tennant, const struct agent_config *acfg)
 {
 	struct colval values[3];
 	struct colvallist list;
-
-	if (!api->table_op)
-		return old_add_repo(name, url, tennant, acfg);
 
 	list.count = 3;
 	list.entries = values;
@@ -438,20 +421,6 @@ int add_repo(const char *name, const char *url,
 	return api->table_op(OP_INSERT, TABLE_YUM_CONFIG, &list, NULL, acfg);
 }
 
-static int old_del_repo(const char *name,
-		    const char *tennant,
-		    const struct agent_config *acfg)
-{
-	char *sql;
-
-	if (!api->send_raw_sql)
-		return -EOPNOTSUPP;
-
-	sql = strjoina("DELETE FROM yum_config WHERE name = '", name, 
-		"' AND tennant='", tennant, "'", NULL);
-
-	return api->send_raw_sql(sql, acfg);
-}
 
 int del_repo(const char *name,
 	     const char *tennant,
@@ -459,9 +428,6 @@ int del_repo(const char *name,
 {
 	struct colvallist list;
 	struct colval values[2];
-
-	if (!api->table_op)
-		return old_del_repo(name, tennant, acfg);
 
 	list.count = 2;
 	list.entries = values;
@@ -474,26 +440,11 @@ int del_repo(const char *name,
 	return api->table_op(OP_DELETE, TABLE_YUM_CONFIG, NULL, &list, acfg);
 }
 
-static int old_add_host(const char *hostname,
-	                const struct agent_config *acfg)
-{
-	char *sql;
-
-	if (!api->send_raw_sql)
-		return -EOPNOTSUPP;
-
-	sql = strjoina("INSERT INTO nodes VALUES ('", hostname, "', 'offline', 0, null)", NULL);
-
-	return api->send_raw_sql(sql, acfg);
-}
-
 int add_host(const char *hostname,
 	     const struct agent_config *acfg)
 {
 	struct colval values[4];
 	struct colvallist list;
-	if (!api->table_op)
-		return old_add_host(hostname, acfg);
 
 	list.count = 4;
 	list.entries = values;
@@ -509,26 +460,10 @@ int add_host(const char *hostname,
 	return api->table_op(OP_INSERT, TABLE_NODES, &list, NULL, acfg);
 }
 
-static int old_del_host(const char *hostname,
-	     const struct agent_config *acfg)
-{
-	char *sql;
-
-	if (!api->send_raw_sql)
-		return -EOPNOTSUPP;
-
-	sql = strjoina("DELETE FROM nodes WHERE hostname = '", hostname, "'", NULL);
-
-	return api->send_raw_sql(sql, acfg);
-}
-
 int del_host(const char *hostname, const struct agent_config *acfg)
 {
 	struct colvallist list;
 	struct colval values[1];
-
-	if (!api->table_op)
-		return old_del_host(hostname, acfg);
 
 	list.count = 1;
 	list.entries = values;
@@ -539,25 +474,6 @@ int del_host(const char *hostname, const struct agent_config *acfg)
 	
 }
 
-int old_subscribe_host(const char *host,
-		       const char *tennant,
-		       const struct agent_config *acfg)
-{
-	char *sql;
-	int rc;
-
-	if (!api->send_raw_sql)
-		return -EOPNOTSUPP;
-
-	sql = strjoina("INSERT INTO tennant_hosts VALUES('", host, "', '", tennant, "')", NULL);
-
-	rc = api->send_raw_sql(sql, acfg);
-	if (rc)
-		return rc;
-
-	return notify_host(CHAN_TENNANT_HOSTS, host, acfg);
-}
-
 int subscribe_host(const char *host,
 		   const char *tennant,
 		   const struct agent_config *acfg)
@@ -565,9 +481,6 @@ int subscribe_host(const char *host,
 	int rc;
 	struct colval values[2];
 	struct colvallist list;
-
-	if (!api->table_op)
-		return old_subscribe_host(host, tennant, acfg);
 
 	list.count = 2;
 	list.entries = values;
@@ -584,35 +497,12 @@ int subscribe_host(const char *host,
 	return rc;
 }
 
-static int old_unsubscribe_host(const char *tenant,
-		     const char *host,
-		     const struct agent_config *acfg)
-{
-	char *sql;
-	int rc;
-
-	if (!api->send_raw_sql)
-		return -EOPNOTSUPP;
-
-	sql = strjoina("DELETE FROM tennant_hosts WHERE hostname = '", 
-			host,"' AND tennant = '", tenant, "'", NULL);
-
-	rc = api->send_raw_sql(sql, acfg);
-	if (rc)
-		return rc;
-
-	return notify_host(CHAN_TENNANT_HOSTS, host, acfg);
-}
-
 int unsubscribe_host(const char *tennant,
 		     const char *host,
 		     const struct agent_config *acfg)
 {
 	struct colvallist list;
 	struct colval values[2];
-
-	if (!api->table_op)
-		return old_unsubscribe_host(tennant, host, acfg);
 
 	list.count = 2;
 	list.entries = values;
@@ -652,33 +542,12 @@ int list_subscriptions(const char *tenant,
 	
 }
 
-static int old_change_host_state(const char *host, const char *newstate,
-			     const struct agent_config *acfg)
-{
-	char *sql;
-	int rc;
-
-	if (!api->send_raw_sql)
-		return -EOPNOTSUPP;
-
-	sql = strjoina("UPDATE nodes SET state = '", newstate,
-		       "' WHERE hostname = '", host, "'");
-
-	rc = api->send_raw_sql(sql, acfg);
-	if (!rc)
-		notify_all(CHAN_NODES, acfg);
-	return rc;
-}
-
 int change_host_state(const char *host, const char *newstate,
 			     const struct agent_config *acfg)
 {
 	struct colvallist set, filter;
 	struct colval sval[1], fval[1];
 	int rc;
-
-	if (!api->table_op)
-		return old_change_host_state(host, newstate, acfg);
 
 	set.count = 1;
 	filter.count = 1;
@@ -696,21 +565,6 @@ int change_host_state(const char *host, const char *newstate,
 	return rc;
 }
 
-static int old_assign_container_host(const char *name, const char *host,
-			  const char *tennant,
-			  const struct agent_config *acfg)
-{
-	char *sql;
-
-	if (!api->send_raw_sql)
-		return -EOPNOTSUPP;
-
-	sql = strjoina("UPDATE nodes SET (hostname='", host, ",state='staged') ",
-		       "WHERE tennant='",tennant," AND iname='",name,"'", NULL);
-
-	return api->send_raw_sql(sql, acfg);
-}
-
 int assign_container_host(const char *name, const char *host,
 			  const char *tennant,
 			  const struct agent_config *acfg)
@@ -719,9 +573,6 @@ int assign_container_host(const char *name, const char *host,
 	struct colvallist flist;
 	struct colval set[2];
 	struct colval filter[2];
-
-	if (!api->table_op)
-		return old_assign_container_host(name, host, tennant, acfg);
 
 	slist.count = flist.count = 2;
 	slist.entries = set;
@@ -820,53 +671,6 @@ struct tbl *get_host_info(const char *name, const struct agent_config *acfg)
 	return get_raw_table(TABLE_NODES, filter, acfg);
 } 
 
-static int old_request_create_container(const char *cname,
-					const char *iname,
-					const char *chost,
-					const char *tennant,
-					const struct agent_config *acfg)
-{
-	char *sql;
-	int rc;
-
-	if (!api->send_raw_sql)
-		return -EOPNOTSUPP;
-
-	if (chost)
-		sql = strjoina("INSERT INTO containers VALUES(",
-			       "'", tennant, "',",
-			       "'", iname, "',",
-			       "'", cname, "',",
-			       "'", chost, "',",
-			       "'staged')", NULL);
-	else
-		sql = strjoina("INSERT INTO containers VALUES(",
-			       "'", tennant, "',",
-			       "'", iname, "',",
-			       "'", cname, "',",
-			       " null, ",
-			       "'assigning-host')", NULL);
-	
-
-	rc = api->send_raw_sql(sql, acfg);
-
-	if (rc)
-		return rc;
-
-	/*
-	 * If we add the sql safely, then we need to wake someone up to read the table
-	 * If a chost is specified, then notify that host only, otherwise, notify the 
-	 * master to pick a host for us
-	 */
-	if (chost)
-		rc = notify_host(CHAN_CONTAINERS, chost, acfg);
-	else
-		rc = notify_all(CHAN_CONTAINERS_SCHED, acfg);
-
-	return rc;
-
-}
-
 int request_create_container(const char *cname,
 			     const char *iname,
 			     const char *chost,
@@ -877,9 +681,6 @@ int request_create_container(const char *cname,
 	struct colval values[5];
 	struct colvallist list;
 	int rc;
-
-	if (!api->table_op)
-		return old_request_create_container(cname, iname, chost, tennant, acfg);
 
 	list.count = 5;
 	list.entries = values;
@@ -915,24 +716,6 @@ int request_create_container(const char *cname,
 	return rc;
 }
 
-static int old_request_delete_container(const char *iname,
-			     const char *tennant,
-			     const int force,
-			     const struct agent_config *acfg)
-{
-	char *sql;
-
-	if (!api->send_raw_sql)
-		return -EOPNOTSUPP;
-
-	sql = strjoina("DELETE FROM containers WHERE tennant='",
-		tennant, "' AND iname='",iname,
-		"' AND state='failed' OR state='staged' OR state='assigning-host'", NULL);
-
-	return api->send_raw_sql(sql, acfg);
-
-}
-
 int request_delete_container(const char *iname,
 			     const char *tennant,
 			     const int force,
@@ -945,9 +728,6 @@ int request_delete_container(const char *iname,
 		LOG(ERROR, "Unable to detatch container from some networks\n");
 		return -EFAULT;
 	}
-
-	if (!api->table_op)
-		return old_request_delete_container(iname, tennant, force, acfg);
 
 	list.count = 3;
 	list.entries = values;
@@ -1058,25 +838,6 @@ int print_container_list(const char *tennant,
 
 
 
-static int old_change_container_state(const char *tennant,
-                                  const char *iname,
-				  const char *oldstate,
-                                  const char *newstate,
-                                  const struct agent_config *acfg)
-{
-	char *sql;
-
-	if (!api->send_raw_sql)
-		return -EOPNOTSUPP;
-
-	sql = strjoina("UPDATE containers set state ='", newstate,
-		       "' WHERE tennant = '", tennant,
-		       "' AND iname = '", iname,
-		       "' AND state = '", oldstate, "'", NULL);
-
-	return api->send_raw_sql(sql, acfg);
-}
-
 int change_container_state(const char *tennant,
                                   const char *iname,
 				  const char *oldstate,
@@ -1087,9 +848,6 @@ int change_container_state(const char *tennant,
 	struct colvallist flist;
 	struct colval set[1];
 	struct colval filter[3];
-
-	if (!api->table_op)
-		return old_change_container_state(tennant, iname, oldstate, newstate, acfg);
 
 	slist.count = 1;
 	flist.count = 3;
@@ -1109,25 +867,6 @@ int change_container_state(const char *tennant,
 	return api->table_op(OP_UPDATE, TABLE_CONTAINERS, &slist, &flist, acfg);
 }
 
-static int old_change_container_state_batch(const char *tennant,
-					const char *oldstate,
-					const char *newstate,
-					const struct agent_config *acfg)
-{
-	char *sql;
-
-	if (!api->send_raw_sql)
-		return -EOPNOTSUPP;
-
-	sql = strjoina("UPDATE containers set state ='", newstate,
-		       "' WHERE tennant = '", tennant,
-		       "' AND state = '", oldstate,
-		       "' AND hostname = '", acfg->cmdline.hostname,
-		       "'");
-
-	return api->send_raw_sql(sql, acfg);
-}
-
 int change_container_state_batch(const char *tennant,
 					const char *oldstate,
 					const char *newstate,
@@ -1138,8 +877,6 @@ int change_container_state_batch(const char *tennant,
 	struct colval set[1];
 	struct colval filter[3];
 
-	if (!api->table_op)
-		return old_change_container_state_batch(tennant, oldstate, newstate, acfg);
 
 	slist.count = 1;
 	flist.count = 3;
@@ -1213,32 +950,11 @@ int send_raw_sql(char *sql, const struct agent_config *acfg)
 	return api->send_raw_sql(sql, acfg);
 }
 
-static int old_network_create_config(const char *name, const char *cfstring, const char *tennant, const struct agent_config *acfg)
-{
-	char *sql;
-
-	if (!api->send_raw_sql)
-		return -EOPNOTSUPP;
-
-	/*
-	 * until we implement network start/stop functions, we just mark
-	 * all networks as active
-	 */
-	sql = strjoina("INSERT INTO networks VALUES('", name, "' , '"
-			, tennant, "' , 'active', '", cfstring, "')", NULL);
-
-
-	return api->send_raw_sql(sql, acfg);
-	
-}
-
 int network_create_config(const char *name, const char *cfstring, const char *tennant, const struct agent_config *acfg)
 {
 	struct colvallist list;
 	struct colval values[4];
 
-	if (!api->table_op)
-		return old_network_create_config(name, cfstring, tennant, acfg);
 
 	list.count = 4;
 	list.entries = values;
@@ -1300,18 +1016,6 @@ out_free:
 
 }
 
-int old_network_delete(const char *name, const char *tennant, const struct agent_config *acfg)
-{
-	char *sql;
-
-	if (!api->send_raw_sql)
-		return -EOPNOTSUPP;
-
-	sql = strjoina("DELETE FROM networks WHERE name='",name,"' AND tennant='",tennant,"'",NULL);
-
-	return api->send_raw_sql(sql, acfg);
-}
-
 int network_delete(const char *name, const char *tennant, const struct agent_config *acfg)
 {
 	struct colvallist list;
@@ -1331,10 +1035,6 @@ int network_delete(const char *name, const char *tennant, const struct agent_con
 		LOG(ERROR, "Cannot delete a network with containers attached\n");
 		return -EBUSY;
 	}
-	
-	if (!api->table_op)
-		return old_network_delete(name, tennant, acfg);
-
 	
 	list.count=2;
 	list.entries = values;
@@ -1375,26 +1075,10 @@ int network_list(const char *tennant, const struct agent_config *acfg)
 	return 0;	
 }
 
-static int old_network_attach(const char *container, const char *network, const char *tennant, const struct agent_config *acfg)
-{
-	char *sql;
-
-	if (!api->send_raw_sql)
-		return -EOPNOTSUPP;
-
-	sql = strjoina("INSERT INTO net_container_map VALUES('", tennant, "','",
-		       container, "','", network, "')", NULL);
-
-	return api->send_raw_sql(sql, acfg);
-}
-
 int network_attach(const char *container, const char *network, const char *tennant, const struct agent_config *acfg)
 {
 	struct colvallist list;
 	struct colval values[3];
-
-	if (!api->table_op)
-		return old_network_attach(container, network, tennant, acfg);
 
 	list.count = 3;
 	list.entries = values;
@@ -1409,28 +1093,10 @@ int network_attach(const char *container, const char *network, const char *tenna
 	return api->table_op(OP_INSERT, TABLE_NETMAP, &list, NULL, acfg);
 }
 
-static int old_network_detach(const char *container, const char *network, const char *tennant, const struct agent_config *acfg)
-{
-	char *sql;
-
-	if (!api->send_raw_sql)
-		return -EOPNOTSUPP;
-
-	sql = strjoina("DELETE FROM net_container_map WHERE ",
-		       "tennant='", tennant,"'",
-		       "AND name='", container, "'",
-		       "AND network='", network,"'", NULL);
-
-	return api->send_raw_sql(sql, acfg);
-}
-
 int network_detach(const char *container, const char *network, const char *tennant, const struct agent_config *acfg)
 {
 	struct colvallist list;
 	struct colval values[3];
-
-	if (!api->table_op)
-		return old_network_detach(container, network, tennant, acfg);
 
 	list.count = 3;
 	list.entries = values;
@@ -1577,39 +1243,12 @@ out:
 	return cfg;
 }
 
-static int old_set_global_config_setting(struct config_setting *set, const struct agent_config *acfg)
-{
-	char *sql;
-	char *value;
-	int rc;
-
-	switch(set->type) {
-	case INT_TYPE:
-		asprintf(&value, "%d", *(int *)set->val.intval);
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	sql = strjoina("UPDATE global_config SET value='", value, "' WHERE key='", cfg_map[set->key].key_name, "'", NULL);
-	free(value);
-
-	rc = api->send_raw_sql(sql, acfg); 
-	if (!rc)
-		rc = notify_all(CHAN_GLOBAL_CONFIG, acfg);
-
-	return rc;
-}
-
 int set_global_config_setting(struct config_setting *set, const struct agent_config *acfg)
 {
 	struct colvallist slist;
 	struct colvallist flist;
 	struct colval setl[1];
 	struct colval filter[1];
-
-	if (!api->table_op)
-		return old_set_global_config_setting(set, acfg);
 
 	slist.count = 1;
 	slist.entries = setl;
