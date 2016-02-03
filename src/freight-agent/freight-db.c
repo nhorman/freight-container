@@ -1109,7 +1109,7 @@ int change_container_state(const char *tennant,
 	return api->table_op(OP_UPDATE, TABLE_CONTAINERS, &slist, &flist, acfg);
 }
 
-extern int change_container_state_batch(const char *tennant,
+static int old_change_container_state_batch(const char *tennant,
 					const char *oldstate,
 					const char *newstate,
 					const struct agent_config *acfg)
@@ -1126,6 +1126,37 @@ extern int change_container_state_batch(const char *tennant,
 		       "'");
 
 	return api->send_raw_sql(sql, acfg);
+}
+
+int change_container_state_batch(const char *tennant,
+					const char *oldstate,
+					const char *newstate,
+					const struct agent_config *acfg)
+{
+	struct colvallist slist;
+	struct colvallist flist;
+	struct colval set[1];
+	struct colval filter[3];
+
+	if (!api->table_op)
+		return old_change_container_state_batch(tennant, oldstate, newstate, acfg);
+
+	slist.count = 1;
+	flist.count = 3;
+	slist.entries = set;
+	flist.entries = filter;
+
+	set[0].column = COL_STATE;
+	set[0].value = newstate;
+
+	filter[0].column = COL_TENNANT;
+	filter[0].value = tennant;
+	filter[1].column = COL_HOSTNAME;
+	filter[1].value = acfg->cmdline.hostname;
+	filter[2].column = COL_STATE;
+	filter[2].value = oldstate;
+
+	return api->table_op(OP_UPDATE, TABLE_CONTAINERS, &slist, &flist, acfg);
 }
 
 int notify_host(const enum listen_channel chn, const char *host,
