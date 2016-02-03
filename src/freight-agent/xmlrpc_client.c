@@ -919,6 +919,28 @@ static xmlrpc_value *delete_netmap_op(enum table_op op, enum db_table tbl,
 	return make_string_array_from_colvallist(&list, info);
 }
 
+static xmlrpc_value *update_config_op(enum table_op op, enum db_table tbl,
+				      const struct colvallist *setlist,
+				      const struct colvallist *filter,
+				      char **xmlop, const struct agent_config *acfg)
+{
+	struct colvallist list;
+	struct colval ent[2];
+	struct xmlrpc_info *info = acfg->db.db_priv;
+
+	*xmlop = "update.config";
+
+	list.count = 2;
+	list.entries = ent;
+
+	ent[0].column = setlist->entries[0].column;
+	ent[0].value = setlist->entries[0].value;
+	ent[1].column = filter->entries[0].column;
+	ent[1].value = filter->entries[0].value;
+
+	return make_string_array_from_colvallist(&list, info);
+}
+
 static xmlrpc_value *report_unsupported(enum table_op op, enum db_table tbl,
 						 const struct colvallist *setlist,
 						 const struct colvallist *filter,
@@ -950,6 +972,7 @@ static struct xmlrpc_op_map op_map[TABLE_MAX][OP_MAX] = {
 	[TABLE_NETWORKS][OP_DELETE] = {delete_networks_op, parse_int_result},
 	[TABLE_NETMAP][OP_INSERT] = {insert_netmap_op, parse_int_result},
 	[TABLE_NETMAP][OP_DELETE] = {delete_netmap_op, parse_int_result},
+	[TABLE_GCONF][OP_UPDATE] = {update_config_op, parse_int_result},
 };
 
 
@@ -960,6 +983,9 @@ static int xmlrpc_table_op(enum table_op op, enum db_table tbl, const struct col
 	xmlrpc_value *params, *result;
 	char *xmlop;
 	struct xmlrpc_info *info = acfg->db.db_priv;
+
+	if (!op_map[tbl][op].get_op_args)
+		return -EOPNOTSUPP;
 
 	params = op_map[tbl][op].get_op_args(op, tbl, setlist, filter, &xmlop, acfg);
 

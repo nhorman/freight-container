@@ -1577,7 +1577,7 @@ out:
 	return cfg;
 }
 
-int set_global_config_setting(struct config_setting *set, const struct agent_config *acfg)
+static int old_set_global_config_setting(struct config_setting *set, const struct agent_config *acfg)
 {
 	char *sql;
 	char *value;
@@ -1601,6 +1601,37 @@ int set_global_config_setting(struct config_setting *set, const struct agent_con
 	return rc;
 }
 
+int set_global_config_setting(struct config_setting *set, const struct agent_config *acfg)
+{
+	struct colvallist slist;
+	struct colvallist flist;
+	struct colval setl[1];
+	struct colval filter[1];
+
+	if (!api->table_op)
+		return old_set_global_config_setting(set, acfg);
+
+	slist.count = 1;
+	slist.entries = setl;
+	flist.count = 1;
+	flist.entries = filter;
+
+	setl[0].column = COL_CONFIG;
+
+	switch(set->type) {
+	case INT_TYPE:
+		asprintf((char **)&setl[0].value, "%d", *(int *)set->val.intval);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	filter[0].column = COL_NAME;
+	filter[0].value = cfg_map[set->key].key_name;
+
+
+	return api->table_op(OP_UPDATE, TABLE_GCONF, &slist, &flist, acfg);
+}
 
 struct tbl* get_global_config(const struct agent_config *acfg)
 {
