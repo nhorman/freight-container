@@ -406,17 +406,12 @@ out:
 int add_repo(const char *name, const char *url,
 	     const char *tennant, const struct agent_config *acfg)
 {
-	struct colval values[3];
-	struct colvallist list;
+	DECLARE_CVL(list, 3);
+	int i = 0;
 
-	list.count = 3;
-	list.entries = values;
-	values[0].value = name;
-	values[0].column = COL_NAME;
-	values[1].value = url;
-	values[1].column = COL_URL;
-	values[2].value = tennant;
-	values[2].column = COL_TENNANT;
+	SET_CVL_COL(list, i++, COL_NAME, name);
+	SET_CVL_COL(list, i++, COL_URL, url);
+	SET_CVL_COL(list, i++, COL_TENNANT, tennant);
 
 	return api->table_op(OP_INSERT, TABLE_YUM_CONFIG, &list, NULL, acfg);
 }
@@ -426,16 +421,11 @@ int del_repo(const char *name,
 	     const char *tennant,
 	     const struct agent_config *acfg)
 {
-	struct colvallist list;
-	struct colval values[2];
+	DECLARE_CVL(list, 2);
+	int i=0;
 
-	list.count = 2;
-	list.entries = values;
-
-	values[0].column = COL_NAME;
-	values[0].value = name;
-	values[1].column = COL_TENNANT;
-	values[1].value = tennant;
+	SET_CVL_COL(list, i++, COL_NAME, name);
+	SET_CVL_COL(list, i++, COL_TENNANT, tennant);
 
 	return api->table_op(OP_DELETE, TABLE_YUM_CONFIG, NULL, &list, acfg);
 }
@@ -443,32 +433,22 @@ int del_repo(const char *name,
 int add_host(const char *hostname,
 	     const struct agent_config *acfg)
 {
-	struct colval values[4];
-	struct colvallist list;
+	DECLARE_CVL(list, 4);
+	int i = 0;
 
-	list.count = 4;
-	list.entries = values;
-	values[0].column = COL_HOSTNAME;
-	values[0].value = hostname;
-	values[1].column = COL_STATE;
-	values[1].value = "offline";
-	values[2].column = COL_LOAD;
-	values[2].value = "0";
-	values[3].column = COL_MODIFIED;
-	values[3].value = NULL;
+	SET_CVL_COL(list, i++, COL_HOSTNAME, hostname);
+	SET_CVL_COL(list, i++, COL_STATE, "offline");
+	SET_CVL_COL(list, i++, COL_LOAD, "0");
+	SET_CVL_COL(list, i++, COL_MODIFIED, NULL);
 
 	return api->table_op(OP_INSERT, TABLE_NODES, &list, NULL, acfg);
 }
 
 int del_host(const char *hostname, const struct agent_config *acfg)
 {
-	struct colvallist list;
-	struct colval values[1];
+	DECLARE_CVL(list, 1);
 
-	list.count = 1;
-	list.entries = values;
-	values[0].column = COL_HOSTNAME;
-	values[0].value = hostname;
+	SET_CVL_COL(list, 0, COL_HOSTNAME, hostname);
 
 	return api->table_op(OP_DELETE, TABLE_NODES, NULL, &list, acfg);
 	
@@ -479,15 +459,12 @@ int subscribe_host(const char *host,
 		   const struct agent_config *acfg)
 {
 	int rc;
-	struct colval values[2];
-	struct colvallist list;
+	DECLARE_CVL(list, 2);
+	int i = 0;
 
-	list.count = 2;
-	list.entries = values;
-	values[0].column = COL_HOSTNAME;
-	values[0].value = host;
-	values[1].column = COL_TENNANT;
-	values[1].value = tennant;
+	SET_CVL_COL(list, i++, COL_HOSTNAME, host);
+	SET_CVL_COL(list, i++, COL_TENNANT, tennant);
+
 
 	rc = api->table_op(OP_INSERT, TABLE_TENNANT_HOSTS, &list, NULL, acfg);
 	
@@ -501,15 +478,11 @@ int unsubscribe_host(const char *tennant,
 		     const char *host,
 		     const struct agent_config *acfg)
 {
-	struct colvallist list;
-	struct colval values[2];
+	DECLARE_CVL(list, 2);
+	int i = 0;
 
-	list.count = 2;
-	list.entries = values;
-	values[0].column = COL_HOSTNAME;
-	values[0].value = host;
-	values[1].column = COL_TENNANT;
-	values[1].value = tennant;
+	SET_CVL_COL(list, i++, COL_HOSTNAME, host);
+	SET_CVL_COL(list, i++, COL_TENNANT, tennant);
 
 	return api->table_op(OP_DELETE, TABLE_TENNANT_HOSTS, NULL, &list, acfg);
 }
@@ -545,19 +518,12 @@ int list_subscriptions(const char *tenant,
 int change_host_state(const char *host, const char *newstate,
 			     const struct agent_config *acfg)
 {
-	struct colvallist set, filter;
-	struct colval sval[1], fval[1];
+	DECLARE_CVL(set, 1);
+	DECLARE_CVL(filter, 1);
 	int rc;
 
-	set.count = 1;
-	filter.count = 1;
-	set.entries = sval;
-	filter.entries = fval;
-
-	sval[0].column = COL_STATE;
-	sval[0].value = newstate;
-	fval[0].column = COL_HOSTNAME;
-	fval[0].value = host;
+	SET_CVL_COL(set, 0, COL_STATE, newstate);
+	SET_CVL_COL(filter, 0, COL_HOSTNAME, host);
 
 	rc = api->table_op(OP_UPDATE, TABLE_NODES, &set, &filter, acfg);
 	if (!rc)
@@ -569,23 +535,14 @@ int assign_container_host(const char *name, const char *host,
 			  const char *tennant,
 			  const struct agent_config *acfg)
 {
-	struct colvallist slist;
-	struct colvallist flist;
-	struct colval set[2];
-	struct colval filter[2];
+	DECLARE_CVL(slist, 2);
+	DECLARE_CVL(flist, 2);
 
-	slist.count = flist.count = 2;
-	slist.entries = set;
-	flist.entries = filter;
 
-	set[0].column = COL_HOSTNAME;
-	set[0].value = host;
-	set[1].column = COL_STATE;
-	set[1].value = "staged";
-	filter[0].column = COL_TENNANT;
-	filter[0].value = tennant;
-	filter[1].column = COL_INAME;
-	filter[1].value = name;
+	SET_CVL_COL(slist, 0, COL_HOSTNAME, host);
+	SET_CVL_COL(slist, 1, COL_STATE, "staged");
+	SET_CVL_COL(flist, 0, COL_TENNANT, tennant);
+	SET_CVL_COL(flist, 1, COL_INAME, name);
 
 	return api->table_op(OP_UPDATE, TABLE_NODES, &slist, &flist, acfg);
 }
@@ -678,27 +635,16 @@ int request_create_container(const char *cname,
 			     const struct agent_config *acfg)
 {
 
-	struct colval values[5];
-	struct colvallist list;
+	DECLARE_CVL(list, 5);
+	int i = 0;
 	int rc;
 
-	list.count = 5;
-	list.entries = values;
 
-	values[0].column = COL_TENNANT;
-	values[0].value = tennant;
-	
-	values[1].column = COL_NAME;
-	values[1].value = iname;
-
-	values[2].column = COL_CNAME;
-	values[2].value = cname;
-
-	values[3].column = COL_HOSTNAME;
-	values[3].value = chost;
-
-	values[4].column = COL_STATE;
-	values[4].value = chost ? "staged" : "assigning-host";
+	SET_CVL_COL(list, i++, COL_TENNANT, tennant);
+	SET_CVL_COL(list, i++, COL_NAME, iname);
+	SET_CVL_COL(list, i++, COL_CNAME, cname);
+	SET_CVL_COL(list, i++, COL_HOSTNAME, chost);
+	SET_CVL_COL(list, i++, COL_STATE, chost ? "staged" : "assigning-host");
 
 	rc = api->table_op(OP_INSERT, TABLE_CONTAINERS, &list, NULL, acfg);
 	if (!rc) {
@@ -721,23 +667,18 @@ int request_delete_container(const char *iname,
 			     const int force,
 			     const struct agent_config *acfg)
 {
-	struct colvallist list;
-	struct colval values[3];
+	DECLARE_CVL(list, 3);
+	int i = 0;
 
 	if (auto_detach_networks_from_container(iname, tennant, acfg)) {
 		LOG(ERROR, "Unable to detatch container from some networks\n");
 		return -EFAULT;
 	}
 
-	list.count = 3;
-	list.entries = values;
 
-	values[0].column = COL_TENNANT;
-	values[0].value = tennant;
-	values[1].column = COL_INAME;
-	values[1].value = iname;
-	values[2].column = COL_VERBATIM;
-	values[2].value = "state='failed' OR state='staged' OR state='assigning-host'";
+	SET_CVL_COL(list, i++, COL_TENNANT, tennant);
+	SET_CVL_COL(list, i++, COL_INAME, iname);
+	SET_CVL_COL(list, i++, COL_VERBATIM, "state='failed' OR state='staged' OR state='assigning-host'");
 
 	return api->table_op(OP_DELETE, TABLE_CONTAINERS, NULL, &list, acfg);
 }
@@ -844,25 +785,13 @@ int change_container_state(const char *tennant,
                                   const char *newstate,
                                   const struct agent_config *acfg)
 {
-	struct colvallist slist;
-	struct colvallist flist;
-	struct colval set[1];
-	struct colval filter[3];
+	DECLARE_CVL(slist, 1);
+	DECLARE_CVL(flist, 3);
 
-	slist.count = 1;
-	flist.count = 3;
-	slist.entries = set;
-	flist.entries = filter;
-
-	set[0].column = COL_STATE;
-	set[0].value = newstate;
-
-	filter[0].column = COL_TENNANT;
-	filter[0].value = tennant;
-	filter[1].column = COL_INAME;
-	filter[1].value = iname;
-	filter[2].column = COL_STATE;
-	filter[2].value = oldstate;
+	SET_CVL_COL(slist, 0, COL_STATE, newstate);
+	SET_CVL_COL(flist, 0, COL_TENNANT, tennant);
+	SET_CVL_COL(flist, 1, COL_INAME, iname);
+	SET_CVL_COL(flist, 2, COL_STATE, oldstate);
 
 	return api->table_op(OP_UPDATE, TABLE_CONTAINERS, &slist, &flist, acfg);
 }
@@ -872,26 +801,14 @@ int change_container_state_batch(const char *tennant,
 					const char *newstate,
 					const struct agent_config *acfg)
 {
-	struct colvallist slist;
-	struct colvallist flist;
-	struct colval set[1];
-	struct colval filter[3];
+	DECLARE_CVL(slist, 1);
+	DECLARE_CVL(flist, 3);
 
+	SET_CVL_COL(slist, 0, COL_STATE, newstate);
 
-	slist.count = 1;
-	flist.count = 3;
-	slist.entries = set;
-	flist.entries = filter;
-
-	set[0].column = COL_STATE;
-	set[0].value = newstate;
-
-	filter[0].column = COL_TENNANT;
-	filter[0].value = tennant;
-	filter[1].column = COL_HOSTNAME;
-	filter[1].value = acfg->cmdline.hostname;
-	filter[2].column = COL_STATE;
-	filter[2].value = oldstate;
+	SET_CVL_COL(flist, 0, COL_TENNANT, tennant);
+	SET_CVL_COL(flist, 1, COL_HOSTNAME, acfg->cmdline.hostname);
+	SET_CVL_COL(flist, 2, COL_STATE, oldstate);
 
 	return api->table_op(OP_UPDATE, TABLE_CONTAINERS, &slist, &flist, acfg);
 }
@@ -952,21 +869,14 @@ int send_raw_sql(char *sql, const struct agent_config *acfg)
 
 int network_create_config(const char *name, const char *cfstring, const char *tennant, const struct agent_config *acfg)
 {
-	struct colvallist list;
-	struct colval values[4];
 
+	DECLARE_CVL(list, 4);
+	int i = 0;
 
-	list.count = 4;
-	list.entries = values;
-
-	values[0].column = COL_NAME;
-	values[0].value = name;
-	values[1].column = COL_TENNANT;
-	values[1].value = tennant;
-	values[2].column = COL_STATE;
-	values[2].value = "active"; 
-	values[3].column = COL_CONFIG;
-	values[3].value = cfstring;
+	SET_CVL_COL(list, i++, COL_NAME, name);
+	SET_CVL_COL(list, i++, COL_TENNANT, tennant);
+	SET_CVL_COL(list, i++, COL_STATE, "active");
+	SET_CVL_COL(list, i++, COL_CONFIG, cfstring);
 
 	return api->table_op(OP_INSERT, TABLE_NETWORKS, &list, NULL, acfg);
 }
@@ -1018,8 +928,7 @@ out_free:
 
 int network_delete(const char *name, const char *tennant, const struct agent_config *acfg)
 {
-	struct colvallist list;
-	struct colval values[2];
+	DECLARE_CVL(list, 2);
 	int rc;
 	struct tbl *containers;
 	char *filter = strjoina("tennant='",tennant,"' AND network='",name,"'", NULL);
@@ -1035,14 +944,10 @@ int network_delete(const char *name, const char *tennant, const struct agent_con
 		LOG(ERROR, "Cannot delete a network with containers attached\n");
 		return -EBUSY;
 	}
-	
-	list.count=2;
-	list.entries = values;
-	values[0].column = COL_NAME;
-	values[0].value = name;
-	values[1].column = COL_TENNANT;
-	values[1].value = tennant;
 
+	SET_CVL_COL(list, 0, COL_NAME, name);
+	SET_CVL_COL(list, 1, COL_TENNANT, tennant);
+	
 	return api->table_op(OP_DELETE, TABLE_NETWORKS, NULL, &list, acfg);
 }
 
@@ -1077,36 +982,24 @@ int network_list(const char *tennant, const struct agent_config *acfg)
 
 int network_attach(const char *container, const char *network, const char *tennant, const struct agent_config *acfg)
 {
-	struct colvallist list;
-	struct colval values[3];
 
-	list.count = 3;
-	list.entries = values;
+	DECLARE_CVL(list, 3);
 
-	values[0].column = COL_TENNANT;
-	values[0].value = tennant;
-	values[1].column = COL_INAME;
-	values[1].value = container;
-	values[2].column = COL_CNAME;
-	values[2].value = network;
+	SET_CVL_COL(list, 0, COL_TENNANT, tennant);
+	SET_CVL_COL(list, 1, COL_INAME, container);
+	SET_CVL_COL(list, 2, COL_CNAME, network);
 
 	return api->table_op(OP_INSERT, TABLE_NETMAP, &list, NULL, acfg);
 }
 
 int network_detach(const char *container, const char *network, const char *tennant, const struct agent_config *acfg)
 {
-	struct colvallist list;
-	struct colval values[3];
 
-	list.count = 3;
-	list.entries = values;
+	DECLARE_CVL(list, 3);
 
-	values[0].column = COL_TENNANT;
-	values[0].value = tennant;
-	values[1].column = COL_INAME;
-	values[1].value = container;
-	values[2].column = COL_CNAME;
-	values[2].value = network;
+	SET_CVL_COL(list, 0, COL_TENNANT, tennant);
+	SET_CVL_COL(list, 1, COL_INAME, container);
+	SET_CVL_COL(list, 2, COL_CNAME, network);
 
 	return api->table_op(OP_DELETE, TABLE_NETMAP, NULL, &list, acfg);
 }
@@ -1245,31 +1138,27 @@ out:
 
 int set_global_config_setting(struct config_setting *set, const struct agent_config *acfg)
 {
-	struct colvallist slist;
-	struct colvallist flist;
-	struct colval setl[1];
-	struct colval filter[1];
+	char *tmp = NULL;
+	int rc;
+	DECLARE_CVL(slist, 1);
+	DECLARE_CVL(flist, 1);
 
-	slist.count = 1;
-	slist.entries = setl;
-	flist.count = 1;
-	flist.entries = filter;
-
-	setl[0].column = COL_CONFIG;
 
 	switch(set->type) {
 	case INT_TYPE:
-		asprintf((char **)&setl[0].value, "%d", *(int *)set->val.intval);
+		asprintf((char **)&tmp, "%d", *(int *)set->val.intval);
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	filter[0].column = COL_NAME;
-	filter[0].value = cfg_map[set->key].key_name;
+	SET_CVL_COL(slist, 0, COL_CONFIG, tmp);
+	SET_CVL_COL(flist, 0, COL_NAME, cfg_map[set->key].key_name);
 
 
-	return api->table_op(OP_UPDATE, TABLE_GCONF, &slist, &flist, acfg);
+	rc = api->table_op(OP_UPDATE, TABLE_GCONF, &slist, &flist, acfg);
+	free(tmp);
+	return rc;
 }
 
 struct tbl* get_global_config(const struct agent_config *acfg)

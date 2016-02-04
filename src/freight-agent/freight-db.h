@@ -142,6 +142,15 @@ struct colvallist {
 	struct colval *entries;
 };
 
+#define DECLARE_CVL(n, s) struct colval n##_vals[(s)];\
+				struct colvallist n = { (s), n##_vals }
+
+#define SET_CVL_COL(n, i, c, v) do { struct colval __tmp = { c, v}; \
+				     n##_vals[i] = __tmp;\
+				} while(0)
+
+
+
 struct db_api {
 
 	/* setup and teardown functions */
