@@ -41,64 +41,111 @@ static const char* channel_map[] = {
 	[CHAN_NODES] = "nodes"
 };
 
-static char *tablenames[TABLE_MAX] = {
-        [TABLE_TENNANTS] = "tennants",
-        [TABLE_NODES] = "nodes",
-        [TABLE_TENNANT_HOSTS] = "tennant_hosts",
-        [TABLE_YUM_CONFIG] = "yum_config",
-        [TABLE_CONTAINERS] = "containers",
-	[TABLE_NETWORKS] = "networks",
-	[TABLE_NETMAP] = "net_container_map",
-	[TABLE_EVENTS] = "event_table",
-	[TABLE_GCONF] = "global_config",
-	[TABLE_ALLOCMAP]= "net_address_allocation_map"
+struct col_map {
+	char *name;
+	int index;
 };
 
-static char *colnames[TABLE_MAX][COL_MAX] = {
-	/*TABLE_TENNANTS*/
-	{"tennant", NULL, NULL, NULL, NULL, NULL, NULL, "proxypass", NULL, "proxyadmin", NULL, },
-	/*TABLE_NODES*/
-	{NULL, "hostname", "state", NULL, NULL, NULL, NULL, NULL, NULL, NULL, "load", "modified", },
-	/*TABLE_TENNANT_HOSTS*/
-	{"tennant", "hostname", },
-	/*TABLE_YUM_CONFIG*/
-	{"tennant", NULL, NULL, "name", "url", },
-	/*TABLE_CONTAINERS*/
-	{"tennant", "hostname", "state", NULL, NULL, "iname", "cname", },
-	/*TABLE_NETWORKS*/
-	{"tennant", NULL, "state", "name", NULL, NULL, NULL, "config", },
-	/*TABLE_NETMAP*/
-	{"tennant", NULL, NULL, NULL, NULL, "name", "network", },
-	/*TABLE_EVENTS*/
-	{NULL, NULL, NULL, "event", "extra", },
-	/*TABLE_GCONF*/
-	{NULL, NULL, NULL, "key", NULL, NULL, NULL, NULL, "value", },
-	/*TABLE_ALLOCMAP*/
-	{"tennant", "ownerhost", "allocated", "ownerip", NULL, "type", NULL, NULL, NULL, "address", },
-	
+struct table_format {
+	char *name;
+	struct col_map columns[COL_MAX];
 };
 
-/*
- * This table maps the human readable column names
- * to the numeric columns that each table returns.
- * The array indicies are:
- * TENNANT, HOSTNAME, STATE, NAME, URL, INAME, CNAME, PROXYPASS, TYPE, CONFIG PROXYADMIN LOAD MODIFIED
- * Note: the net_contaienr_map uses INAME for the container name and CNAME for the network name
- * Note: the global_config table uses NAME for the key and CONFIG for the value column
- * Note: The allocmap uses INAME for the ownerip
- */
+static struct table_format tableinfo[TABLE_MAX] = {
+	[TABLE_TENNANTS] = {
+		.name = "tennant",
+		.columns = {
+			[COL_TENNANT] = { "tennant", 0},
+			[COL_PROXYPASS] = { "proxypass", 1},
+			[COL_PROXYADMIN] = { "proxyadmin", 2}
+		}
+	},
 
-static int db_col_map[TABLE_MAX][COL_MAX] = {
- [TABLE_TENNANTS] =		{ 0, -1, -1, -1, -1, -1, -1,  1, -1,  2, -1, -1},
- [TABLE_NODES] =		{-1,  0,  1, -1, -1, -1, -1, -1, -1, -1,  2,  3},
- [TABLE_TENNANT_HOSTS] = 	{ 1,  0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
- [TABLE_YUM_CONFIG] =		{ 2, -1, -1,  0,  1, -1, -1, -1, -1, -1, -1, -1},
- [TABLE_CONTAINERS] =		{ 0,  3,  4, -1, -1,  1,  2, -1, -1, -1, -1, -1},
- [TABLE_NETWORKS] =		{ 1, -1,  2,  0, -1, -1, -1, -1,  3, -1, -1, -1},
- [TABLE_NETMAP] =		{ 0, -1, -1, -1, -1,  1,  2, -1, -1, -1, -1, -1}, 
- [TABLE_EVENTS] =		{ -1,-1, -1,  0, -1, -1, -1, -1,  1, -1, -1, -1},
- [TABLE_GCONF] =		{ -1,-1, -1,  0, -1, -1, -1, -1,  1, -1, -1, -1},
- [TABLE_ALLOCMAP] =		{ 1, 5,  3,  4,  3, -1,  -1, -1, -1,  2, -1, -1} 
+	[TABLE_NODES] = {
+		.name = "nodes",
+		.columns = {
+			[COL_HOSTNAME] = {"hostname", 0},
+			[COL_STATE] = {"state", 1},
+			[COL_LOAD] = {"load", 2},
+			[COL_MODIFIED] = {"modified", 3}
+		}
+	},
+
+	[TABLE_TENNANT_HOSTS] = {
+		.name = "tennant_hosts",
+		.columns = {
+			[COL_TENNANT] = {"tennant", 1},
+			[COL_HOSTNAME] = {"hostname", 0}
+		}
+	},
+
+	[TABLE_YUM_CONFIG] = {
+		.name = "yum_config",
+		.columns = {
+			[COL_TENNANT] = {"tennant", 2},
+			[COL_NAME] = {"name", 0},
+			[COL_URL] = {"url", 1}
+		}
+	},
+
+	[TABLE_CONTAINERS] = {
+		.name = "containers",
+		.columns = {
+			[COL_TENNANT] = { "tennant", 0 },
+			[COL_HOSTNAME] = { "hostname", 3},
+			[COL_STATE] = { "state", 4},
+			[COL_INAME] = { "iname", 1},
+			[COL_CNAME] = { "cname", 2},
+		}
+	},
+
+	[TABLE_NETWORKS] = {
+		.name = "networks",
+		.columns = {
+			[COL_TENNANT] = { "tennant", 1},
+			[COL_STATE] = { "state", 2},
+			[COL_NAME] = { "name", 0 },
+			[COL_CONFIG] = { "config", 3},
+		}
+	},
+
+	[TABLE_NETMAP] = {
+		.name = "net_container_map",
+		.columns = {
+			[COL_TENNANT] = { "tennant", 0},
+			[COL_INAME] = {"name", 1},
+			[COL_CNAME] = {"cname", 2},
+		}
+	},
+
+	[TABLE_EVENTS] = {
+		.name = "event_table",
+		.columns = {
+			[COL_NAME] = {"event", 0},
+			[COL_URL] = {"extra", 1},
+		}
+	},
+
+	[TABLE_GCONF] = {
+		.name = "global_config",
+		.columns = {
+			[COL_NAME] = { "key", 0},
+			[COL_CONFIG] = { "value", 1},
+		}
+	},
+
+	[TABLE_ALLOCMAP] = {
+		.name = "net_address_allocation_map",
+		.columns = {
+			[COL_TENNANT] = {"tennant", 1},
+			[COL_HOSTNAME] = {"ownerhost", 5},
+			[COL_STATE] = {"allocated", 3},
+			[COL_NAME] = {"ownerip", 4},
+			[COL_INAME] = {"name", 0},
+			[COL_CONFIG] = {"address", 2},
+		}
+	}
+ 
 };
 
 struct channel_callback {
@@ -262,7 +309,7 @@ enum event_rc event_dispatch(const char *chn, const char *extra)
 
 const char* get_tablename(enum db_table id)
 {
-	return tablenames[id];
+	return tableinfo[id].name;
 }
 
 const enum db_table get_tableid(const char *name)
@@ -270,7 +317,7 @@ const enum db_table get_tableid(const char *name)
 	int i;
 
 	for (i=0; i < TABLE_MAX; i++) {
-		if (!strcmp(name, tablenames[i]))
+		if (!strcmp(name, tableinfo[i].name))
 			return i;
 	}
 
@@ -279,7 +326,7 @@ const enum db_table get_tableid(const char *name)
 
 const char *get_colname(enum db_table tbl, enum table_col col)
 {
-	return colnames[tbl][col];
+	return tableinfo[tbl].columns[col].name;
 }
 
 struct tbl *alloc_tbl(int rows, int cols, enum db_table type)
@@ -341,10 +388,10 @@ int is_tbl_empty(struct tbl *table)
 
 void * lookup_tbl(struct tbl *table, int row, enum table_col col)
 {
-	if ((long long)(table->value[row][db_col_map[table->type][col]]) == -1)
+	if (!tableinfo[table->type].columns[col].name)
 		return NULL;
 
-	return table->value[row][db_col_map[table->type][col]];
+	return table->value[row][tableinfo[table->type].columns[col].index];
 }
 
 char* get_tennant_proxy_pass(const char *user, const struct agent_config *acfg)
