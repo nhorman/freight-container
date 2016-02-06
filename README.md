@@ -154,3 +154,10 @@ You can skip the steps prior to the confgure command by running autogen.sh
 4. Build freight-tools
 5. run ./src/freight-agent/freight-agent -c ./doc/freight-agent.config -m node
 6. More here soon!
+
+# Todo:
+1. Complete ipv6 support for networking
+2. Remote console support for containers
+3. per container instance generic customization
+
+
