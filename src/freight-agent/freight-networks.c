@@ -769,6 +769,21 @@ int setup_networks_in_container(const char *cname, const char *iname, const char
 			break;
 		}
 
+		/*
+		 * IPV6 Setup
+		 */
+		switch (net->conf->aconf.ipv6) {
+		case AQUIRE_SLAAC:
+			fprintf(fptr, "IPV6_AUTOCONFIG=yes\n");
+			fprintf(fptr, "IPV6_PEERDNS=yes\n");
+			fprintf(fptr, "IPV6_PEERROUTES=yes\n");
+			fprintf(fptr, "IPV6_PRIVACY=no\n");
+			break;
+		default:
+			LOG(WARNING, "ipv6 aquire type is unknown: %d\n",
+				net->conf->aconf.ipv6);
+		}
+
 		fprintf(fptr, "ONBOOT=\"yes\"\n");
 		fprintf(fptr, "TYPE=\"Ethernet\"\n");
 		fprintf(fptr, "NM_CONTROLLED=\"no\"\n");
