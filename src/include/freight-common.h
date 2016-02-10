@@ -177,7 +177,7 @@ static inline int run_command(char *cmd, int print)
 		LOG(ERROR, "command failed: %s\n", strerror(rc));
 	}
 
-	return rc;
+	return WEXITSTATUS(rc);
 }
 
 #endif
