@@ -455,13 +455,34 @@ static void daemonize(const struct agent_config *acfg)
 	}
 }
 
+static void delete_container_instance(const char *iname, const char *cname, const char *tennant, const struct agent_config *acfg)
+{
+	char *cmd;
+	char *path;
+
+	LOG(DEBUG, "Deleting container %s for tennant %s \n", iname, tennant);
+
+	path = strjoina(acfg->node.container_root, tennant, "/containers/", cname, "/", NULL);
+	
+	cmd = strjoina("set -x; for i in `btrfs sub list ", path,
+			" | awk ' /", iname, "/ {print length, $0}' | sort -r -n |",
+			" awk '{print $10}'`\n",
+			"do\n",
+			"echo deleting $i\n",
+			"btrfs sub del -c ", acfg->node.container_root,
+			tennant, "/$i\n done", NULL);
+
+	if (run_command(cmd, acfg->cmdline.verbose))
+		LOG(ERROR, "Unable to delete container %s\n", iname);
+	
+}
+
 int poweroff_container(const char *iname, const char *cname, const char *tennant,
 		       const struct agent_config *acfg)
 {
 	pid_t pid;
 	int eoc = 3; /* machinectl poweroff <iname> */
 	char **execarray = NULL;
-	char *instance_path, *btrfscmd;
 	char *machinecmd;
 	int status;
 	int rc;
@@ -505,10 +526,7 @@ int poweroff_container(const char *iname, const char *cname, const char *tennant
 		/* 
 		 * Then clean up the container snapshot
 		 */
-		instance_path = strjoina(acfg->node.container_root, "/", tennant, "/containers/", cname, "/", iname, NULL);
-
-		btrfscmd = strjoina("btrfs subvolume delete ", instance_path, NULL);
-		run_command(btrfscmd, 0);
+		delete_container_instance(iname, cname, tennant, acfg);
 
 		return rc;
 	}
@@ -1005,11 +1023,11 @@ static int container_has_children(const char *cname, const char *tennant,
 	troot = strjoina(acfg->node.container_root, "/", tennant, NULL);
 	cmd = strjoina("chroot ", troot, " rpm -q --whatrequires ", cname, NULL);
 
-	rc = run_command(cmd, acfg->cmdline.verbose);
+	rc = run_command(cmd, 0);
 	/*
 	 * an rc of 1 means rpm failed because the container had no children
 	 */
-	return !WEXITSTATUS(rc);	 
+	return !rc;	 
 }
 
 static void free_age_marker(struct age_marker *cage)
