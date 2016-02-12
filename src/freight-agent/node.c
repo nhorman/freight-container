@@ -459,7 +459,7 @@ static void delete_container_instance(const char *iname, const char *cname, cons
 
 	path = strjoina(acfg->node.container_root, tennant, "/containers/", cname, "/", NULL);
 	
-	cmd = strjoina("set -x; for i in `btrfs sub list ", path,
+	cmd = strjoina("for i in `btrfs sub list ", path,
 			" | awk ' /", iname, "/ {print length, $0}' | sort -r -n |",
 			" awk '{print $10}'`\n",
 			"do\n",
