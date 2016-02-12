@@ -329,11 +329,6 @@ static int delete_tennant(const char *tennant, const struct agent_config *acfg)
 		LOG(ERROR, "Unable to delete tennant %s: %s\n",
 			tennant, strerror(rc));
 	free(cmd);
-	cmd = strjoin("btrfs sub del -c ", troot, NULL);
-	rc = run_command(cmd, acfg->cmdline.verbose);
-	if (rc)
-		LOG(ERROR, "Unable to delete tennant root for %s: %s\n",
-			tennant, strerror(rc));
 
 	/*
 	 * Unsubscribe from the corresponding channel
