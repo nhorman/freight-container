@@ -744,17 +744,21 @@ extern int request_boot_container(const char *iname, const char *tennant,
 		rc = -EEXIST;
 		goto out;
 	}
+	free_tbl(container);
 
 	rc = change_container_state(tennant, iname, "staged",
 	 			    "start-requested", acfg);
 
-	if (rc)
-		rc = change_container_state(tennant, iname, "failed",
-				    "start-requested", acfg);
+	rc = change_container_state(tennant, iname, "failed",
+			    "start-requested", acfg);
 
-	if (rc)
+	container = get_container_info(iname, tennant, acfg);
+	if (strcmp(lookup_tbl(container, 0, COL_STATE), "start-requested") &&
+	    strcmp(lookup_tbl(container, 0, COL_STATE), "installing") &&
+	    strcmp(lookup_tbl(container, 0, COL_STATE), "running")) {
 		LOG(WARNING, "container %s is in the wrong state\n", iname);
-
+		goto out;
+	}
 		
 	host = lookup_tbl(container, 0, COL_HOSTNAME);
 
