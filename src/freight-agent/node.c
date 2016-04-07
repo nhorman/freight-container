@@ -314,10 +314,8 @@ out:
 static int delete_tennant(const char *tennant, const struct agent_config *acfg)
 {
 	char *cmd;
-	char *troot;
 	int rc;
 
-	troot = strjoina(acfg->node.container_root, tennant, NULL);
 	cmd = strjoin("for i in `btrfs sub list ", acfg->node.container_root, 
 		      "/ | awk ' /", tennant, "/ {print length, $0}' | sort -r -n |",
 		      " awk '{print $10}'`; do ",
