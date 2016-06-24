@@ -29,6 +29,8 @@
 #include <errno.h>
 #include <assert.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <ftw.h>
 #include <freight-log.h>
 
@@ -146,6 +148,64 @@ static inline void recursive_dir_cleanup(const char *path)
 	return;
 }
 
+#define READ   0
+#define WRITE  1
+static inline void popen2(char *command, char *type, int *pid, FILE **in, FILE **out)
+{
+    pid_t child_pid;
+    int rfd[2], wfd[2];
+    pipe(rfd);
+    pipe(wfd);
+
+    *in = *out = NULL;
+
+    if((child_pid = fork()) == -1)
+    {
+        perror("fork");
+        exit(1);
+    }
+
+    /* child process */
+    if (child_pid == 0)
+    {
+	close(rfd[READ]);
+	dup2(rfd[WRITE], 1);
+	close(wfd[WRITE]);
+	dup2(wfd[READ], 0);
+
+        execl("/bin/sh", "/bin/sh", "-c", command, NULL);
+        exit(0);
+    }
+    else
+    {
+	close(rfd[WRITE]);
+	close(wfd[READ]);
+
+    }
+
+    *pid = child_pid;
+    *in = fdopen(rfd[READ], "r");
+    *out = fdopen(wfd[WRITE], "w");
+}
+
+static inline int pclose2(FILE *in, FILE *out, pid_t pid)
+{
+    int stat;
+
+    fclose(in);
+    fclose(out);
+    while (waitpid(pid, &stat, 0) == -1)
+    {
+        if (errno != EINTR)
+        {
+            stat = -1;
+            break;
+        }
+    }
+
+    return stat;
+}
+
 static inline FILE* _run_command(char *cmd)
 {
 	return popen(cmd, "r");
@@ -156,28 +216,39 @@ static inline int run_command(char *cmd, int print)
 {
 	int rc;
 	FILE *cmd_out;
+	FILE *cmd_in;
 	char buf[128];
-	
-	cmd_out = _run_command(cmd); 
+	pid_t child;
+	int status;
+
+	popen2(cmd, "r", &child, &cmd_in, &cmd_out);
 	if (cmd_out == NULL) {
 		rc = errno;
 		LOG(ERROR, "Unable to exec yum for install: %s\n", strerror(rc));
 		return rc;
 	}
 
-	while (fgets(buf, 128, cmd_out)) {
+	while (!ferror(cmd_out) && fgets(buf, 128, cmd_out)) {
 		if (print)
 			fputs(buf, stderr);
 	}
- 
-	rc = pclose(cmd_out);
+
+	waitpid(child, &status, 0);
+
+	while (!ferror(cmd_out) && fgets(buf, 128, cmd_out)) {
+		if (print)
+			fputs(buf, stderr);
+	}
+
+	rc = pclose2(cmd_in, cmd_out, child);
 
 	if (rc == -1) {
 		rc = errno;
-		LOG(ERROR, "command failed: %s\n", strerror(rc));
+		if (rc != ECHILD)
+			LOG(ERROR, "command failed: %s\n", strerror(rc));
 	}
 
-	return WEXITSTATUS(rc);
+	return WEXITSTATUS(status);
 }
 
 #endif

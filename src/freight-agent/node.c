@@ -142,7 +142,7 @@ int install_container(const char *rpm, const char *tenant,
 		goto out;
 	}
 
-	yumcmd = strjoina("chroot ", troot, " dnf -y --nogpgcheck install ", rpm, NULL);
+	yumcmd = strjoina("chroot ", troot, " dnf --quiet -y --nogpgcheck install ", rpm, ">/dev/null 2>&1", NULL);
 	rc = run_command(yumcmd, acfg->cmdline.verbose);
 
 out:
@@ -164,7 +164,7 @@ int install_and_update_container(const char *rpm, const char *tenant,
 
 	troot = strjoina(acfg->node.container_root, "/", tenant, NULL);
 
-	yumcmd = strjoina("chroot ", troot, " dnf -y --nogpgcheck update ", rpm, NULL);
+	yumcmd = strjoina("chroot ", troot, " dnf --quiet -y --nogpgcheck update ", rpm, NULL);
 	rc = run_command(yumcmd, acfg->cmdline.verbose);
 	return rc;
 
@@ -183,7 +183,7 @@ int uninstall_container(const char *rpm, const char *tenant,
 	if (stat(croot, &buf) == -ENOENT)
 		goto out;
 
-	yumcmd = strjoina("chroot ", troot, "dnf -y erase ", rpm, NULL);
+	yumcmd = strjoina("chroot ", troot, "dnf --quiet -y erase ", rpm, NULL);
 
 	rc = run_command(yumcmd, acfg->cmdline.verbose);
 out:
@@ -523,9 +523,9 @@ int poweroff_container(const char *iname, const char *cname, const char *tennant
 
 		return rc;
 	}
-
+#if 0
 	daemonize(acfg);
-
+#endif
 	eoc = 0;
 	execarray[eoc++] = "machinectl"; /*argv[0]*/
 	execarray[eoc++] = "poweroff";
@@ -795,18 +795,20 @@ static void create_containers_from_table(const void *data, const struct agent_co
 
 		ifcs = build_interface_list_for_container(iname, tennant, acfg);
 
-		if (get_address_for_interfaces(ifcs, iname, acfg)) {
-			LOG(ERROR, "Could not assign addresses for some interfaces\n");
-			change_container_state(tennant, iname, "installing", "failed", acfg);
-			continue;
+		if (ifcs) {
+			if (get_address_for_interfaces(ifcs, iname, acfg)) {
+				LOG(ERROR, "Could not assign addresses for some interfaces\n");
+				change_container_state(tennant, iname, "installing", "failed", acfg);
+				continue;
+			}
+
+			create_and_bridge_interface_list(ifcs, acfg);
+
+			/*
+			 * They're installed, now we just need to exec each container
+			 */
+			LOG(INFO, "Booting container %s for tennant %s\n", iname, tennant);
 		}
-
-		create_and_bridge_interface_list(ifcs, acfg);
-
-		/*
-		 * They're installed, now we just need to exec each container
-		 */
-		LOG(INFO, "Booting container %s for tennant %s\n", iname, tennant);
 
 		rc = exec_container(cname, iname, tennant, ifcs,
 				    1, acfg);
@@ -1203,12 +1205,14 @@ int enter_mode_loop(struct agent_config *config)
 	/*
 	 * Put us in a known state regarding tennants
 	 */
-	LOG(INFO, "Cleaning tennant state\n");
-	delete_all_tennants(config);
+	if (config->cmdline.reset_agent_space) {
+		LOG(INFO, "Cleaning tennant state\n");
+		delete_all_tennants(config);
 
-	if (rc == ENOENT) {
-		LOG(ERROR, "please run freight-agent -m init first\n");
-		goto out;
+		if (rc == ENOENT) {
+			LOG(ERROR, "please run freight-agent -m init first\n");
+			goto out;
+		}
 	}
 
 	memset(&intact, 0, sizeof(struct sigaction));
