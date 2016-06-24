@@ -30,6 +30,6 @@ packaging = {
 };
 
 yum_opts = {
-        releasever = "23";
+        releasever = "24";
 };
 
