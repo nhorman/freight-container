@@ -66,6 +66,7 @@ struct cmdline_config {
 	enum op_mode mode;
 	int verbose;
 	char hostname[128];
+	int reset_agent_space;
 };
 
 struct agent_config {

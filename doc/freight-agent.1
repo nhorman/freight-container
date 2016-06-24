@@ -44,6 +44,11 @@ yum and local rpm databases that track which containers are installed, removes
 the installed containers, and destroys the existing config retrieved from the
 database.
 .TP
+.B
+-n --noreset
+When starting freight-agent in node mode, don't clean the tennant areas.  This
+allows previously existing installed containers to persist and not require
+re-downloading
 
 .SH CONFIG FILE FORMAT 
 

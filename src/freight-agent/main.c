@@ -38,6 +38,7 @@ struct option lopts[] = {
 	{"help", 0, NULL, 'h'},
 	{"config", 1, NULL, 'c'},
 	{"mode", 1, NULL, 'm'},
+	{"noreset", 0, NULL, 'n'},
 	{"list", 1, NULL, 'l'},
 	{"verbose", 0, NULL, 'v'},
 	{ 0, 0, 0, 0}
@@ -66,14 +67,15 @@ int main(int argc, char **argv)
 	char *mode = NULL;
 	char *list = "all";
 	int verbose = 0;	
+	int reset_agent_space = 1;
 	/*
  	 * Parse command line options
  	 */
 
 #ifdef HAVE_GETOPT_LONG
-	while ((opt = getopt_long(argc, argv, "hc:m:l:v", lopts, &longind)) != -1) {
+	while ((opt = getopt_long(argc, argv, "hnc:m:l:v", lopts, &longind)) != -1) {
 #else
-	while ((opt = getopt(argc, argv, "hc:m:l:v") != -1) {
+	while ((opt = getopt(argc, argv, "hnc:m:l:v") != -1) {
 #endif
 		switch(opt) {
 
@@ -89,6 +91,9 @@ int main(int argc, char **argv)
 			break;
 		case 'm':
 			mode = optarg;
+			break;
+		case 'n':
+			reset_agent_space = 0;
 			break;
 		case 'l':
 			list = optarg;
@@ -115,6 +120,7 @@ int main(int argc, char **argv)
 		goto out_release;
 
 	config.cmdline.verbose = verbose;
+	config.cmdline.reset_agent_space = reset_agent_space;
 
 	/*
  	 * Sanity checks
