@@ -114,7 +114,7 @@ static struct table_format tableinfo[TABLE_MAX] = {
 		.columns = {
 			[COL_TENNANT] = { "tennant", 0},
 			[COL_INAME] = {"name", 1},
-			[COL_CNAME] = {"cname", 2},
+			[COL_CNAME] = {"network", 2},
 		}
 	},
 
@@ -1038,7 +1038,7 @@ int network_attach(const char *container, const char *network, const char *tenna
 
 	SET_CVL_COL(list, 0, COL_TENNANT, tennant);
 	SET_CVL_COL(list, 1, COL_INAME, container);
-	SET_CVL_COL(list, 2, COL_CNAME, network);
+	SET_CVL_COL(list, 2, COL_NAME, network);
 
 	return api->table_op(OP_INSERT, TABLE_NETMAP, &list, NULL, acfg);
 }
