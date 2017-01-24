@@ -37,7 +37,7 @@ static xmlrpc_value *report_unsupported(enum table_op op, enum db_table tbl,
                                                  const struct colvallist *filter,
                                                  char **xmlop, const struct agent_config *acfg);
 
-static int xmlrpc_init(struct agent_config *acfg)
+static int xmlrpc_init_driver(struct agent_config *acfg)
 {
 	struct xmlrpc_info *info;
 	char *port = "80";
@@ -490,7 +490,7 @@ int xmlrpc_null_notify(enum notify_type type, enum listen_channel chn,
 }
 
 struct db_api xmlrpc_api = {
-	.init = xmlrpc_init,
+	.init = xmlrpc_init_driver,
 	.cleanup = xmlrpc_cleanup,
 	.connect = xmlrpc_connect,
 	.disconnect = xmlrpc_disconnect,
