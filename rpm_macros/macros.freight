@@ -1,0 +1,34 @@
+#  -*- Mode: rpm-spec; indent-tabs-mode: nil -*- */
+#
+#
+#  Copyright 2018 Neil Horman 
+#
+#  Freight is free software; you can redistribute it and/or modify it
+#  under the terms of the GNU Lesser General Public License as published by
+#  the Free Software Foundation; either version 2.1 of the License, or
+#  (at your option) any later version.
+#
+#  You should have received a copy of the GNU Lesser General Public License
+#  along with systemd; If not, see <http://www.gnu.org/licenses/>.
+
+# RPM macros for aiding in the creation of freight container rpms 
+
+#
+#Create the base container layout
+#Assumes %{ctreeroot} and %{replacepath} 
+#are defined
+#
+%create_freight_container_dirs() \
+mkdir -p $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot}\
+mkdir -p $RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/rootfs\
+#create the unitdir\
+mkdir -p $RPM_BUILD_ROOT/%{_unitdir}/\
+mkdir -p $RPM_BUILD_ROOT/%{_sysconfdir}/sysconfig/freight\
+mkdir -p $RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/etc/\
+mkdir -p $RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/usr/lib\
+ln -s ../usr/lib/os-release $RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/etc/os-release\
+# Create the lower and work directories\
+mkdir -p $RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/none\
+mkdir -p $RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/work\
+%{nil}
+
