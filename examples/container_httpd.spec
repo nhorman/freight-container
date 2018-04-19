@@ -2,21 +2,21 @@
 %define ctreeroot %{name}_%{version}_%{releasenum}
 %define replacepath /var/lib/freight/machines 
 %define __arch_install_post %nil 
-%define container_packages systemd fedora-release iproute initscripts dhclient vim passwd
+%define container_packages httpd 
 
-Name: container_base		
+Name: container_httpd	
 Version:	1
 Release:	%{releasenum}%{?dist}
-Summary:	Base container
+Summary:	Httpd container
 Prefix:		/%{replacepath}
 Group:		System/Containers
 License:	GPLv2
 BuildArch:	noarch
-
+Requires:	container_base
 
 
 %description
-Base container on which all others are built
+Httpd container image
 
 %prep
 
@@ -32,17 +32,17 @@ Base container on which all others are built
 # This script is run from the %{ctreename}_setup service
 cat <<\EOF >> $RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/setup.sh
 #!/bin/sh
-echo 'hello' | systemd-cat -p warning
+echo 'hello httpd' | systemd-cat -p warning
 if [ -f /var/lib/machines/%{ctreeroot}/etc/container_state/%{name}_INITALIZED ]
 then
-	exit 0
+        exit 0
 fi
 
-/usr/bin/dnf --noplugins -v -y --installroot=/var/lib/machines/%{ctreeroot} --releasever %{fedora} install %{container_packages}
-/usr/bin/dnf --noplugins -v -y --installroot=/var/lib/machines/%{ctreeroot} clean all
-/usr/sbin/chroot /var/lib/machines/%{ctreeroot} /bin/sh -c "echo redhat | passwd --stdin root"
+touch /var/lib/machines/%{ctreeroot}/etc/container_state/%{name}_INITALIZED
 
-mkdir /var/lib/machines/%{ctreeroot}/etc/container_state
+/usr/bin/dnf --noplugins -v -y --installroot=/var/lib/machines/%{ctreeroot} install %{container_packages}
+/usr/bin/dnf --noplugins -v -y --installroot=/var/lib/machines/%{ctreeroot} clean all
+
 touch /var/lib/machines/%{ctreeroot}/etc/container_state/%{name}_INITALIZED
 exit 0
 EOF
@@ -66,17 +66,19 @@ Description=Mount for container base
 Type=overlay
 What=overlay
 Where=/var/lib/machines/%{ctreeroot}
-Options=lowerdir=%{replacepath}/%{ctreeroot}/none,upperdir=%{replacepath}/%{ctreeroot}/rootfs,workdir=%{replacepath}/%{ctreeroot}/work
+Options=lowerdir=%{replacepath}/container_base_1_1/rootfs,upperdir=%{replacepath}/%{ctreeroot}/rootfs,workdir=%{replacepath}/%{ctreeroot}/work
 
 EOF
 
 # We need a setup service, this is a one shot service that 'creates' the
 # container, by running the setup script above.
-cat <<\EOF >> $RPM_BUILD_ROOT/%{_unitdir}/container_base_setup.service
+cat <<\EOF >> $RPM_BUILD_ROOT/%{_unitdir}/%{name}_setup.service
 [Unit]
-Description=Base Container Setup for Freight
+Description=Httpd Setup for Freight
 Requires=var-lib-machines-%{ctreeroot}.mount
+Requires=container_base_setup.service
 After=var-lib-machines-%{ctreeroot}.mount
+After=container_base_setup.service
 
 [Service]
 Type=oneshot
@@ -90,19 +92,20 @@ EOF
 # This is the actual container service.  Starting this starts an instance of the
 # container being installed.  Note that the service is a template, allowing
 # multiple instances of the container to be created
-cat <<\EOF >> $RPM_BUILD_ROOT/%{_unitdir}/container_base@.service
+cat <<\EOF >> $RPM_BUILD_ROOT/%{_unitdir}/%{name}@.service
 
 [Unit]
-Description=Base Container for Freight
+Description=Httpd Container for Freight
 Requires=var-lib-machines-%{ctreeroot}.mount
-Requires=container_base_setup.service
-After=container_base_setup.service
+Requires=%{name}_setup.service
+After=var-lib-machines-%{ctreeroot}.mount
+After=%{name}_setup.service
 
 
 [Service]
 Type=simple
 EnvironmentFile=/etc/sysconfig/freight/%{ctreeroot}-%I
-ExecStart=/usr/bin/systemd-nspawn -b --machine=%I --directory=/var/lib/machines/%{ctreeroot} $MACHINE_OPTS
+ExecStart=/usr/bin/systemd-nspawn -b --machine=%{name}-%I --directory=/var/lib/machines/%{ctreeroot} $MACHINE_OPTS
 ExecStop=/usr/bin/systemd-nspawn poweroff %I
 
 [Install]
@@ -118,15 +121,15 @@ MACHINE_OPTS=""
 EOF
 
 %post
-%systemd_post container_base.service
+%systemd_post %{name}.service
 %systemd_post var-lib-machines-%{ctreeroot}.mount
 
 %preun
-%systemd_preun container_base.service
+%systemd_preun %{name}.service
 %systemd_preun var-lib-machines-%{ctreeroot}.mount
 
 %postun
-%systemd_postun_with_restart container_base.service
+%systemd_postun_with_restart %{name}.service
 %systemd_postun_with_restart var-lib-machines-%{ctreeroot}.mount
 rm -rf %{replacepath}/%{ctreeroot}
  
@@ -135,7 +138,6 @@ rm -rf %{replacepath}/%{ctreeroot}
 %dir /var/lib/machines/%{ctreeroot}
 /%{replacepath}/%{ctreeroot}/
 %{_unitdir}/*
-%dir /%{_sysconfdir}/sysconfig/freight
 %config /%{_sysconfdir}/sysconfig/freight/*
 
 
