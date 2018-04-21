@@ -2,7 +2,8 @@
 %define ctreeroot %{name}_%{version}_%{releasenum}
 %define replacepath /var/lib/freight/machines 
 %define __arch_install_post %nil 
-%define container_packages systemd fedora-release iproute initscripts dhclient vim passwd
+%define _build_id_links none
+%define container_packages systemd dnf fedora-repos fedora-release strace bash fedora-release iproute initscripts dhclient vim passwd
 
 Name: container_base		
 Version:	1
@@ -11,7 +12,6 @@ Summary:	Base container
 Prefix:		/%{replacepath}
 Group:		System/Containers
 License:	GPLv2
-BuildArch:	noarch
 
 
 
@@ -26,29 +26,13 @@ Base container on which all others are built
 # SETUP THE BASE DIRECTORIES TO HOLD THE CONTAINER FS
 %create_freight_container_dirs 
 
-# CREATE THE SETUP SCRIPT
-# Every freight container has a setup script which is responsible
-# for installing the rpms needed to implement this container
-# This script is run from the %{ctreename}_setup service
-cat <<\EOF >> $RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/setup.sh
-#!/bin/sh
-echo 'hello' | systemd-cat -p warning
-if [ -f /var/lib/machines/%{ctreeroot}/etc/container_state/%{name}_INITALIZED ]
-then
-	exit 0
-fi
 
-/usr/bin/dnf --noplugins -v -y --installroot=/var/lib/machines/%{ctreeroot} --releasever %{fedora} install %{container_packages}
-/usr/bin/dnf --noplugins -v -y --installroot=/var/lib/machines/%{ctreeroot} clean all
-/usr/sbin/chroot /var/lib/machines/%{ctreeroot} /bin/sh -c "echo redhat | passwd --stdin root"
-
-mkdir /var/lib/machines/%{ctreeroot}/etc/container_state
-touch /var/lib/machines/%{ctreeroot}/etc/container_state/%{name}_INITALIZED
-exit 0
-EOF
-
-#make sure to mark the setup script as executable
-chmod 755 $RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/setup.sh
+# install the file system
+/usr/bin/dnf --noplugins -v -y --installroot=$RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/rootfs/ --releasever %{fedora} install %{container_packages}
+/usr/bin/dnf --noplugins -v -y --installroot=$RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/rootfs/ clean all 
+/usr/sbin/semanage fcontext --modify -t shadow_t "$RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/rootfs/etc/shadow"
+/usr/sbin/restorecon -v "$RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/rootfs/etc/shadow"
+/usr/sbin/chroot $RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/rootfs/ /bin/sh -c "echo redhat | passwd --stdin root"
 
 # CREATION OF UNIT FILES
 
@@ -70,23 +54,6 @@ Options=lowerdir=%{replacepath}/%{ctreeroot}/none,upperdir=%{replacepath}/%{ctre
 
 EOF
 
-# We need a setup service, this is a one shot service that 'creates' the
-# container, by running the setup script above.
-cat <<\EOF >> $RPM_BUILD_ROOT/%{_unitdir}/container_base_setup.service
-[Unit]
-Description=Base Container Setup for Freight
-Requires=var-lib-machines-%{ctreeroot}.mount
-After=var-lib-machines-%{ctreeroot}.mount
-
-[Service]
-Type=oneshot
-TimeoutStartSec=240
-RemainAfterExit=true
-ExecStart=%{replacepath}/%{ctreeroot}/setup.sh
-
-EOF
-
-
 # This is the actual container service.  Starting this starts an instance of the
 # container being installed.  Note that the service is a template, allowing
 # multiple instances of the container to be created
@@ -95,8 +62,6 @@ cat <<\EOF >> $RPM_BUILD_ROOT/%{_unitdir}/container_base@.service
 [Unit]
 Description=Base Container for Freight
 Requires=var-lib-machines-%{ctreeroot}.mount
-Requires=container_base_setup.service
-After=container_base_setup.service
 
 
 [Service]
@@ -132,7 +97,7 @@ rm -rf %{replacepath}/%{ctreeroot}
  
 
 %files
-%dir /var/lib/machines/%{ctreeroot}
+%dir /%{replacepath}/%{ctreeroot}
 /%{replacepath}/%{ctreeroot}/
 %{_unitdir}/*
 %dir /%{_sysconfdir}/sysconfig/freight
