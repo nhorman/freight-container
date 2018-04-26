@@ -13,6 +13,8 @@
 
 # RPM macros for aiding in the creation of freight container rpms 
 
+%define mountunitpath var-lib-freight-machines
+
 #
 #Create the base container layout
 #Assumes %{ctreeroot} and %{replacepath} 
@@ -32,3 +34,122 @@ mkdir -p $RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/none\
 mkdir -p $RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/work\
 %{nil}
 
+
+#Macros for installing files to the container
+%install_base_container_fs() {\
+	/usr/bin/dnf --noplugins -v -y --installroot=$RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/rootfs/ --releasever %{fedora} install dnf fedora-release fedora-repos;\
+	/usr/bin/dnf --noplugins -v -y --installroot=$RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/rootfs/ clean all;\
+}\
+%{nil}
+
+%install_packages_to_container() {\
+	/usr/sbin/chroot $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot} /usr/bin/dnf --noplugins -v -y install %{container_packages};\
+	/usr/sbin/chroot $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot} /usr/bin/dnf --noplugins -v -y clean all\
+}\
+%{nil}
+
+#Convienience macros to fix up selinux context
+%set_selinux_file_context() {\
+	/usr/sbin/semanage fcontext --modify -t %1 "$RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot}/%2" || /usr/sbin/semanage fcontext --add -t %1 "$RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot}/%2"\
+}\
+%{nil}
+
+%restorecon() {\
+	/usr/sbin/restorecon -v "$RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot}/%1"\
+}\%{nil}
+
+#Macro to assign root passwd to the container
+%set_container_root_pw() {\
+	/usr/sbin/chroot $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot}/ /bin/sh -c "echo %1 | passwd --stdin root"\
+}\
+%{nil}
+
+#
+#Macro to create a mount unit
+#Takes 1 argument:
+#1) lowerdir for the mount point 
+#
+%create_freight_mount_unit() %{expand:
+cat > %{buildroot}/%{_unitdir}/var-lib-machines-%{ctreeroot}.mount << 'EOF'
+[Unit]
+Description=Mount for container %{ctreeroot}
+[Mount]
+Type=overlay
+What=overlay
+Where=/var/lib/machines/%{ctreeroot}
+Options=lowerdir=%1,upperdir=%{replacepath}/%{ctreeroot}/rootfs,workdir=%{replacepath}/%{ctreeroot}/work
+EOF
+}
+
+%create_freight_child_mount_unit() %{expand:
+cat > %{buildroot}/%{_unitdir}/var-lib-machines-%{ctreeroot}.mount << 'EOF'
+[Unit]
+Description=Mount for container %{ctreeroot}
+Requires=var-lib-machines-%1.mount
+After=var-lib-machines-%1.mount
+[Mount]
+Type=overlay
+What=overlay
+Where=/var/lib/machines/%{ctreeroot}
+Options=lowerdir=/var/lib/machines/%1,upperdir=%{replacepath}/%{ctreeroot}/rootfs,workdir=%{replacepath}/%{ctreeroot}/work
+EOF
+}
+
+#
+#Macro to create the container service
+#
+%create_freight_service() %{expand:
+cat > %{buildroot}/%{_unitdir}/%{ctreeroot}@.service << 'EOF'
+[Unit]
+Description=%{ctreeroot} service  for Freight
+Requires=var-lib-machines-%{ctreeroot}.mount
+[Service]
+Type=simple
+EnvironmentFile=/etc/sysconfig/freight/%{ctreeroot}-%I
+ExecStart=/usr/bin/systemd-nspawn -b --machine=%{name}-%I --directory=/var/lib/machines/%{ctreeroot} $MACHINE_OPTS
+ExecStop=/usr/bin/systemd-nspawn poweroff %{name}-%I
+[Install]
+Also=dbus.service
+DefaultInstance=default
+EOF
+}
+
+
+#
+#Macro to create sysconf file for default service instance
+#
+%create_freight_sysconf() %{expand:
+mkdir -p %{buildroot}/etc/sysconfig/freight/
+cat > %{buildroot}/etc/sysconfig/freight/%{ctreeroot}-default << 'EOF'
+MACHINE_OPTS=""
+EOF
+}
+
+
+%activate_container_fs() {\
+	if [ -f %{_unitdir}/var-lib-machines-%1.mount ];\
+	then\
+		systemctl start var-lib-machines-%1.mount;\
+		mount -t overlay overlay -o lowerdir=%{replacepath}/%1/rootfs,upperdir=$RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/rootfs,workdir=$RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/work $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot};\
+	else\
+		mkdir -p $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot};\
+		mount -t overlay overlay -o lowerdir=$RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/none,upperdir=$RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/rootfs,workdir=$RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/work $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot};\
+	fi;\
+	mkdir -p $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot}/etc/;\
+	cp -f /etc/resolv.conf $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot}/etc/;\
+}\
+%{nil}
+
+%finalize_container_fs() {\
+	umount $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot} && echo;\
+	if [ -f %{_unitdir}/var-lib-machines-%1.mount ];\
+	then\
+		systemctl stop var-lib-machines-%1.mount;\
+	fi;\
+}\
+%{nil}
+
+%run_in_container() {\
+	chroot $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot}/ %*\
+}\
+%{nil}

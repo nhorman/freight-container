@@ -1,5 +1,5 @@
 %define releasenum 1
-%define ctreeroot %{name}_%{version}_%{releasenum}
+%define ctreeroot %{name}_%{version}_%{release}
 %define replacepath /var/lib/freight/machines 
 %define __arch_install_post %nil 
 %define _build_id_links none
@@ -12,32 +12,25 @@ Summary:	Httpd container
 Prefix:		/%{replacepath}
 Group:		System/Containers
 License:	GPLv2
-BuildRequires:	container_base
-Requires:	container_base
+BuildRequires:	container_base-%{version}-%{release}
+Requires:	container_base-%{version}-%{release}
 
 
 %description
 Httpd container image
-
-%prep
-
-%build
 
 %install
 # SETUP THE BASE DIRECTORIES TO HOLD THE CONTAINER FS
 %create_freight_container_dirs 
 
 # INSTALL THE ADDITIONAL PACKAGES NEEDED FOR THIS CONTAINER
-systemctl start var-lib-machines-container_base_1_1.mount
-mount -t overlay overlay -o lowerdir=%{replacepath}/container_base_1_1/rootfs,upperdir=$RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/rootfs,workdir=$RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/work $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot}
+%activate_container_fs container_base_%{version}_%{release}
 
-/usr/bin/dnf --noplugins -v -y --installroot=$RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot}/ install %{container_packages}
-/usr/bin/dnf --noplugins -v -y --installroot=$RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot}/ clean all
+%install_packages_to_container
 
-chroot $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot}/ systemctl enable httpd.service
+%run_in_container systemctl enable httpd.service
 
-umount $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot}
-systemctl stop var-lib-machines-container_base_1_1.mount
+%finalize_container_fs container_base_%{version}_%{release}
 
 # CREATION OF UNIT FILES
 
@@ -47,49 +40,19 @@ systemctl stop var-lib-machines-container_base_1_1.mount
 # containers, the lowerdir will be the upperdir of the lower layer container
 # and the upper layer container will claim the lower container mountpoint as 
 # a dependency
-cat <<\EOF >> $RPM_BUILD_ROOT/%{_unitdir}/var-lib-machines-%{ctreeroot}.mount
-[Unit]
-Description=Mount for container base
-Requires=var-lib-machines-container_base_1_1.mount
-After=var-lib-machines-container_base_1_1.mount
-
-[Mount]
-Type=overlay
-What=overlay
-Where=/var/lib/machines/%{ctreeroot}
-Options=lowerdir=%{replacepath}/container_base_1_1/rootfs,upperdir=%{replacepath}/%{ctreeroot}/rootfs,workdir=%{replacepath}/%{ctreeroot}/work
-
-EOF
-
+%create_freight_child_mount_unit container_base_%{version}_%{release}
 
 # This is the actual container service.  Starting this starts an instance of the
 # container being installed.  Note that the service is a template, allowing
 # multiple instances of the container to be created
-cat <<\EOF >> $RPM_BUILD_ROOT/%{_unitdir}/%{name}@.service
-
-[Unit]
-Description=Httpd Container for Freight
-Requires=var-lib-machines-%{ctreeroot}.mount
-After=var-lib-machines-%{ctreeroot}.mount
-
-
-[Service]
-Type=simple
-EnvironmentFile=/etc/sysconfig/freight/%{ctreeroot}-%I
-ExecStart=/usr/bin/systemd-nspawn -b --machine=%{name}-%I --directory=/var/lib/machines/%{ctreeroot} $MACHINE_OPTS
-ExecStop=/usr/bin/systemd-nspawn poweroff %I
-
-[Install]
-Also=dbus.service
-DefaultInstance=default
-
-EOF
+%create_freight_service
 
 # This is the options file for the container.  This file acts as the environment
 # file for the container instance started by the service of the same name.
-cat <<\EOF >> $RPM_BUILD_ROOT/%{_sysconfdir}/sysconfig/freight/%{ctreeroot}-default
-MACHINE_OPTS=""
-EOF
+%create_freight_sysconf
+
+%clean
+%finalize_container_fs container_base_%{version}_%{release}
 
 %post
 /usr/bin/dnf --noplugins -v -y --installroot=/%{replacepath}/%{ctreeroot} install %{container_packages}
