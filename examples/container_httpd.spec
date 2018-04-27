@@ -1,15 +1,12 @@
-%define releasenum 1
-%define ctreeroot %{name}_%{version}_%{release}
-%define replacepath /var/lib/freight/machines 
-%define __arch_install_post %nil 
-%define _build_id_links none
+%freight_package
+
 %define container_packages httpd 
 
 Name: container_httpd	
 Version:	1
-Release:	%{releasenum}%{?dist}
+Release:	1%{?dist}
 Summary:	Httpd container
-Prefix:		/%{replacepath}
+Prefix:		/%{freightimagepath}
 Group:		System/Containers
 License:	GPLv2
 BuildRequires:	container_base-%{version}-%{release}
@@ -20,25 +17,19 @@ Requires:	container_base-%{version}-%{release}
 Httpd container image
 
 %install
-# ===SETUP THE BASE DIRECTORIES TO HOLD THE CONTAINER FS===
+# SETUP THE BASE DIRECTORIES TO HOLD THE CONTAINER FS
 %create_freight_container_dirs 
 
-# ===INSTALL THE ADDITIONAL PACKAGES NEEDED FOR THIS CONTAINER===
-
-# This mounts the parent container fs and our own container, using the parent
-# container fs as the lowerdir
+# INSTALL THE ADDITIONAL PACKAGES NEEDED FOR THIS CONTAINER
 %activate_container_fs container_base_%{version}_%{release}
 
-# Install packages (defined by container_packages) to the container fs
 %install_packages_to_container
 
-# Generic chroot operation to default enable the httpd service
 %run_in_container systemctl enable httpd.service
 
-# Unmount our container fs and stop the parent mount unit
 %finalize_container_fs container_base_%{version}_%{release}
 
-# ===CREATION OF UNIT FILES===
+# CREATION OF UNIT FILES
 
 # We need a mount unit, which is responsible for creating the 
 # overlay fs mount.  For the base container the lowerdir is
@@ -57,9 +48,6 @@ Httpd container image
 # file for the container instance started by the service of the same name.
 %create_freight_sysconf
 
-%clean
-%finalize_container_fs container_base_%{version}_%{release}
-
 %systemd_post %{name}.service
 %systemd_post var-lib-machines-%{ctreeroot}.mount
 
@@ -70,12 +58,12 @@ Httpd container image
 %postun
 %systemd_postun_with_restart %{name}.service
 %systemd_postun_with_restart var-lib-machines-%{ctreeroot}.mount
-rm -rf %{replacepath}/%{ctreeroot}
+rm -rf %{freightimagepath}/%{ctreeroot}
  
 
 %files
 %dir /var/lib/machines/%{ctreeroot}
-/%{replacepath}/%{ctreeroot}/
+/%{freightimagepath}/%{ctreeroot}/
 %{_unitdir}/*
 %config /%{_sysconfdir}/sysconfig/freight/*
 

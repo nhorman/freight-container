@@ -1,15 +1,13 @@
-%define __arch_install_post %nil 
-%define _build_id_links none
-%define container_packages systemd bash iproute initscripts dhclient vim passwd
+# Mark this as being a freight container package
+%freight_package
 
-%define replacepath /var/lib/freight/machines
-%define ctreeroot %{name}_%{version}_%{release}
+%define container_packages systemd bash iproute initscripts dhclient vim passwd
 
 Name: container_base		
 Version:	1
 Release:	1%{?dist}
 Summary:	Base container
-Prefix:		/%{replacepath}
+Prefix:		/%{freightimagepath}
 Group:		System/Containers
 License:	GPLv2
 Provides:	%{name}-%{version}-%{release}
@@ -19,34 +17,25 @@ Provides:	%{name}-%{version}-%{release}
 Base container on which all others are built
 
 %install
-# ===SETUP THE BASE DIRECTORIES TO HOLD THE CONTAINER FS===
+# SETUP THE BASE DIRECTORIES TO HOLD THE CONTAINER FS
 %create_freight_container_dirs 
 
 
-# ===INSTALL THE FILE SYSTEM TREE=== 
-
-# Start by installing the minimum system: dnf, fedora-release, and fedora-repos
+# Install the file system
 %install_base_container_fs
-
-# This mounts the rootfs as an overlay mount, using an empty dir (none) as the
-# lowerdir backing store
 %activate_container_fs none
-
-# This installs the desired packages to the container (as defined by
-# container_packages), using chroot to the filesystem
 %install_packages_to_container
 
 # Fix up our selinux context as needed
 %set_selinux_file_context shadow_t etc/shadow
 %restorecon etc/shadow
 
-# Set our default root password (optional)
+# Set our default root password
 %set_container_root_pw redhat
 
-# This unmounts the backing store and container fs
 %finalize_container_fs
 
-# ===CREATION OF UNIT FILES===
+# CREATION OF UNIT FILES
 
 # We need a mount unit, which is responsible for creating the 
 # overlay fs mount.  For the base container the lowerdir is
@@ -83,8 +72,8 @@ Base container on which all others are built
 
 %files
 %dir /var/lib/machines/%{ctreeroot}
-%dir /%{replacepath}/%{ctreeroot}
-/%{replacepath}/%{ctreeroot}/
+%dir /%{freightimagepath}/%{ctreeroot}
+/%{freightimagepath}/%{ctreeroot}/
 %{_unitdir}/*
 %dir /%{_sysconfdir}/sysconfig/freight
 %config /%{_sysconfdir}/sysconfig/freight/*

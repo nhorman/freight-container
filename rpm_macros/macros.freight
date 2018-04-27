@@ -11,37 +11,83 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with systemd; If not, see <http://www.gnu.org/licenses/>.
 
-# RPM macros for aiding in the creation of freight container rpms 
+# This file defines the global macros used in the constuction of 
+# Freight container rpms
+#
 
-%define mountunitpath var-lib-freight-machines
 
 #
-#Create the base container layout
-#Assumes %{ctreeroot} and %{replacepath} 
-#are defined
+# freight_package
+# Marks the spec file as freight container rpm, and sets up 
+# the proper global variables
+# Must be called at the top of the spec file
+%freight_package() %{expand:
+%global __arch_install_post %nil
+%global _build_id_links none
+%global ctreeroot %{name}_%{version}_%{release}
+%global mountunitpath var-lib-freight-machines
+%global freightimagepath /var/lib/freight/machines
+}
+
+#
+#Create the base container filesystem layout
 #
 %create_freight_container_dirs() \
 mkdir -p $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot}\
-mkdir -p $RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/rootfs\
-#create the unitdir\
+mkdir -p $RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/rootfs\
 mkdir -p $RPM_BUILD_ROOT/%{_unitdir}/\
 mkdir -p $RPM_BUILD_ROOT/%{_sysconfdir}/sysconfig/freight\
-mkdir -p $RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/etc/\
-mkdir -p $RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/usr/lib\
-mkdir -p $RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/none\
-ln -s ../usr/lib/os-release $RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/etc/os-release\
-# Create the lower and work directories\
-mkdir -p $RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/work\
+mkdir -p $RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/etc/\
+mkdir -p $RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/usr/lib\
+mkdir -p $RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/none\
+mkdir -p $RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/work\
+ln -s ../usr/lib/os-release $RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/etc/os-release\
 %{nil}
 
-
-#Macros for installing files to the container
-%install_base_container_fs() {\
-	/usr/bin/dnf --noplugins -v -y --installroot=$RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/rootfs/ --releasever %{fedora} install dnf fedora-release fedora-repos;\
-	/usr/bin/dnf --noplugins -v -y --installroot=$RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/rootfs/ clean all;\
+#
+#Mount the container fs for use with install macros below
+#
+%activate_container_fs() {\
+	if [ -f %{_unitdir}/var-lib-machines-%1.mount ];\
+	then\
+		systemctl start var-lib-machines-%1.mount;\
+		mount -t overlay overlay -o lowerdir=%{freightimagepath}/%1/rootfs,upperdir=$RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/rootfs,workdir=$RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/work $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot};\
+	else\
+		mkdir -p $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot};\
+		mount -t overlay overlay -o lowerdir=$RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/none,upperdir=$RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/rootfs,workdir=$RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/work $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot};\
+	fi;\
+	mkdir -p $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot}/etc/;\
+	cp -f /etc/resolv.conf $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot}/etc/;\
 }\
 %{nil}
 
+#
+#Unmount the container fs after installation is complete
+#
+%finalize_container_fs() {\
+	umount $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot} && echo;\
+	if [ -f %{_unitdir}/var-lib-machines-%1.mount ];\
+	then\
+		systemctl stop var-lib-machines-%1.mount;\
+	fi;\
+}\
+%{nil}
+
+#
+# Macros for installing files to the container
+# install_base_container_fs does the initial population of the rootfs with the
+# dnf fedora-release and fedora-repos packages
+#
+%install_base_container_fs() {\
+	/usr/bin/dnf --noplugins -v -y --installroot=$RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/rootfs/ --releasever %{fedora} install dnf fedora-release fedora-repos;\
+	/usr/bin/dnf --noplugins -v -y --installroot=$RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/rootfs/ clean all;\
+}\
+%{nil}
+
+#
+# install additional packages to the container
+# installs packages defined by container_packages via chroot operation
+# to ensure clean environment during install
 %install_packages_to_container() {\
 	/usr/sbin/chroot $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot} /usr/bin/dnf --noplugins -v -y install %{container_packages};\
 	/usr/sbin/chroot $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot} /usr/bin/dnf --noplugins -v -y clean all\
@@ -65,6 +111,14 @@ mkdir -p $RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/work\
 %{nil}
 
 #
+#Convienience Macro to run a command inside the container fs
+#
+%run_in_container() {\
+	chroot $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot}/ %*\
+}\
+%{nil}
+
+#
 #Macro to create a mount unit
 #Takes 1 argument:
 #1) lowerdir for the mount point 
@@ -79,7 +133,7 @@ StopWhenUnneeded=true
 Type=overlay
 What=overlay
 Where=/var/lib/machines/%{ctreeroot}
-Options=lowerdir=%{replacepath}/%{ctreeroot}/none,upperdir=%{replacepath}/%{ctreeroot}/rootfs,workdir=%{replacepath}/%{ctreeroot}/work
+Options=lowerdir=%{freightimagepath}/%{ctreeroot}/none,upperdir=%{freightimagepath}/%{ctreeroot}/rootfs,workdir=%{freightimagepath}/%{ctreeroot}/work
 EOF
 %else
 cat > %{buildroot}/%{_unitdir}/var-lib-machines-%{ctreeroot}.mount << 'EOF'
@@ -92,10 +146,11 @@ After=var-lib-machines-%1.mount
 Type=overlay
 What=overlay
 Where=/var/lib/machines/%{ctreeroot}
-Options=lowerdir=/var/lib/machines/%1,upperdir=%{replacepath}/%{ctreeroot}/rootfs,workdir=%{replacepath}/%{ctreeroot}/work
+Options=lowerdir=/var/lib/machines/%1,upperdir=%{freightimagepath}/%{ctreeroot}/rootfs,workdir=%{freightimagepath}/%{ctreeroot}/work
 EOF
 %endif
 }
+
 
 #
 #Macro to create the container service
@@ -128,30 +183,3 @@ EOF
 }
 
 
-%activate_container_fs() {\
-	if [ -f %{_unitdir}/var-lib-machines-%1.mount ];\
-	then\
-		systemctl start var-lib-machines-%1.mount;\
-		mount -t overlay overlay -o lowerdir=%{replacepath}/%1/rootfs,upperdir=$RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/rootfs,workdir=$RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/work $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot};\
-	else\
-		mkdir -p $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot};\
-		mount -t overlay overlay -o lowerdir=$RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/none,upperdir=$RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/rootfs,workdir=$RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/work $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot};\
-	fi;\
-	mkdir -p $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot}/etc/;\
-	cp -f /etc/resolv.conf $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot}/etc/;\
-}\
-%{nil}
-
-%finalize_container_fs() {\
-	umount $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot} && echo;\
-	if [ -f %{_unitdir}/var-lib-machines-%1.mount ];\
-	then\
-		systemctl stop var-lib-machines-%1.mount;\
-	fi;\
-}\
-%{nil}
-
-%run_in_container() {\
-	chroot $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot}/ %*\
-}\
-%{nil}
