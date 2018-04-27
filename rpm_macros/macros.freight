@@ -28,9 +28,9 @@ mkdir -p $RPM_BUILD_ROOT/%{_unitdir}/\
 mkdir -p $RPM_BUILD_ROOT/%{_sysconfdir}/sysconfig/freight\
 mkdir -p $RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/etc/\
 mkdir -p $RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/usr/lib\
+mkdir -p $RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/none\
 ln -s ../usr/lib/os-release $RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/etc/os-release\
 # Create the lower and work directories\
-mkdir -p $RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/none\
 mkdir -p $RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/work\
 %{nil}
 
@@ -70,21 +70,22 @@ mkdir -p $RPM_BUILD_ROOT/%{replacepath}/%{ctreeroot}/work\
 #1) lowerdir for the mount point 
 #
 %create_freight_mount_unit() %{expand:
+%if "%1" == "none"
 cat > %{buildroot}/%{_unitdir}/var-lib-machines-%{ctreeroot}.mount << 'EOF'
 [Unit]
 Description=Mount for container %{ctreeroot}
+StopWhenUnneeded=true
 [Mount]
 Type=overlay
 What=overlay
 Where=/var/lib/machines/%{ctreeroot}
-Options=lowerdir=%1,upperdir=%{replacepath}/%{ctreeroot}/rootfs,workdir=%{replacepath}/%{ctreeroot}/work
+Options=lowerdir=%{replacepath}/%{ctreeroot}/none,upperdir=%{replacepath}/%{ctreeroot}/rootfs,workdir=%{replacepath}/%{ctreeroot}/work
 EOF
-}
-
-%create_freight_child_mount_unit() %{expand:
+%else
 cat > %{buildroot}/%{_unitdir}/var-lib-machines-%{ctreeroot}.mount << 'EOF'
 [Unit]
 Description=Mount for container %{ctreeroot}
+StopWhenUnneeded=true
 Requires=var-lib-machines-%1.mount
 After=var-lib-machines-%1.mount
 [Mount]
@@ -93,6 +94,7 @@ What=overlay
 Where=/var/lib/machines/%{ctreeroot}
 Options=lowerdir=/var/lib/machines/%1,upperdir=%{replacepath}/%{ctreeroot}/rootfs,workdir=%{replacepath}/%{ctreeroot}/work
 EOF
+%endif
 }
 
 #
@@ -106,8 +108,8 @@ Requires=var-lib-machines-%{ctreeroot}.mount
 [Service]
 Type=simple
 EnvironmentFile=/etc/sysconfig/freight/%{ctreeroot}-%I
-ExecStart=/usr/bin/systemd-nspawn -b --machine=%{name}-%I --directory=/var/lib/machines/%{ctreeroot} $MACHINE_OPTS
-ExecStop=/usr/bin/systemd-nspawn poweroff %{name}-%I
+ExecStart=/usr/bin/systemd-nspawn -b --machine=%{ctreeroot}-%I --directory=/var/lib/machines/%{ctreeroot} $MACHINE_OPTS
+ExecStop=/usr/bin/systemd-nspawn poweroff %{ctreeroot}-%I
 [Install]
 Also=dbus.service
 DefaultInstance=default

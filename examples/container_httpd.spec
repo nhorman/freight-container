@@ -20,19 +20,25 @@ Requires:	container_base-%{version}-%{release}
 Httpd container image
 
 %install
-# SETUP THE BASE DIRECTORIES TO HOLD THE CONTAINER FS
+# ===SETUP THE BASE DIRECTORIES TO HOLD THE CONTAINER FS===
 %create_freight_container_dirs 
 
-# INSTALL THE ADDITIONAL PACKAGES NEEDED FOR THIS CONTAINER
+# ===INSTALL THE ADDITIONAL PACKAGES NEEDED FOR THIS CONTAINER===
+
+# This mounts the parent container fs and our own container, using the parent
+# container fs as the lowerdir
 %activate_container_fs container_base_%{version}_%{release}
 
+# Install packages (defined by container_packages) to the container fs
 %install_packages_to_container
 
+# Generic chroot operation to default enable the httpd service
 %run_in_container systemctl enable httpd.service
 
+# Unmount our container fs and stop the parent mount unit
 %finalize_container_fs container_base_%{version}_%{release}
 
-# CREATION OF UNIT FILES
+# ===CREATION OF UNIT FILES===
 
 # We need a mount unit, which is responsible for creating the 
 # overlay fs mount.  For the base container the lowerdir is
@@ -40,7 +46,7 @@ Httpd container image
 # containers, the lowerdir will be the upperdir of the lower layer container
 # and the upper layer container will claim the lower container mountpoint as 
 # a dependency
-%create_freight_child_mount_unit container_base_%{version}_%{release}
+%create_freight_mount_unit container_base_%{version}_%{release}
 
 # This is the actual container service.  Starting this starts an instance of the
 # container being installed.  Note that the service is a template, allowing
@@ -53,10 +59,6 @@ Httpd container image
 
 %clean
 %finalize_container_fs container_base_%{version}_%{release}
-
-%post
-/usr/bin/dnf --noplugins -v -y --installroot=/%{replacepath}/%{ctreeroot} install %{container_packages}
-/usr/bin/dnf --noplugins -v -y --installroot=/%{replacepath}/%{ctreeroot} clean all
 
 %systemd_post %{name}.service
 %systemd_post var-lib-machines-%{ctreeroot}.mount
