@@ -1,7 +1,3 @@
-%freight_package
-
-%define container_packages httpd 
-
 Name: container_httpd	
 Version:	1
 Release:	1%{?dist}
@@ -9,9 +5,13 @@ Summary:	Httpd container
 Prefix:		/%{freightimagepath}
 Group:		System/Containers
 License:	GPLv2
-BuildRequires:	container_base-%{version}-%{release}
-Requires:	container_base-%{version}-%{release}
 
+
+# Packages we will install
+%define container_packages httpd 
+
+# Mark this as a freight container, specifying the parent
+%freight_package container_base_1_1.fc27
 
 %description
 Httpd container image

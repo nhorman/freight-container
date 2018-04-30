@@ -1,8 +1,3 @@
-# Mark this as being a freight container package
-%freight_package
-
-%define container_packages systemd bash iproute initscripts dhclient vim passwd
-
 Name: container_base		
 Version:	1
 Release:	1%{?dist}
@@ -10,8 +5,12 @@ Summary:	Base container
 Prefix:		/%{freightimagepath}
 Group:		System/Containers
 License:	GPLv2
-Provides:	%{name}-%{version}-%{release}
 
+# We have to define what packages this container is going to install (used with
+# the install_packages_to_container_macro below), and we have to run the
+# freight_package macro to mark this rpm as a container
+%define container_packages systemd bash iproute initscripts dhclient vim passwd
+%freight_package none
 
 %description
 Base container on which all others are built

@@ -27,6 +27,12 @@
 %global ctreeroot %{name}_%{version}_%{release}
 %global mountunitpath var-lib-freight-machines
 %global freightimagepath /var/lib/freight/machines
+AutoReqProv: no
+Provides: freight(%{ctreeroot})
+%if "%1" != "none"
+BuildRequires: freight(%1)
+Requires: freight(%1)
+%endif
 }
 
 #
