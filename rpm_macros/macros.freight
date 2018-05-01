@@ -21,39 +21,40 @@
 # Marks the spec file as freight container rpm, and sets up 
 # the proper global variables
 # Must be called at the top of the spec file
-%freight_package() %{expand:
-%global __arch_install_post %nil
-%global _build_id_links none
+%freight_package() %{expand: 
+%global __arch_install_post %nil  
+%global _build_id_links none 
 %global ctreeroot %{name}_%{version}_%{release}
 %global mountunitpath var-lib-freight-machines
 %global freightimagepath /var/lib/freight/machines
-AutoReqProv: no
-Provides: freight(%{ctreeroot})
-%if "%1" != "none"
-BuildRequires: freight(%1)
-Requires: freight(%1)
+%global parentctree "%1"
+AutoReqProv: no 
+Provides: freight(%{ctreeroot}) 
+%if "%1" != "none" 
+BuildRequires: freight(%1) 
+Requires: freight(%1) 
 %endif
 }
 
 #
 #Create the base container filesystem layout
 #
-%create_freight_container_dirs() \
-mkdir -p $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot}\
-mkdir -p $RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/rootfs\
-mkdir -p $RPM_BUILD_ROOT/%{_unitdir}/\
-mkdir -p $RPM_BUILD_ROOT/%{_sysconfdir}/sysconfig/freight\
-mkdir -p $RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/etc/\
-mkdir -p $RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/usr/lib\
-mkdir -p $RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/none\
-mkdir -p $RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/work\
-ln -s ../usr/lib/os-release $RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/etc/os-release\
-%{nil}
+%create_freight_container_dirs() (\
+mkdir -p $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot};\
+mkdir -p $RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/rootfs;\
+mkdir -p $RPM_BUILD_ROOT/%{_unitdir}/;\
+mkdir -p $RPM_BUILD_ROOT/%{_sysconfdir}/sysconfig/freight;\
+mkdir -p $RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/etc/;\
+mkdir -p $RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/usr/lib;\
+mkdir -p $RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/none;\
+mkdir -p $RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/work;\
+ln -s ../usr/lib/os-release $RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/etc/os-release;\
+)
 
 #
 #Mount the container fs for use with install macros below
 #
-%activate_container_fs() {\
+%activate_container_fs() (\
 	if [ -f %{_unitdir}/var-lib-machines-%1.mount ];\
 	then\
 		systemctl start var-lib-machines-%1.mount;\
@@ -64,96 +65,81 @@ ln -s ../usr/lib/os-release $RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/etc
 	fi;\
 	mkdir -p $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot}/etc/;\
 	cp -f /etc/resolv.conf $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot}/etc/;\
-}\
-%{nil}
+)
 
 #
 #Unmount the container fs after installation is complete
 #
-%finalize_container_fs() {\
+%finalize_container_fs() (\
 	umount $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot} && echo;\
 	if [ -f %{_unitdir}/var-lib-machines-%1.mount ];\
 	then\
 		systemctl stop var-lib-machines-%1.mount;\
 	fi;\
-}\
-%{nil}
+)
 
 #
 # Macros for installing files to the container
 # install_base_container_fs does the initial population of the rootfs with the
 # dnf fedora-release and fedora-repos packages
 #
-%install_base_container_fs() {\
+%install_base_container_fs() (\
 	/usr/bin/dnf --noplugins -v -y --installroot=$RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/rootfs/ --releasever %{fedora} install dnf fedora-release fedora-repos;\
 	/usr/bin/dnf --noplugins -v -y --installroot=$RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/rootfs/ clean all;\
-}\
-%{nil}
+)
 
 #
 # install additional packages to the container
 # installs packages defined by container_packages via chroot operation
 # to ensure clean environment during install
-%install_packages_to_container() {\
+%install_packages_to_container() (\
 	/usr/sbin/chroot $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot} /usr/bin/dnf --noplugins -v -y install %{container_packages};\
 	/usr/sbin/chroot $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot} /usr/bin/dnf --noplugins -v -y clean all\
-}\
-%{nil}
+)
 
 #Convienience macros to fix up selinux context
-%set_selinux_file_context() {\
+%set_selinux_file_context() (\
 	/usr/sbin/semanage fcontext --modify -t %1 "$RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot}/%2" || /usr/sbin/semanage fcontext --add -t %1 "$RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot}/%2"\
-}\
-%{nil}
+)
 
-%restorecon() {\
+%restorecon() (\
 	/usr/sbin/restorecon -v "$RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot}/%1"\
-}\%{nil}
+)
 
 #Macro to assign root passwd to the container
-%set_container_root_pw() {\
+%set_container_root_pw() (\
 	/usr/sbin/chroot $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot}/ /bin/sh -c "echo %1 | passwd --stdin root"\
-}\
-%{nil}
+)
 
 #
 #Convienience Macro to run a command inside the container fs
 #
-%run_in_container() {\
+%run_in_container() (\
 	chroot $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot}/ %*\
-}\
-%{nil}
+)
 
 #
 #Macro to create a mount unit
 #Takes 1 argument:
 #1) lowerdir for the mount point 
 #
+
 %create_freight_mount_unit() %{expand:
-%if "%1" == "none"
-cat > %{buildroot}/%{_unitdir}/var-lib-machines-%{ctreeroot}.mount << 'EOF'
-[Unit]
-Description=Mount for container %{ctreeroot}
-StopWhenUnneeded=true
-[Mount]
-Type=overlay
-What=overlay
-Where=/var/lib/machines/%{ctreeroot}
-Options=lowerdir=%{freightimagepath}/%{ctreeroot}/none,upperdir=%{freightimagepath}/%{ctreeroot}/rootfs,workdir=%{freightimagepath}/%{ctreeroot}/work
-EOF
+echo "[Unit]" > %{buildroot}/%{_unitdir}/var-lib-machines-%{ctreeroot}.mount
+echo "Description=Mount for container %{ctreeroot}" >> %{buildroot}/%{_unitdir}/var-lib-machines-%{ctreeroot}.mount
+echo "StopWhenUnneeded=true" >> %{buildroot}/%{_unitdir}/var-lib-machines-%{ctreeroot}.mount
+%if %{parentctree} != "none"
+echo "Requires=var-lib-machines-%{parentctree}.mount" >> %{buildroot}/%{_unitdir}/var-lib-machines-%{ctreeroot}.mount
+echo "After=var-lib-machines-%{parentctree}.mount" >> %{buildroot}/%{_unitdir}/var-lib-machines-%{ctreeroot}.mount
+%endif
+echo "[Mount]" >> %{buildroot}/%{_unitdir}/var-lib-machines-%{ctreeroot}.mount
+echo "Type=overlay" >> %{buildroot}/%{_unitdir}/var-lib-machines-%{ctreeroot}.mount
+echo "What=overlay" >> %{buildroot}/%{_unitdir}/var-lib-machines-%{ctreeroot}.mount
+echo "Where=/var/lib/machines/%{ctreeroot}" >> %{buildroot}/%{_unitdir}/var-lib-machines-%{ctreeroot}.mount
+%if %{parentctree} != "none"
+echo "Options=lowerdir=/var/lib/machines/%{parentctree},upperdir=%{freightimagepath}/%{ctreeroot}/rootfs,workdir=%{freightimagepath}/%{ctreeroot}/work" >> %{buildroot}/%{_unitdir}/var-lib-machines-%{ctreeroot}.mount
 %else
-cat > %{buildroot}/%{_unitdir}/var-lib-machines-%{ctreeroot}.mount << 'EOF'
-[Unit]
-Description=Mount for container %{ctreeroot}
-StopWhenUnneeded=true
-Requires=var-lib-machines-%1.mount
-After=var-lib-machines-%1.mount
-[Mount]
-Type=overlay
-What=overlay
-Where=/var/lib/machines/%{ctreeroot}
-Options=lowerdir=/var/lib/machines/%1,upperdir=%{freightimagepath}/%{ctreeroot}/rootfs,workdir=%{freightimagepath}/%{ctreeroot}/work
-EOF
+echo "Options=lowerdir=%{freightimagepath}/%{ctreeroot}/none,upperdir=%{freightimagepath}/%{ctreeroot}/rootfs,workdir=%{freightimagepath}/%{ctreeroot}/work" >> %{buildroot}/%{_unitdir}/var-lib-machines-%{ctreeroot}.mount
 %endif
 }
 
@@ -166,6 +152,7 @@ cat > %{buildroot}/%{_unitdir}/%{ctreeroot}@.service << 'EOF'
 [Unit]
 Description=%{ctreeroot} service  for Freight
 Requires=var-lib-machines-%{ctreeroot}.mount
+After=var-lib-machines-%{ctreeroot}.mount
 [Service]
 Type=simple
 EnvironmentFile=/etc/sysconfig/freight/%{ctreeroot}-%I

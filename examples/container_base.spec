@@ -10,7 +10,7 @@ License:	GPLv2
 # the install_packages_to_container_macro below), and we have to run the
 # freight_package macro to mark this rpm as a container
 %define container_packages systemd bash iproute initscripts dhclient vim passwd
-%freight_package none
+%freight_package none 
 
 %description
 Base container on which all others are built
@@ -43,6 +43,7 @@ Base container on which all others are built
 # and the upper layer container will claim the lower container mountpoint as 
 # a dependency
 %create_freight_mount_unit none
+
 
 # This is the actual container service.  Starting this starts an instance of the
 # container being installed.  Note that the service is a template, allowing
