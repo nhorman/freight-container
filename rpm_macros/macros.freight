@@ -40,15 +40,15 @@ Requires: freight(%1)
 #Create the base container filesystem layout
 #
 %create_freight_container_dirs() (\
-mkdir -p $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot};\
-mkdir -p $RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/rootfs;\
-mkdir -p $RPM_BUILD_ROOT/%{_unitdir}/;\
-mkdir -p $RPM_BUILD_ROOT/%{_sysconfdir}/sysconfig/freight;\
-mkdir -p $RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/etc/;\
-mkdir -p $RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/usr/lib;\
-mkdir -p $RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/none;\
-mkdir -p $RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/work;\
-ln -s ../usr/lib/os-release $RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/etc/os-release;\
+mkdir -p %{buildroot}/var/lib/machines/%{ctreeroot};\
+mkdir -p %{buildroot}/%{freightimagepath}/%{ctreeroot}/rootfs;\
+mkdir -p %{buildroot}/%{_unitdir}/;\
+mkdir -p %{buildroot}/%{_sysconfdir}/sysconfig/freight;\
+mkdir -p %{buildroot}/%{freightimagepath}/%{ctreeroot}/etc/;\
+mkdir -p %{buildroot}/%{freightimagepath}/%{ctreeroot}/usr/lib;\
+mkdir -p %{buildroot}/%{freightimagepath}/%{ctreeroot}/none;\
+mkdir -p %{buildroot}/%{freightimagepath}/%{ctreeroot}/work;\
+ln -s ../usr/lib/os-release %{buildroot}/%{freightimagepath}/%{ctreeroot}/etc/os-release;\
 )
 
 #
@@ -58,20 +58,20 @@ ln -s ../usr/lib/os-release $RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/etc
 	if [ -f %{_unitdir}/var-lib-machines-%1.mount ];\
 	then\
 		systemctl start var-lib-machines-%1.mount;\
-		mount -t overlay overlay -o lowerdir=%{freightimagepath}/%1/rootfs,upperdir=$RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/rootfs,workdir=$RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/work $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot};\
+		mount -t overlay overlay -o lowerdir=%{freightimagepath}/%1/rootfs,upperdir=%{buildroot}/%{freightimagepath}/%{ctreeroot}/rootfs,workdir=%{buildroot}/%{freightimagepath}/%{ctreeroot}/work %{buildroot}/var/lib/machines/%{ctreeroot};\
 	else\
-		mkdir -p $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot};\
-		mount -t overlay overlay -o lowerdir=$RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/none,upperdir=$RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/rootfs,workdir=$RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/work $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot};\
+		mkdir -p %{buildroot}/var/lib/machines/%{ctreeroot};\
+		mount -t overlay overlay -o lowerdir=%{buildroot}/%{freightimagepath}/%{ctreeroot}/none,upperdir=%{buildroot}/%{freightimagepath}/%{ctreeroot}/rootfs,workdir=%{buildroot}/%{freightimagepath}/%{ctreeroot}/work %{buildroot}/var/lib/machines/%{ctreeroot};\
 	fi;\
-	mkdir -p $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot}/etc/;\
-	cp -f /etc/resolv.conf $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot}/etc/;\
+	mkdir -p %{buildroot}/var/lib/machines/%{ctreeroot}/etc/;\
+	cp -f /etc/resolv.conf %{buildroot}/var/lib/machines/%{ctreeroot}/etc/;\
 )
 
 #
 #Unmount the container fs after installation is complete
 #
 %finalize_container_fs() (\
-	umount $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot} && echo;\
+	umount %{buildroot}/var/lib/machines/%{ctreeroot} && echo;\
 	if [ -f %{_unitdir}/var-lib-machines-%1.mount ];\
 	then\
 		systemctl stop var-lib-machines-%1.mount;\
@@ -84,8 +84,8 @@ ln -s ../usr/lib/os-release $RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/etc
 # dnf fedora-release and fedora-repos packages
 #
 %install_base_container_fs() (\
-	/usr/bin/dnf --noplugins -v -y --installroot=$RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/rootfs/ --releasever %{fedora} install dnf fedora-release fedora-repos;\
-	/usr/bin/dnf --noplugins -v -y --installroot=$RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/rootfs/ clean all;\
+	/usr/bin/dnf --noplugins -v -y --installroot=%{buildroot}/%{freightimagepath}/%{ctreeroot}/rootfs/ --releasever %{fedora} install dnf fedora-release fedora-repos;\
+	/usr/bin/dnf --noplugins -v -y --installroot=%{buildroot}/%{freightimagepath}/%{ctreeroot}/rootfs/ clean all;\
 )
 
 #
@@ -93,29 +93,29 @@ ln -s ../usr/lib/os-release $RPM_BUILD_ROOT/%{freightimagepath}/%{ctreeroot}/etc
 # installs packages defined by container_packages via chroot operation
 # to ensure clean environment during install
 %install_packages_to_container() (\
-	/usr/sbin/chroot $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot} /usr/bin/dnf --noplugins -v -y install %{container_packages};\
-	/usr/sbin/chroot $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot} /usr/bin/dnf --noplugins -v -y clean all\
+	/usr/sbin/chroot %{buildroot}/var/lib/machines/%{ctreeroot} /usr/bin/dnf --noplugins -v -y install %{container_packages};\
+	/usr/sbin/chroot %{buildroot}/var/lib/machines/%{ctreeroot} /usr/bin/dnf --noplugins -v -y clean all\
 )
 
 #Convienience macros to fix up selinux context
 %set_selinux_file_context() (\
-	/usr/sbin/semanage fcontext --modify -t %1 "$RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot}/%2" || /usr/sbin/semanage fcontext --add -t %1 "$RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot}/%2"\
+	/usr/sbin/semanage fcontext --modify -t %1 "%{buildroot}/var/lib/machines/%{ctreeroot}/%2" || /usr/sbin/semanage fcontext --add -t %1 "%{buildroot}/var/lib/machines/%{ctreeroot}/%2"\
 )
 
 %restorecon() (\
-	/usr/sbin/restorecon -v "$RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot}/%1"\
+	/usr/sbin/restorecon -v "%{buildroot}/var/lib/machines/%{ctreeroot}/%1"\
 )
 
 #Macro to assign root passwd to the container
 %set_container_root_pw() (\
-	/usr/sbin/chroot $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot}/ /bin/sh -c "echo %1 | passwd --stdin root"\
+	/usr/sbin/chroot %{buildroot}/var/lib/machines/%{ctreeroot}/ /bin/sh -c "echo %1 | passwd --stdin root"\
 )
 
 #
 #Convienience Macro to run a command inside the container fs
 #
 %run_in_container() (\
-	chroot $RPM_BUILD_ROOT/var/lib/machines/%{ctreeroot}/ %*\
+	chroot %{buildroot}/var/lib/machines/%{ctreeroot}/ %*\
 )
 
 #
@@ -155,7 +155,7 @@ Requires=var-lib-machines-%{ctreeroot}.mount
 After=var-lib-machines-%{ctreeroot}.mount
 [Service]
 Type=simple
-ExecStart=/usr/bin/systemd-nspawn -b --machine=%{ctreeroot}-%I --directory=/var/lib/machines/%{ctreeroot}
+ExecStart=/usr/bin/systemd-nspawn -b --machine=%{ctreeroot}-%I --directory=/var/lib/machines/%{ctreeroot} $MACHINE_OPTS
 ExecStop=/usr/bin/systemd-nspawn poweroff %{ctreeroot}-%I
 [Install]
 Also=dbus.service
