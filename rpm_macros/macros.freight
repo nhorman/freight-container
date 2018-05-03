@@ -155,8 +155,7 @@ Requires=var-lib-machines-%{ctreeroot}.mount
 After=var-lib-machines-%{ctreeroot}.mount
 [Service]
 Type=simple
-EnvironmentFile=/etc/sysconfig/freight/%{ctreeroot}-%I
-ExecStart=/usr/bin/systemd-nspawn -b --machine=%{ctreeroot}-%I --directory=/var/lib/machines/%{ctreeroot} $MACHINE_OPTS
+ExecStart=/usr/bin/systemd-nspawn -b --machine=%{ctreeroot}-%I --directory=/var/lib/machines/%{ctreeroot}
 ExecStop=/usr/bin/systemd-nspawn poweroff %{ctreeroot}-%I
 [Install]
 Also=dbus.service
@@ -168,11 +167,11 @@ EOF
 #
 #Macro to create sysconf file for default service instance
 #
-%create_freight_sysconf() %{expand:
-mkdir -p %{buildroot}/etc/sysconfig/freight/
-cat > %{buildroot}/etc/sysconfig/freight/%{ctreeroot}-default << 'EOF'
-MACHINE_OPTS=""
-EOF
+%create_freight_option_file() %{expand:
+mkdir -p %{buildroot}/etc/systemd/nspawn/
+echo "# See man(5) systemd.nspawn for a list of options that can be specified here" > %{buildroot}/etc/systemd/nspawn/%{ctreeroot}-default.nspawn
+echo "[Exec]" >> %{buildroot}/etc/systemd/nspawn/%{ctreeroot}-default.nspawn
+echo "Boot=yes" >> %{buildroot}/etc/systemd/nspawn/%{ctreeroot}-default.nspawn
 }
 
 

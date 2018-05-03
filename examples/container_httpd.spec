@@ -46,8 +46,9 @@ Httpd container image
 
 # This is the options file for the container.  This file acts as the environment
 # file for the container instance started by the service of the same name.
-%create_freight_sysconf
+%create_freight_option_file
 
+%post
 %systemd_post %{name}.service
 %systemd_post var-lib-machines-%{ctreeroot}.mount
 
@@ -65,7 +66,7 @@ rm -rf %{freightimagepath}/%{ctreeroot}
 %dir /var/lib/machines/%{ctreeroot}
 /%{freightimagepath}/%{ctreeroot}/
 %{_unitdir}/*
-%config /%{_sysconfdir}/sysconfig/freight/*
+%config /etc/systemd/nspawn/*
 
 
 %changelog

@@ -52,7 +52,7 @@ Base container on which all others are built
 
 # This is the options file for the container.  This file acts as the environment
 # file for the container instance started by the service of the same name.
-%create_freight_sysconf
+%create_freight_option_file
 
 %clean
 %finalize_container_fs
@@ -75,8 +75,8 @@ Base container on which all others are built
 %dir /%{freightimagepath}/%{ctreeroot}
 /%{freightimagepath}/%{ctreeroot}/
 %{_unitdir}/*
-%dir /%{_sysconfdir}/sysconfig/freight
-%config /%{_sysconfdir}/sysconfig/freight/*
+%dir /etc/systemd/nspawn
+%config /etc/systemd/nspawn/*
 
 
 %changelog
