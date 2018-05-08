@@ -21,13 +21,13 @@ Httpd container image
 %create_freight_container_dirs 
 
 # INSTALL THE ADDITIONAL PACKAGES NEEDED FOR THIS CONTAINER
-%activate_container_fs container_base_%{version}_%{release}
+%activate_container_fs
 
 %install_packages_to_container
 
 %run_in_container systemctl enable httpd.service
 
-%finalize_container_fs container_base_%{version}_%{release}
+%finalize_container_fs
 
 # CREATION OF UNIT FILES
 
@@ -37,7 +37,7 @@ Httpd container image
 # containers, the lowerdir will be the upperdir of the lower layer container
 # and the upper layer container will claim the lower container mountpoint as 
 # a dependency
-%create_freight_mount_unit container_base_%{version}_%{release}
+%create_freight_mount_unit
 
 # This is the actual container service.  Starting this starts an instance of the
 # container being installed.  Note that the service is a template, allowing
@@ -63,7 +63,6 @@ rm -rf %{freightimagepath}/%{ctreeroot}
  
 
 %files
-%dir /var/lib/machines/%{ctreeroot}
 /%{freightimagepath}/%{ctreeroot}/
 %{_unitdir}/*
 %config /etc/systemd/nspawn/*

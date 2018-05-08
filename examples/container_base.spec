@@ -10,7 +10,7 @@ License:	GPLv2
 # the install_packages_to_container_macro below), and we have to run the
 # freight_package macro to mark this rpm as a container
 %define container_packages systemd bash iproute initscripts dhclient vim passwd
-%freight_package none 
+%freight_base_package 
 
 %description
 Base container on which all others are built
@@ -22,7 +22,7 @@ Base container on which all others are built
 
 # Install the file system
 %install_base_container_fs
-%activate_container_fs none
+%activate_container_fs
 %install_packages_to_container
 
 # Fix up our selinux context as needed
@@ -71,7 +71,6 @@ Base container on which all others are built
  
 
 %files
-%dir /var/lib/machines/%{ctreeroot}
 %dir /%{freightimagepath}/%{ctreeroot}
 /%{freightimagepath}/%{ctreeroot}/
 %{_unitdir}/*
