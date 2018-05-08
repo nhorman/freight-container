@@ -57,6 +57,7 @@ mkdir -p %{buildroot}/%{freightimagepath}/%{ctreeroot}/usr/lib;\
 mkdir -p %{buildroot}/%{freightimagepath}/%{ctreeroot}/none;\
 mkdir -p %{buildroot}/%{freightimagepath}/%{ctreeroot}/work;\
 mkdir -p %{buildroot}/%{freightimagepath}/%{ctreeroot}/mount;\
+mkdir -p %{buildroot}/%{freightimagepath}/%{ctreeroot}/instances;\
 ln -s ../usr/lib/os-release %{buildroot}/%{freightimagepath}/%{ctreeroot}/etc/os-release;\
 )
 
@@ -163,8 +164,15 @@ Requires=%{freightmountunitname}
 After=%{freightmountunitname}
 [Service]
 Type=simple
-ExecStart=/usr/bin/systemd-nspawn -b --machine=%{ctreeroot}-%I --directory=%{freightimagepath}/%{ctreeroot}/mount
+ExecStartPre=/usr/bin/mkdir /var/lib/machines/%{ctreeroot}-%I
+ExecStartPre=/usr/bin/mkdir -p %{freightimagepath}/%{ctreeroot}/instances/%I/work
+ExecStartPre=/usr/bin/mkdir -p %{freightimagepath}/%{ctreeroot}/instances/%I/rootfs
+ExecStartPre=/usr/bin/mount -t overlay overlay -o lowerdir=%{freightimagepath}/%{ctreeroot}/mount,upperdir=%{freightimagepath}/%{ctreeroot}/instances/%I/rootfs,workdir=%{freightimagepath}/%{ctreeroot}/instances/%I/work /var/lib/machines/%{ctreeroot}-%I 
+ExecStart=/usr/bin/systemd-nspawn -b --machine=%{ctreeroot}-%I --directory=/var/lib/machines/%{ctreeroot}-%I/
 ExecStop=/usr/bin/systemd-nspawn poweroff %{ctreeroot}-%I
+ExecStopPost=/usr/bin/umount /var/lib/machines/%{ctreeroot}-%I
+ExecStopPost=/usr/bin/rm -rf /var/lib/machines/%{ctreeroot}-%I
+ExecStopPost=/usr/bin/rm -rf %{freightimagepath}/%{ctreeroot}/instances/%I/
 [Install]
 Also=dbus.service
 DefaultInstance=default
