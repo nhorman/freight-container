@@ -11,7 +11,7 @@ License:	GPLv2
 %define container_packages httpd 
 
 # Mark this as a freight container, specifying the parent
-%freight_package container_base_1_1.fc27
+%freight_package container_base_1_1%{?dist}
 
 %description
 Httpd container image

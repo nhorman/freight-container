@@ -1,0 +1,68 @@
+#!/bin/sh
+
+##########################################################
+#Copyright 2018 Neil Horman
+#
+# freight-cmd
+# Utility to manipulate freight containers
+#########################################################
+
+usage() {
+	echo "freight-cmd [cmd]"
+	echo "cmd = [mount <moptions> | umount <umoptions>]"
+	echo "moptions=<container> <instance name> <prefix>"
+	echo "umoptions=<container> <instance name>"
+}
+
+build_lower() {
+	set -x
+	local container=$1
+	local prefix=$2
+	local pathset=""
+	local nextparent=`cat $prefix/var/lib/freight/machines/$container/parent`
+	
+	while [ -d /var/lib/freight/machines/$nextparent ]
+	do
+		if [ -z "$pathset" ]
+		then
+			pathset="/var/lib/freight/machines/$nextparent/rootfs"
+		else
+			pathset="/var/lib/freight/machines/$nextparent/rootfs:$pathset"
+		fi
+		if [ ! -f /var/lib/freight/machines/$nextparent/parent ]
+		then
+			break
+		fi
+		nextparent=`cat /var/lib/freight/machines/$nextparent/parent`
+	done
+	echo $pathset
+	set +x
+}
+
+do_mount() {
+	set -x
+	local container=$1
+	local instance=$2
+	local prefix=$3
+	lowerdirs=`build_lower $container $prefix`
+	mount -t overlay overlay -o lowerdir=$lowerdirs,upperdir=$prefix/var/lib/freight/machines/$container/rootfs,workdir=$prefix/var/lib/freight/machines/$container/work/ $prefix/var/lib/machines/$container-$instance
+	set +x
+}
+
+
+
+########################################################
+# START
+#######################################################
+
+case $1 in 
+mount)
+	shift
+	do_mount $*
+	;;
+*)
+	usage
+	exit 1
+	;;
+esac
+

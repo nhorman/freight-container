@@ -54,8 +54,6 @@ Base container on which all others are built
 # file for the container instance started by the service of the same name.
 %create_freight_option_file
 
-%clean
-%finalize_container_fs
 
 %post
 %systemd_post container_base.service
@@ -73,6 +71,7 @@ Base container on which all others are built
 %files
 %dir /%{freightimagepath}/%{ctreeroot}
 /%{freightimagepath}/%{ctreeroot}/
+%dir /%{freightimagepath}/none/rootfs
 %{_unitdir}/*
 %dir /etc/systemd/nspawn
 %config /etc/systemd/nspawn/*

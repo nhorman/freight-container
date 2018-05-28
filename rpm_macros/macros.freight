@@ -39,7 +39,7 @@ Provides: freight(%{ctreeroot})
 }
 
 %freight_package() %{expand:
-%freight_package_common %1
+%freight_package_common %*
 %global parentmountunitname var-lib-freight-machines-%{parentctree}-mount.mount
 BuildRequires: freight(%1) 
 Requires: freight(%1) 
@@ -54,37 +54,36 @@ mkdir -p %{buildroot}/%{_unitdir}/;\
 mkdir -p %{buildroot}/%{_sysconfdir}/sysconfig/freight;\
 mkdir -p %{buildroot}/%{freightimagepath}/%{ctreeroot}/etc/;\
 mkdir -p %{buildroot}/%{freightimagepath}/%{ctreeroot}/usr/lib;\
-mkdir -p %{buildroot}/%{freightimagepath}/%{ctreeroot}/none;\
 mkdir -p %{buildroot}/%{freightimagepath}/%{ctreeroot}/work;\
-mkdir -p %{buildroot}/%{freightimagepath}/%{ctreeroot}/mount;\
+if [ "%{parentctree}" == "none" ];\
+then\
+	mkdir -p %{buildroot}/%{freightimagepath}/none/rootfs;\
+fi;\
 mkdir -p %{buildroot}/%{freightimagepath}/%{ctreeroot}/instances;\
-ln -s ../usr/lib/os-release %{buildroot}/%{freightimagepath}/%{ctreeroot}/etc/os-release;\
+echo %{parentctree} >> %{buildroot}/%{freightimagepath}/%{ctreeroot}/parent;\
+mkdir -p %{buildroot}/%{freightimagepath}/%{ctreeroot}/rootfs/etc/;\
+ln -s ../usr/lib/os-release %{buildroot}/%{freightimagepath}/%{ctreeroot}/rootfs/etc/os-release;\
 )
 
 #
 #Mount the container fs for use with install macros below
 #
 %activate_container_fs() (\
-if [ -f %{_unitdir}/%{parentmountunitname} ];\
-then\
-	systemctl start %{parentmountunitname};\
-	mount -t overlay overlay -o lowerdir=%{freightimagepath}/%{parentctree}/mount,upperdir=%{buildroot}/%{freightimagepath}/%{ctreeroot}/rootfs,workdir=%{buildroot}/%{freightimagepath}/%{ctreeroot}/work %{buildroot}/%{freightimagepath}/%{ctreeroot}/mount;\
-else\
-	mount -t overlay overlay -o lowerdir=%{buildroot}/%{freightimagepath}/%{ctreeroot}/none,upperdir=%{buildroot}/%{freightimagepath}/%{ctreeroot}/rootfs,workdir=%{buildroot}/%{freightimagepath}/%{ctreeroot}/work %{buildroot}/%{freightimagepath}/%{ctreeroot}/mount;\
-fi;\
-	mkdir -p %{buildroot}/%{freightimagepath}/%{ctreeroot}/mount/etc/;\
-	cp  -L /etc/resolv.conf %{buildroot}/%{freightimagepath}/%{ctreeroot}/mount/etc/resolv.conf;\
+set -x;\
+	mkdir -p /var/lib/freight/machines/none/rootfs;\
+	mkdir -p %{buildroot}/var/lib/machines/%{ctreeroot}-default;\
+	freight-cmd mount %{ctreeroot} default %{buildroot};\
+	mkdir -p %{buildroot}/var/lib/machines/%{ctreeroot}-default/etc/;\
+	cp  -L /etc/resolv.conf %{buildroot}/var/lib/machines/%{ctreeroot}-default/etc/resolv.conf;\
+set +x;\
 )
 
 #
 #Unmount the container fs after installation is complete
 #
 %finalize_container_fs() (\
-	umount %{buildroot}/%{freightimagepath}/%{ctreeroot}/mount && echo;\
-	if [ -f %{_unitdir}/var-lib-freight-%{parentctree}-mount.mount ];\
-	then\
-		systemctl stop var-lib-freight-%{%parentctree}-mount.mount;\
-	fi;\
+	umount %{buildroot}/var/lib/machines/%{ctreeroot}-default;\
+	rm -rf %{buildroot}/var/lib/machines/%{ctreeroot}-default;\
 )
 
 #
@@ -102,29 +101,29 @@ fi;\
 # installs packages defined by container_packages via chroot operation
 # to ensure clean environment during install
 %install_packages_to_container() (\
-	/usr/sbin/chroot %{buildroot}/%{freightimagepath}/%{ctreeroot}/mount /usr/bin/dnf --noplugins -v -y install %{container_packages};\
-	/usr/sbin/chroot %{buildroot}/%{freightimagepath}/%{ctreeroot}/mount /usr/bin/dnf --noplugins -v -y clean all;\
+	/usr/sbin/chroot %{buildroot}/var/lib/machines/%{ctreeroot}-default/ /usr/bin/dnf --noplugins -v -y install %{container_packages};\
+	/usr/sbin/chroot %{buildroot}/var/lib/machines/%{ctreeroot}-default /usr/bin/dnf --noplugins -v -y clean all;\
 )
 
 #Convienience macros to fix up selinux context
 %set_selinux_file_context() (\
-	/usr/sbin/semanage fcontext --modify -t %1 "%{buildroot}/%{freightimagepath}/%{ctreeroot}/mount/%2" || /usr/sbin/semanage fcontext --add -t %1 "%{buildroot}/%{freightimagepath}/%{ctreeroot}/mount/%2";\
+	/usr/sbin/semanage fcontext --modify -t %1 "%{buildroot}/var/lib/machines/%{ctreeroot}-default/%2" || /usr/sbin/semanage fcontext --add -t %1 "%{buildroot}/var/lib/machines/%{ctreeroot}-default/%2";\
 )
 
 %restorecon() (\
-	/usr/sbin/restorecon -v "%{buildroot}/%{freightimagepath}/%{ctreeroot}/mount/%1";\
+	/usr/sbin/restorecon -v "%{buildroot}/var/lib/machines/%{ctreeroot}-default/%1";\
 )
 
 #Macro to assign root passwd to the container
 %set_container_root_pw() (\
-	/usr/sbin/chroot %{buildroot}/%{freightimagepath}/%{ctreeroot}/mount /bin/sh -c "echo %1 | passwd --stdin root"\
+	/usr/sbin/chroot %{buildroot}/var/lib/machines/%{ctreeroot}-default /bin/sh -c "echo %1 | passwd --stdin root"\
 )
 
 #
 #Convienience Macro to run a command inside the container fs
 #
 %run_in_container() (\
-	chroot %{buildroot}/%{freightimagepath}/%{ctreeroot}/mount %*\
+	chroot %{buildroot}/var/lib/machines/%{ctreeroot}-default %*\
 )
 
 #
