@@ -34,6 +34,9 @@ presents an interesting (and much simpler) approach to containers that is good
 for learning, and potentially usefull for smaller installations.
 
 
+## Install
+Just copy freight-cmd to /usr/bin and macros.freight to /usr/lib/rpm/macros.d
+
 ## Example
 Using the current examples, you can build the following 2 containers:
 * container_base
