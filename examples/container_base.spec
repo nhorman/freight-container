@@ -36,15 +36,6 @@ Base container on which all others are built
 
 # CREATION OF UNIT FILES
 
-# We need a mount unit, which is responsible for creating the 
-# overlay fs mount.  For the base container the lowerdir is
-# specified as an empty directory (named none).  For higher layer
-# containers, the lowerdir will be the upperdir of the lower layer container
-# and the upper layer container will claim the lower container mountpoint as 
-# a dependency
-%create_freight_mount_unit none
-
-
 # This is the actual container service.  Starting this starts an instance of the
 # container being installed.  Note that the service is a template, allowing
 # multiple instances of the container to be created

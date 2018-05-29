@@ -15,7 +15,6 @@ usage() {
 }
 
 build_lower() {
-	set -x
 	local container=$1
 	local prefix=$2
 	local pathset=""
@@ -36,20 +35,21 @@ build_lower() {
 		nextparent=`cat /var/lib/freight/machines/$nextparent/parent`
 	done
 	echo $pathset
-	set +x
 }
 
 do_mount() {
-	set -x
 	local container=$1
 	local instance=$2
 	local prefix=$3
 	lowerdirs=`build_lower $container $prefix`
 	mount -t overlay overlay -o lowerdir=$lowerdirs,upperdir=$prefix/var/lib/freight/machines/$container/rootfs,workdir=$prefix/var/lib/freight/machines/$container/work/ $prefix/var/lib/machines/$container-$instance
-	set +x
 }
 
-
+do_unmount() {
+	local container=$1
+	local instance=$2
+	umount /var/lib/machines/$container-$instance
+}
 
 ########################################################
 # START
@@ -59,6 +59,10 @@ case $1 in
 mount)
 	shift
 	do_mount $*
+	;;
+unmount)
+	shift
+	do_unmount $*
 	;;
 *)
 	usage

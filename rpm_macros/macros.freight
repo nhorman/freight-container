@@ -25,9 +25,7 @@
 %global __arch_install_post %nil  
 %global _build_id_links none 
 %global ctreeroot %{name}_%{version}_%{release}
-%global mountunitpath var-lib-freight-machines
 %global freightimagepath /var/lib/freight/machines
-%global freightmountunitname var-lib-freight-machines-%{ctreeroot}-mount.mount
 %global parentctree %1
 AutoReqProv: no 
 Provides: freight(%{ctreeroot}) 
@@ -35,12 +33,10 @@ Provides: freight(%{ctreeroot})
 
 %freight_base_package() %{expand:
 %freight_package_common none
-%global parentmountunitname no-parent-mount-unit.mount
 }
 
 %freight_package() %{expand:
 %freight_package_common %*
-%global parentmountunitname var-lib-freight-machines-%{parentctree}-mount.mount
 BuildRequires: freight(%1) 
 Requires: freight(%1) 
 }
@@ -127,49 +123,21 @@ set +x;\
 )
 
 #
-#Macro to create a mount unit
-#Takes 1 argument:
-#1) lowerdir for the mount point 
-#
-
-%create_freight_mount_unit() %{expand:
-echo "[Unit]" > %{buildroot}/%{_unitdir}/%{freightmountunitname}
-echo "Description=Mount for container %{ctreeroot}" >> %{buildroot}/%{_unitdir}/%{freightmountunitname}
-echo "StopWhenUnneeded=true" >> %{buildroot}/%{_unitdir}/%{freightmountunitname}
-%if "%{parentctree}" != "none"
-echo "Requires=%{parentmountunitname}" >> %{buildroot}/%{_unitdir}/%{freightmountunitname}
-echo "After=%{parentmountunitname}" >> %{buildroot}/%{_unitdir}/%{freightmountunitname}
-%endif
-echo "[Mount]" >> %{buildroot}/%{_unitdir}/%{freightmountunitname}
-echo "Type=overlay" >> %{buildroot}/%{_unitdir}/%{freightmountunitname}
-echo "What=overlay" >> %{buildroot}/%{_unitdir}/%{freightmountunitname}
-echo "Where=%{freightimagepath}/%{ctreeroot}/mount" >> %{buildroot}/%{_unitdir}/%{freightmountunitname}
-%if "%{parentctree}" != "none"
-echo "Options=lowerdir=%{freightimagepath}/%{parentctree}/mount,upperdir=%{freightimagepath}/%{ctreeroot}/rootfs,workdir=%{freightimagepath}/%{ctreeroot}/work" >> %{buildroot}/%{_unitdir}/%{freightmountunitname}
-%else
-echo "Options=lowerdir=%{freightimagepath}/%{ctreeroot}/none,upperdir=%{freightimagepath}/%{ctreeroot}/rootfs,workdir=%{freightimagepath}/%{ctreeroot}/work" >> %{buildroot}/%{_unitdir}/%{freightmountunitname}
-%endif
-}
-
-
-#
 #Macro to create the container service
 #
 %create_freight_service() %{expand:
 cat > %{buildroot}/%{_unitdir}/%{ctreeroot}@.service << 'EOF'
 [Unit]
 Description=%{ctreeroot} service  for Freight
-Requires=%{freightmountunitname}
-After=%{freightmountunitname}
 [Service]
 Type=simple
 ExecStartPre=/usr/bin/mkdir /var/lib/machines/%{ctreeroot}-%I
 ExecStartPre=/usr/bin/mkdir -p %{freightimagepath}/%{ctreeroot}/instances/%I/work
 ExecStartPre=/usr/bin/mkdir -p %{freightimagepath}/%{ctreeroot}/instances/%I/rootfs
-ExecStartPre=/usr/bin/mount -t overlay overlay -o lowerdir=%{freightimagepath}/%{ctreeroot}/mount,upperdir=%{freightimagepath}/%{ctreeroot}/instances/%I/rootfs,workdir=%{freightimagepath}/%{ctreeroot}/instances/%I/work /var/lib/machines/%{ctreeroot}-%I 
+ExecStartPre=/usr/bin/freight-cmd mount %{ctreeroot} %I
 ExecStart=/usr/bin/systemd-nspawn -b --machine=%{ctreeroot}-%I --directory=/var/lib/machines/%{ctreeroot}-%I/
 ExecStop=/usr/bin/systemd-nspawn poweroff %{ctreeroot}-%I
-ExecStopPost=/usr/bin/umount /var/lib/machines/%{ctreeroot}-%I
+ExecStopPost=/usr/bin/freight-cmd unmount %{ctreeroot} %I
 ExecStopPost=/usr/bin/rm -rf /var/lib/machines/%{ctreeroot}-%I
 ExecStopPost=/usr/bin/rm -rf %{freightimagepath}/%{ctreeroot}/instances/%I/
 [Install]
