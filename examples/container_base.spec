@@ -9,7 +9,7 @@ License:	GPLv2
 # We have to define what packages this container is going to install (used with
 # the install_packages_to_container_macro below), and we have to run the
 # freight_package macro to mark this rpm as a container
-%define container_packages systemd bash iproute initscripts dhclient vim passwd
+%define container_packages systemd bash iproute initscripts dhclient vim selinux-policy passwd
 %freight_base_package 
 
 %description
@@ -24,10 +24,6 @@ Base container on which all others are built
 %install_base_container_fs
 %activate_container_fs
 %install_packages_to_container
-
-# Fix up our selinux context as needed
-%set_selinux_file_context shadow_t etc/shadow
-%restorecon etc/shadow
 
 # Set our default root password
 %set_container_root_pw redhat
@@ -48,15 +44,12 @@ Base container on which all others are built
 
 %post
 %systemd_post container_base.service
-%systemd_post var-lib-machines-%{ctreeroot}.mount
 
 %preun
 %systemd_preun container_base.service
-%systemd_preun var-lib-machines-%{ctreeroot}.mount
 
 %postun
 %systemd_postun_with_restart container_base.service
-%systemd_postun_with_restart var-lib-machines-%{ctreeroot}.mount
  
 
 %files

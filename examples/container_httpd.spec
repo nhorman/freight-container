@@ -42,15 +42,12 @@ Httpd container image
 
 %post
 %systemd_post %{name}.service
-%systemd_post var-lib-machines-%{ctreeroot}.mount
 
 %preun
 %systemd_preun %{name}.service
-%systemd_preun var-lib-machines-%{ctreeroot}.mount
 
 %postun
 %systemd_postun_with_restart %{name}.service
-%systemd_postun_with_restart var-lib-machines-%{ctreeroot}.mount
 rm -rf %{freightimagepath}/%{ctreeroot}
  
 
