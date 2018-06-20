@@ -26,11 +26,13 @@ package format.
 %install
 mkdir -p %{buildroot}%{rpmmacrodir}
 mkdir -p %{buildroot}/usr/bin
-mkdir -p %{buildroot}/%{_datadir}/freight/examples
+mkdir -p %{buildroot}/%{_datadir}/freight/examples/specs/
+mkdir -p %{buildroot}/%{_datadir}/freight/examples/mock/
 
 install -m 0644 rpm_macros/macros.freight %{buildroot}%{rpmmacrodir}
 install -m 0755 scripts/freight-cmd %{buildroot}/usr/bin/
-install -m 0644 examples/* %{buildroot}/%{_datadir}/freight/examples
+install -m 0644 examples/specs/* %{buildroot}/%{_datadir}/freight/examples/specs
+install -m 0644 examples/mock/* %{buildroot}/%{_datadir}/freight/examples/mock
 
 %files
 %doc README.md
