@@ -1,0 +1,39 @@
+.PU
+.TH freight-cmd "1" "Jun 2018" "Neil Horman"
+.SH NAME
+freight-cmd - utility script for mounting freight containers 
+.SH SYNOPSIS
+.B freight-cmd <command> <cmd-specific-options>
+.SH DESCRIPTION
+.I freight-cmd 
+Is a utility script meant for manipulating filesystem trees installed from
+freight based containers.  Generally, while it can be used on its own, it is
+meant to be run from systemd service scripts when starting and stopping
+containers created via the freight container system
+
+.SH COMMANDS  
+
+.TP
+.B mount <container> <instance> [prefix]
+.PP
+container - The name of the container that you wish to mount (taken from
+the rpm name that installed the filesystem)
+
+instance - The unique instance name of the container that you wish to mount
+
+prefix - optional, if you wish the container to be mounted some other place than
+/var/lib/machines, specify the prefix here
+
+.TP
+.B unmount <container> <instance>
+.PP
+container - The name of the container that you wish to mount (taken from the rpm
+name that installed the filesystem) 
+
+instance - The unique instance name of the container that you wish to mount
+
+.SH NOTES
+.TP
+Again, this utility is simply meant as a convienience for the freight container
+packaging system, and isn't meant to be used in a standalone fashion.
+
