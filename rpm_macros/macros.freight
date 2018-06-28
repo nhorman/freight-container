@@ -67,7 +67,7 @@ ln -s ../usr/lib/os-release %{buildroot}/%{freightimagepath}/%{ctreeroot}/rootfs
 #Mount the container fs for use with install macros below
 #
 %activate_container_fs() (\
-	mkdir -p /var/lib/freight/machines/none/rootfs;\
+	mkdir -p %{freightimagepath}/none/rootfs;\
 	mkdir -p %{buildroot}/var/lib/machines/%{ctreeroot}-default;\
 	freight-cmd mount %{ctreeroot} default %{buildroot};\
 	mkdir -p %{buildroot}/var/lib/machines/%{ctreeroot}-default/etc/;\
@@ -80,6 +80,7 @@ ln -s ../usr/lib/os-release %{buildroot}/%{freightimagepath}/%{ctreeroot}/rootfs
 %finalize_container_fs() (\
 	umount %{buildroot}/var/lib/machines/%{ctreeroot}-default;\
 	rm -rf %{buildroot}/var/lib/machines/%{ctreeroot}-default;\
+	rm -rf %{buildroot}/%{freightimagepath}/%{ctreeroot}/rootfs/root/rpmbuild;\
 )
 
 #
