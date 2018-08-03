@@ -5,7 +5,7 @@ Summary:	Httpd container
 Prefix:		/%{freightimagepath}
 Group:		System/Containers
 License:	GPLv2
-
+BuildRequires: freight-container
 
 # Packages we will install
 %define container_packages httpd 

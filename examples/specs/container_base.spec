@@ -5,6 +5,7 @@ Summary:	Base container
 Prefix:		/%{freightimagepath}
 Group:		System/Containers
 License:	GPLv2
+BuildRequires: freight-container
 
 # We have to define what packages this container is going to install (used with
 # the install_packages_to_container_macro below), and we have to run the

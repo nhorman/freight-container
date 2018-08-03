@@ -29,7 +29,6 @@
 %global parentctree %1
 AutoReqProv: no 
 Provides: freight(%{ctreeroot}) 
-BuildRequires: freight
 Requires: freight
 }
 
